@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - "cleanup"
+    tags:
+      - "v*"
 
 jobs:
   publishGitRelease:
@@ -24,7 +26,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v4
         with:
           version: latest
-          args: release --config=.goreleaser.yaml --clean --snapshot
+          args: release --config=.goreleaser.yaml --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.get_version.outputs.VERSION }}
