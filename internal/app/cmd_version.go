@@ -9,10 +9,10 @@ import (
 
 // PrintAppInfo to log
 func PrintAppInfo() {
-	log.Printf("Version:       %v", appVersion)
+	log.Printf("Version:       %v", Build)
 	log.Printf("Go version:    %v", runtime.Version())
 	log.Printf("Git commit:    %v", appGitCommit)
-	log.Printf("Built:         %v", appBuildTime)
+	log.Printf("Built:         %v", appBuildEpochString)
 }
 
 func init() {

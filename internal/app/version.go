@@ -1,12 +1,26 @@
 package app
 
-import _ "embed" // use embed!
+import (
+	_ "embed" // use embed!
+	"runtime/debug"
+	"time"
+)
 
-//go:embed .VERSION
-var appVersion string
-
-//go:embed .GIT_COMMIT
+var Build string
 var appGitCommit string
-
-//go:embed .BUILD_EPOCH
 var appBuildEpochString string
+
+func init() {
+	info, ok := debug.ReadBuildInfo()
+	if ok {
+		for _, kv := range info.Settings {
+			switch kv.Key {
+			case "vcs.revision":
+				appGitCommit = kv.Value
+			case "vcs.time":
+				LastCommit, _ := time.Parse(time.RFC3339, kv.Value)
+				appBuildEpochString = LastCommit.String()
+			}
+		}
+	}
+}
