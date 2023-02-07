@@ -1,0 +1,28 @@
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - main: ./cmd/mcs-backup
+    env:
+      - CGO_ENABLED=0
+    targets:
+      #- go_118_first_class
+      - linux_amd64_v1
+    binary: mcs-backup
+    ldflags:
+      - "-s -w -X main.build={{.Version}}"
+    flags:
+      - "-trimpath"
+    mod_timestamp: "{{ .CommitTimestamp }}"
+checksum:
+  name_template: "checksums.txt"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+archives:
+  - files:
+      - LICENSE*
+      - README*
