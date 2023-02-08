@@ -1,0 +1,600 @@
+{
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": "-- Grafana --",
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "target": {
+                    "limit": 100,
+                    "matchAny": false,
+                    "tags": [],
+                    "type": "dashboard"
+                },
+                "type": "dashboard"
+            }
+        ]
+    },
+    "editable": true,
+    "gnetId": null,
+    "graphTooltip": 2,
+    "id": 2,
+    "links": [
+        {
+            "asDropdown": false,
+            "icon": "external link",
+            "includeVars": false,
+            "keepTime": true,
+            "tags": [
+                "wiki-controller"
+            ],
+            "targetBlank": true,
+            "title": "New link",
+            "tooltip": "",
+            "type": "dashboards",
+            "url": ""
+        }
+    ],
+    "panels": [
+        {
+            "datasource": null,
+            "description": "",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "fixed"
+                    },
+                    "custom": {
+                        "fillOpacity": 50,
+                        "lineWidth": 2
+                    },
+                    "mappings": [
+                        {
+                            "options": {
+                                "from": 1,
+                                "result": {
+                                    "color": "dark-red",
+                                    "index": 0,
+                                    "text": "failed"
+                                },
+                                "to": 1
+                            },
+                            "type": "range"
+                        },
+                        {
+                            "options": {
+                                "from": 2,
+                                "result": {
+                                    "color": "dark-yellow",
+                                    "index": 1,
+                                    "text": "in progress"
+                                },
+                                "to": 2
+                            },
+                            "type": "range"
+                        },
+                        {
+                            "options": {
+                                "from": 0,
+                                "result": {
+                                    "color": "#aeaeae",
+                                    "index": 2,
+                                    "text": "unknown"
+                                },
+                                "to": 0
+                            },
+                            "type": "range"
+                        },
+                        {
+                            "options": {
+                                "from": 3,
+                                "result": {
+                                    "color": "dark-green",
+                                    "index": 3,
+                                    "text": "successful"
+                                },
+                                "to": 3
+                            },
+                            "type": "range"
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "#828282",
+                                "value": null
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 9,
+                "x": 0,
+                "y": 0
+            },
+            "id": 21,
+            "options": {
+                "alignValue": "left",
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom"
+                },
+                "mergeValues": true,
+                "rowHeight": 0.44,
+                "showValue": "auto",
+                "tooltip": {
+                    "mode": "single"
+                }
+            },
+            "targets": [
+                {
+                    "exemplar": true,
+                    "expr": "wiki_ro_state_update_info{job=\"wiki-controller\"}",
+                    "format": "time_series",
+                    "instant": false,
+                    "interval": "",
+                    "intervalFactor": 1,
+                    "legendFormat": ".. ..",
+                    "refId": "A"
+                }
+            ],
+            "title": "State",
+            "type": "state-timeline"
+        },
+        {
+            "datasource": "Loki",
+            "description": "(displayed in reverse order, latest messages are in top)",
+            "gridPos": {
+                "h": 20,
+                "w": 15,
+                "x": 9,
+                "y": 0
+            },
+            "id": 19,
+            "options": {
+                "dedupStrategy": "none",
+                "enableLogDetails": false,
+                "prettifyLogMessage": false,
+                "showCommonLabels": false,
+                "showLabels": false,
+                "showTime": true,
+                "sortOrder": "Descending",
+                "wrapLogMessage": false
+            },
+            "targets": [
+                {
+                    "expr": "{job=\"wiki-controller\"}",
+                    "refId": "A"
+                }
+            ],
+            "title": "Wiki Controller Log",
+            "type": "logs"
+        },
+        {
+            "datasource": null,
+            "description": "",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic",
+                        "seriesBy": "last"
+                    },
+                    "custom": {
+                        "axisLabel": "",
+                        "axisPlacement": "left",
+                        "axisWidth": 50,
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 20,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "smooth",
+                        "lineWidth": 2,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "dark-blue",
+                                "value": null
+                            },
+                            {
+                                "color": "dark-green",
+                                "value": 1
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 9,
+                "x": 0,
+                "y": 4
+            },
+            "id": 24,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom"
+                },
+                "tooltip": {
+                    "mode": "single"
+                }
+            },
+            "targets": [
+                {
+                    "exemplar": true,
+                    "expr": "wiki_ro_count_queued_total{instance=\"wiki-controller.wiki-controller.svc:8000\"}",
+                    "interval": "",
+                    "legendFormat": "{{exported_instance}}",
+                    "refId": "A"
+                }
+            ],
+            "title": "Job Queue",
+            "type": "timeseries"
+        },
+        {
+            "datasource": "Loki",
+            "description": "",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "axisWidth": 50,
+                        "barAlignment": 0,
+                        "drawStyle": "bars",
+                        "fillOpacity": 10,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 2,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "short"
+                },
+                "overrides": [
+                    {
+                        "__systemRef": "hideSeriesFrom",
+                        "matcher": {
+                            "id": "byNames",
+                            "options": {
+                                "mode": "exclude",
+                                "names": [
+                                    "restart count"
+                                ],
+                                "prefix": "All except:",
+                                "readOnly": true
+                            }
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.hideFrom",
+                                "value": {
+                                    "legend": false,
+                                    "tooltip": false,
+                                    "viz": true
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 9,
+                "x": 0,
+                "y": 8
+            },
+            "id": 22,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom"
+                },
+                "tooltip": {
+                    "mode": "single"
+                }
+            },
+            "pluginVersion": "8.1.1",
+            "targets": [
+                {
+                    "expr": "sum(count_over_time({job=\"wiki-controller\"}[1m] != \"deleted\" != \"jobs in the queue\" != \"restartCount\"))",
+                    "legendFormat": "remain",
+                    "refId": "A"
+                },
+                {
+                    "expr": "sum(count_over_time({job=\"wiki-controller\"}[1m] |= \"deleted\"))",
+                    "hide": false,
+                    "legendFormat": "deleted",
+                    "refId": "B"
+                },
+                {
+                    "expr": "sum(count_over_time({job=\"wiki-controller\"}[1m] |= \"jobs in the queue\"))",
+                    "hide": false,
+                    "legendFormat": "jobs info",
+                    "refId": "C"
+                },
+                {
+                    "expr": "sum(count_over_time({job=\"wiki-controller\"}[1m] |= \"restartCount\"))",
+                    "hide": false,
+                    "legendFormat": "restart count",
+                    "refId": "D"
+                }
+            ],
+            "title": "Log Stats",
+            "type": "timeseries"
+        },
+        {
+            "datasource": null,
+            "description": "",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisLabel": "",
+                        "axisPlacement": "left",
+                        "axisWidth": 50,
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 20,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "stepAfter",
+                        "lineWidth": 2,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 9,
+                "x": 0,
+                "y": 12
+            },
+            "id": 26,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom"
+                },
+                "tooltip": {
+                    "mode": "single"
+                }
+            },
+            "targets": [
+                {
+                    "exemplar": true,
+                    "expr": "wiki_ro_count_restarts",
+                    "interval": "",
+                    "legendFormat": "{{exported_instance}}",
+                    "refId": "A"
+                }
+            ],
+            "title": "Pod Restarts",
+            "type": "timeseries"
+        },
+        {
+            "datasource": null,
+            "description": "",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "axisWidth": 50,
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": [
+                    {
+                        "__systemRef": "hideSeriesFrom",
+                        "matcher": {
+                            "id": "byNames",
+                            "options": {
+                                "mode": "exclude",
+                                "names": [
+                                    "wiki_ro_count_deployments_total{instance=\"wiki-controller.wiki-controller.svc:8000\", job=\"wiki-controller\", successful=\"true\"}"
+                                ],
+                                "prefix": "All except:",
+                                "readOnly": true
+                            }
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.hideFrom",
+                                "value": {
+                                    "legend": false,
+                                    "tooltip": false,
+                                    "viz": true
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 9,
+                "x": 0,
+                "y": 16
+            },
+            "id": 28,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom"
+                },
+                "tooltip": {
+                    "mode": "single"
+                }
+            },
+            "targets": [
+                {
+                    "exemplar": true,
+                    "expr": "wiki_ro_count_deployments_total{job=\"wiki-controller\"}",
+                    "interval": "",
+                    "legendFormat": "successful: {{successful}}",
+                    "refId": "A"
+                }
+            ],
+            "title": "Deployments",
+            "type": "timeseries"
+        }
+    ],
+    "refresh": "1m",
+    "schemaVersion": 30,
+    "style": "dark",
+    "tags": [
+        "wiki-controller"
+    ],
+    "templating": {
+        "list": []
+    },
+    "time": {
+        "from": "now-7d",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "Log Viewer",
+    "uid": "WikiControllerLogViewer",
+    "version": 2
+}

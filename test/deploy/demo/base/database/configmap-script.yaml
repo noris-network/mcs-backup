@@ -1,0 +1,29 @@
+apiVersion: v1
+data:
+    entrypoint.sh: |
+        #!/usr/local/bin/bash
+        # database
+
+        trap "echo bye bye; exit 0" SIGTERM SIGINT
+
+        root=/mnt
+
+        # do something random to keep mcs-backup busy...
+        while true; do
+            rnd=$((1 + "$RANDOM" % 20))
+            rnd2=$(("$RANDOM" % 300))
+            for ((n = 1; n <= "$rnd"; n++)); do
+                files=$(find $root -type f | wc -l)
+                line=$((1 + "$RANDOM" % "$files"))
+                file=$(find $root -type f | sed "${line}q;d")
+                date >>"$file"
+            done
+            if [[ $rnd2 -eq 0 ]] && [[ $n%4 -eq 0 ]]; then
+                rm "$file"
+            fi
+            sleep 90
+            echo "files: $(find $root -type f | wc -l)    size: $(du -hs /mnt)"
+        done
+kind: ConfigMap
+metadata:
+    name: script

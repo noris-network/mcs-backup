@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: app-qa
+
+commonLabels:
+  environment: qa
+
+namePrefix: qa-
+
+resources:
+  - namespace.yaml
+  - ../../base
+
+patchesJson6902:
+  - target:
+      version: v1
+      kind: ConfigMap
+      name: pv-backup-env
+    patch: |-
+      - op: add
+        path: /data/RESTIC_REPOSITORY_BASE
+        value: 's3:http://minio.minio.svc:9000/bigapp-qa'
+      - op: add
+        path: /data/APPLICATION_ID
+        value: 'app-3177'
+      - op: replace
+        path: /data/CRON_SCHEDULE
+        value: '4/5 * * * *'

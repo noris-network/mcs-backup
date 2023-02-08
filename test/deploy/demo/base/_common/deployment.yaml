@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+spec:
+  template:
+    spec:
+      containers:
+        - command:
+            - /script/entrypoint.sh
+          image: docker.io/library/bash:latest
+          imagePullPolicy: IfNotPresent
+          name: app
+          volumeMounts:
+            - mountPath: /mnt
+              name: files
+            - mountPath: /script
+              name: script
+          resources:
+            requests:
+              memory: 10M
+              cpu: 10m
+            limits:
+              memory: 10M
+              cpu: 50m
+        - envFrom:
+            - configMapRef:
+                name: pv-backup-env
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          image: local-registry:5000/mcs-backup-pvc
+          imagePullPolicy: Always
+          # livenessProbe:
+          #   httpGet:
+          #     path: /healthz
+          #     port: backup-metrics
+          #   initialDelaySeconds: 5
+          #   periodSeconds: 5
+          name: mcs-backup
+          ports:
+            - containerPort: 9000
+              name: backup-metrics
+          volumeMounts:
+            - mountPath: /mnt
+              name: files
+          resources:
+            requests:
+              memory: 15M
+              cpu: 10m
+            limits:
+              memory: 30M
+              cpu: 500m
+      initContainers:
+        - command:
+            - bash
+            - -c
+            - |
+              set -euo pipefail
+              if [[ ! -d /files/linux ]]; then
+                  wget -qO - http://data.data.svc/linux-1.0.tar.gz \
+                  | tar xvzf - -C /files
+              else
+                  echo "skip download"
+              fi
+          image: docker.io/library/bash:latest
+          imagePullPolicy: IfNotPresent
+          name: init
+          volumeMounts:
+            - mountPath: /files
+              name: files
+      volumes:
+        - name: files
+          persistentVolumeClaim:
+            claimName: files
+        - configMap:
+            defaultMode: 511
+            name: script
+          name: script

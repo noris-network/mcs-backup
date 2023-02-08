@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: influxdb
+  name: influxdb
+spec:
+  selector:
+    matchLabels:
+      app: influxdb
+  template:
+    metadata:
+      labels:
+        app: influxdb
+    spec:
+      containers:
+        - env:
+            - name: DOCKER_INFLUXDB_INIT_MODE
+              value: setup
+            - name: DOCKER_INFLUXDB_INIT_USERNAME
+              value: metrics
+            - name: DOCKER_INFLUXDB_INIT_PASSWORD
+              value: metricspassword
+            - name: DOCKER_INFLUXDB_INIT_ORG
+              value: mcs-backup
+            - name: DOCKER_INFLUXDB_INIT_BUCKET
+              value: backup-metrics
+            - name: DOCKER_INFLUXDB_INIT_RETENTION
+              value: 1w
+            - name: DOCKER_INFLUXDB_INIT_ADMIN_TOKEN
+              value: mcs-backup-demo-auth-token
+          image: docker.io/library/influxdb:2.5.1
+          imagePullPolicy: IfNotPresent
+          name: influxdb
+          ports:
+            - containerPort: 8086
+              name: http
+          volumeMounts:
+            - mountPath: /var/lib/influxdb2
+              name: data
+            - mountPath: /etc/influxdb2
+              name: config
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "128Mi"
+            requests:
+              cpu: "20m"
+              memory: "100Mi"
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: influxdb-data
+        - name: config
+          persistentVolumeClaim:
+            claimName: influxdb-config

@@ -1,0 +1,17 @@
+apiVersion: v1
+data:
+  AWS_ACCESS_KEY_ID: minio-user
+  AWS_SECRET_ACCESS_KEY: minio-secret-123
+  BACKUP_ROOT: /mnt/linux
+  CRON_SCHEDULE: "* * * * *"
+  RESTIC_PASSWORD: some-secret-password
+  RETENTION_POLICY: "{last: 5, daily: 10}"
+  INFLUXDB_URL: http://influxdb.backup-monitoring.svc:8086
+  INFLUXDB_DATABASE: backup-metrics
+  INFLUXDB_TOKEN: mcs-backup-demo-auth-token
+  INFLUXDB_ORG: mcs-backup
+  METRICS_LABELS: '{namespace: "$NAMESPACE", instance: "$INSTANCE", application_id: "$APPLICATION_ID"}'
+  AUTO_UNLOCK_AFTER: 4m
+kind: ConfigMap
+metadata:
+  name: pv-backup-env

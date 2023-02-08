@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: minio
+  name: minio
+spec:
+  selector:
+    matchLabels:
+      app: minio
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+        - args:
+            - server
+            - /data
+            - --console-address
+            - :9001
+          envFrom:
+            - secretRef:
+                name: minio-auth
+          image: docker.io/minio/minio:latest
+          imagePullPolicy: IfNotPresent
+          name: minio
+          ports:
+            - containerPort: 9000
+              name: minio
+            - containerPort: 9001
+              name: console
+          resources:
+            limits:
+              cpu: 500m
+              memory: 300M
+          volumeMounts:
+            - mountPath: /data
+              name: data
+        - command:
+            - bash
+            - -c
+            - |
+              set -eu
+              mc alias set s3 http://minio.minio.svc:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+              sleep infinity
+          envFrom:
+            - secretRef:
+                name: minio-auth
+          image: docker.io/minio/mc:latest
+          imagePullPolicy: IfNotPresent
+          name: mc
+          resources:
+            limits:
+              cpu: 100m
+              memory: 10M
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: minio-data

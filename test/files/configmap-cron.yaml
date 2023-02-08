@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cron
+  namespace: "{{.namespace}}"
+data:
+  every-minute: "* * * * *"

@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: docker.io/grafana/grafana:9.2.6
+          ports:
+            - name: http
+              protocol: TCP
+              containerPort: 3000
+          resources:
+            limits:
+              cpu: "50m"
+              memory: "128Mi"
+            requests:
+              cpu: "20m"
+              memory: "100Mi"
+          env:
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: admin12345
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/grafana
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboard-providers
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards/mcs-backup
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: data
+        - name: datasources
+          configMap:
+            name: datasources
+        - name: dashboards
+          configMap:
+            name: dashboards
+        - name: dashboard-providers
+          configMap:
+            name: dashboard-providers

@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: backup-monitoring
+
+resources:
+  - namespace.yaml
+  - deployment-influxdb.yaml
+  - deployment-loki.yaml
+  - pvc-influxdb-config.yaml
+  - pvc-influxdb-data.yaml
+  - pvc-loki-data.yaml
+  - service-influxdb.yaml
+  - service-loki.yaml

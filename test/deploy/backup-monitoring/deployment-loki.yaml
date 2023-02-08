@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: loki
+  name: loki
+spec:
+  selector:
+    matchLabels:
+      app: loki
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: loki
+    spec:
+      containers:
+        - image: docker.io/grafana/loki:2.6.1
+          imagePullPolicy: IfNotPresent
+          name: loki
+          ports:
+            - containerPort: 3100
+              name: http
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /loki
+              name: loki
+      volumes:
+        - name: loki
+          persistentVolumeClaim:
+            claimName: loki-data

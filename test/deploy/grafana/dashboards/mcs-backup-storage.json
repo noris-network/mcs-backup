@@ -1,0 +1,1138 @@
+{
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": {
+                    "type": "datasource",
+                    "uid": "grafana"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "target": {
+                    "limit": 100,
+                    "matchAny": false,
+                    "tags": [],
+                    "type": "dashboard"
+                },
+                "type": "dashboard"
+            }
+        ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": 3,
+    "links": [
+        {
+            "icon": "external link",
+            "includeVars": true,
+            "keepTime": true,
+            "tags": [
+                "restic-backup"
+            ],
+            "targetBlank": false,
+            "type": "dashboards"
+        }
+    ],
+    "liveNow": false,
+    "panels": [
+        {
+            "collapsed": false,
+            "datasource": {
+                "type": "prometheus",
+                "uid": "DsPrometheus"
+            },
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 0
+            },
+            "id": 7,
+            "panels": [],
+            "repeat": "namespace",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "DsPrometheus"
+                    },
+                    "refId": "A"
+                }
+            ],
+            "title": "Namespace: $namespace",
+            "type": "row"
+        },
+        {
+            "datasource": {
+                "type": "influxdb",
+                "uid": "DsInfluxDB"
+            },
+            "description": "",
+            "fieldConfig": {
+                "defaults": {
+                    "custom": {
+                        "align": "auto",
+                        "displayMode": "auto",
+                        "filterable": false,
+                        "inspect": false
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Size"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "decbytes"
+                            },
+                            {
+                                "id": "decimals",
+                                "value": 1
+                            },
+                            {
+                                "id": "custom.align",
+                                "value": "left"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Workload"
+                        },
+                        "properties": [
+                            {
+                                "id": "links",
+                                "value": [
+                                    {
+                                        "targetBlank": true,
+                                        "title": "Show Workload details",
+                                        "url": "/d/McsResticBackupWorkload?var-namespace=${namespace}&var-instance=${__data.fields.Workload}"
+                                    }
+                                ]
+                            },
+                            {
+                                "id": "custom.width",
+                                "value": 268
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Name"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.width",
+                                "value": 294
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Application-ID"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.width",
+                                "value": 128
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Application-ID"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.align",
+                                "value": "left"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 6,
+                "w": 12,
+                "x": 0,
+                "y": 1
+            },
+            "hideTimeOverride": true,
+            "id": 38,
+            "interval": "1d",
+            "options": {
+                "footer": {
+                    "fields": "",
+                    "reducer": [
+                        "sum"
+                    ],
+                    "show": false
+                },
+                "showHeader": true,
+                "sortBy": []
+            },
+            "pluginVersion": "9.2.6",
+            "repeatDirection": "v",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "DsInfluxDB"
+                    },
+                    "groupBy": [
+                        {
+                            "params": [
+                                "instance"
+                            ],
+                            "type": "tag"
+                        },
+                        {
+                            "params": [
+                                "bucket"
+                            ],
+                            "type": "tag"
+                        }
+                    ],
+                    "measurement": "mcsbackup_s3",
+                    "orderByTime": "ASC",
+                    "policy": "default",
+                    "refId": "A",
+                    "resultFormat": "table",
+                    "select": [
+                        [
+                            {
+                                "params": [
+                                    "bucket_size_bytes"
+                                ],
+                                "type": "field"
+                            }
+                        ],
+                        [
+                            {
+                                "params": [
+                                    "repository_id"
+                                ],
+                                "type": "field"
+                            }
+                        ],
+                        [
+                            {
+                                "params": [
+                                    "application_id"
+                                ],
+                                "type": "field"
+                            }
+                        ]
+                    ],
+                    "tags": [
+                        {
+                            "key": "namespace",
+                            "operator": "=~",
+                            "value": "/^$namespace$/"
+                        },
+                        {
+                            "condition": "AND",
+                            "key": "instance",
+                            "operator": "=~",
+                            "value": "/^$instance$/"
+                        }
+                    ]
+                }
+            ],
+            "timeFrom": "7d",
+            "title": "Buckets",
+            "transformations": [
+                {
+                    "id": "seriesToColumns",
+                    "options": {
+                        "byField": "repository_id"
+                    }
+                },
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {
+                            "Time": true,
+                            "instance": false,
+                            "instance 2": true,
+                            "objects_total": true,
+                            "repository_id": true,
+                            "stats_timeout_seconds": true
+                        },
+                        "indexByName": {
+                            "Time": 1,
+                            "application_id": 4,
+                            "bucket": 2,
+                            "bucket_size_bytes": 5,
+                            "instance": 3,
+                            "repository_id": 0
+                        },
+                        "renameByName": {
+                            "application_id": "Application-ID",
+                            "bucket": "Name",
+                            "bucket_size_bytes": "Size",
+                            "instance": "Workload",
+                            "instance 1": "Workload"
+                        }
+                    }
+                }
+            ],
+            "type": "table"
+        },
+        {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": {
+                "type": "influxdb",
+                "uid": "DsInfluxDB"
+            },
+            "fill": 1,
+            "fillGradient": 0,
+            "gridPos": {
+                "h": 6,
+                "w": 6,
+                "x": 12,
+                "y": 1
+            },
+            "hiddenSeries": false,
+            "id": 30,
+            "legend": {
+                "avg": false,
+                "current": false,
+                "max": false,
+                "min": false,
+                "show": true,
+                "total": false,
+                "values": false
+            },
+            "lines": true,
+            "linewidth": 1,
+            "nullPointMode": "null",
+            "options": {
+                "alertThreshold": true
+            },
+            "percentage": false,
+            "pluginVersion": "9.2.6",
+            "pointradius": 2,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+                {
+                    "alias": "$tag_instance",
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "DsInfluxDB"
+                    },
+                    "groupBy": [
+                        {
+                            "params": [
+                                "instance"
+                            ],
+                            "type": "tag"
+                        }
+                    ],
+                    "measurement": "mcsbackup_s3",
+                    "orderByTime": "ASC",
+                    "policy": "default",
+                    "refId": "A",
+                    "resultFormat": "time_series",
+                    "select": [
+                        [
+                            {
+                                "params": [
+                                    "bucket_size_bytes"
+                                ],
+                                "type": "field"
+                            }
+                        ]
+                    ],
+                    "tags": [
+                        {
+                            "key": "namespace",
+                            "operator": "=~",
+                            "value": "/^$namespace$/"
+                        },
+                        {
+                            "condition": "AND",
+                            "key": "instance",
+                            "operator": "=~",
+                            "value": "/^$instance$/"
+                        }
+                    ]
+                }
+            ],
+            "thresholds": [],
+            "timeRegions": [],
+            "title": "Bucket Size",
+            "tooltip": {
+                "shared": true,
+                "sort": 0,
+                "value_type": "individual"
+            },
+            "type": "graph",
+            "xaxis": {
+                "mode": "time",
+                "show": true,
+                "values": []
+            },
+            "yaxes": [
+                {
+                    "format": "decbytes",
+                    "logBase": 1,
+                    "min": "0",
+                    "show": true
+                },
+                {
+                    "format": "short",
+                    "logBase": 1,
+                    "min": "0",
+                    "show": true
+                }
+            ],
+            "yaxis": {
+                "align": false
+            }
+        },
+        {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": {
+                "type": "influxdb",
+                "uid": "DsInfluxDB"
+            },
+            "description": "",
+            "fill": 1,
+            "fillGradient": 0,
+            "gridPos": {
+                "h": 6,
+                "w": 6,
+                "x": 18,
+                "y": 1
+            },
+            "hiddenSeries": false,
+            "id": 32,
+            "legend": {
+                "avg": false,
+                "current": false,
+                "max": false,
+                "min": false,
+                "show": true,
+                "total": false,
+                "values": false
+            },
+            "lines": true,
+            "linewidth": 1,
+            "nullPointMode": "connected",
+            "options": {
+                "alertThreshold": true
+            },
+            "percentage": false,
+            "pluginVersion": "9.2.6",
+            "pointradius": 2,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+                {
+                    "alias": "$tag_instance",
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "DsInfluxDB"
+                    },
+                    "groupBy": [
+                        {
+                            "params": [
+                                "instance"
+                            ],
+                            "type": "tag"
+                        }
+                    ],
+                    "measurement": "mcsbackup_s3",
+                    "orderByTime": "ASC",
+                    "policy": "default",
+                    "refId": "A",
+                    "resultFormat": "time_series",
+                    "select": [
+                        [
+                            {
+                                "params": [
+                                    "objects_total"
+                                ],
+                                "type": "field"
+                            }
+                        ]
+                    ],
+                    "tags": [
+                        {
+                            "key": "namespace",
+                            "operator": "=~",
+                            "value": "/^$namespace$/"
+                        },
+                        {
+                            "condition": "AND",
+                            "key": "instance",
+                            "operator": "=~",
+                            "value": "/^$instance$/"
+                        }
+                    ]
+                }
+            ],
+            "thresholds": [],
+            "timeRegions": [],
+            "title": "Object Count",
+            "tooltip": {
+                "shared": true,
+                "sort": 0,
+                "value_type": "individual"
+            },
+            "transformations": [
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {},
+                        "indexByName": {},
+                        "renameByName": {
+                            "mcsbackup_s3.distinct": "total",
+                            "mcsbackup_s3.mean": "number of objects"
+                        }
+                    }
+                }
+            ],
+            "type": "graph",
+            "xaxis": {
+                "mode": "time",
+                "show": true,
+                "values": []
+            },
+            "yaxes": [
+                {
+                    "format": "short",
+                    "logBase": 1,
+                    "min": "0",
+                    "show": true
+                },
+                {
+                    "decimals": 0,
+                    "format": "short",
+                    "logBase": 1,
+                    "show": true
+                }
+            ],
+            "yaxis": {
+                "align": false
+            }
+        },
+        {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": {
+                "type": "influxdb",
+                "uid": "DsInfluxDB"
+            },
+            "description": "The dashed line shows the configured timeout for the respective instance",
+            "fill": 1,
+            "fillGradient": 0,
+            "gridPos": {
+                "h": 6,
+                "w": 12,
+                "x": 0,
+                "y": 7
+            },
+            "hiddenSeries": false,
+            "id": 34,
+            "legend": {
+                "avg": false,
+                "current": false,
+                "max": false,
+                "min": false,
+                "show": true,
+                "total": false,
+                "values": false
+            },
+            "lines": true,
+            "linewidth": 1,
+            "nullPointMode": "null",
+            "options": {
+                "alertThreshold": true
+            },
+            "percentage": false,
+            "pluginVersion": "9.2.6",
+            "pointradius": 1,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [
+                {
+                    "alias": "/timeout.*/",
+                    "color": "#E02F44",
+                    "dashes": true,
+                    "fill": 0
+                }
+            ],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+                {
+                    "alias": "duration ($tag_instance)",
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "DsInfluxDB"
+                    },
+                    "groupBy": [
+                        {
+                            "params": [
+                                "instance"
+                            ],
+                            "type": "tag"
+                        }
+                    ],
+                    "measurement": "mcsbackup_s3",
+                    "orderByTime": "ASC",
+                    "policy": "default",
+                    "refId": "A",
+                    "resultFormat": "time_series",
+                    "select": [
+                        [
+                            {
+                                "params": [
+                                    "stats_duration_seconds"
+                                ],
+                                "type": "field"
+                            },
+                            {
+                                "params": [
+                                    "duration"
+                                ],
+                                "type": "alias"
+                            }
+                        ]
+                    ],
+                    "tags": [
+                        {
+                            "key": "namespace",
+                            "operator": "=~",
+                            "value": "/^$namespace$/"
+                        },
+                        {
+                            "condition": "AND",
+                            "key": "instance",
+                            "operator": "=~",
+                            "value": "/^$instance$/"
+                        }
+                    ]
+                },
+                {
+                    "alias": "timeout ($tag_instance)",
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "DsInfluxDB"
+                    },
+                    "groupBy": [
+                        {
+                            "params": [
+                                "instance"
+                            ],
+                            "type": "tag"
+                        }
+                    ],
+                    "measurement": "mcsbackup_s3",
+                    "orderByTime": "ASC",
+                    "policy": "default",
+                    "refId": "B",
+                    "resultFormat": "time_series",
+                    "select": [
+                        [
+                            {
+                                "params": [
+                                    "stats_timeout_seconds"
+                                ],
+                                "type": "field"
+                            },
+                            {
+                                "params": [
+                                    "timeout"
+                                ],
+                                "type": "alias"
+                            }
+                        ]
+                    ],
+                    "tags": [
+                        {
+                            "key": "namespace",
+                            "operator": "=~",
+                            "value": "/^$namespace$/"
+                        },
+                        {
+                            "condition": "AND",
+                            "key": "instance",
+                            "operator": "=~",
+                            "value": "/^$instance$/"
+                        }
+                    ]
+                }
+            ],
+            "thresholds": [],
+            "timeRegions": [],
+            "title": "Collect Statistics Duration",
+            "tooltip": {
+                "shared": true,
+                "sort": 0,
+                "value_type": "individual"
+            },
+            "transformations": [
+                {
+                    "id": "seriesToColumns",
+                    "options": {}
+                },
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {},
+                        "indexByName": {},
+                        "renameByName": {
+                            "mcsbackup_s3.stats_duration_seconds": "actual duration",
+                            "mcsbackup_s3.stats_timeout_seconds": "configured timeout"
+                        }
+                    }
+                }
+            ],
+            "type": "graph",
+            "xaxis": {
+                "mode": "time",
+                "show": true,
+                "values": []
+            },
+            "yaxes": [
+                {
+                    "format": "s",
+                    "logBase": 1,
+                    "show": true
+                },
+                {
+                    "format": "short",
+                    "logBase": 1,
+                    "show": true
+                }
+            ],
+            "yaxis": {
+                "align": false
+            }
+        },
+        {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": {
+                "type": "influxdb",
+                "uid": "DsInfluxDB"
+            },
+            "fill": 1,
+            "fillGradient": 0,
+            "gridPos": {
+                "h": 6,
+                "w": 6,
+                "x": 12,
+                "y": 7
+            },
+            "hiddenSeries": false,
+            "id": 35,
+            "legend": {
+                "avg": false,
+                "current": false,
+                "max": false,
+                "min": false,
+                "show": true,
+                "total": false,
+                "values": false
+            },
+            "lines": true,
+            "linewidth": 1,
+            "nullPointMode": "null",
+            "options": {
+                "alertThreshold": true
+            },
+            "percentage": false,
+            "pluginVersion": "9.2.6",
+            "pointradius": 2,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+                {
+                    "alias": "$tag_instance",
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "DsInfluxDB"
+                    },
+                    "groupBy": [
+                        {
+                            "params": [
+                                "instance"
+                            ],
+                            "type": "tag"
+                        }
+                    ],
+                    "measurement": "mcsbackup_s3",
+                    "orderByTime": "ASC",
+                    "policy": "default",
+                    "refId": "A",
+                    "resultFormat": "time_series",
+                    "select": [
+                        [
+                            {
+                                "params": [
+                                    "bucket_size_bytes"
+                                ],
+                                "type": "field"
+                            },
+                            {
+                                "params": [],
+                                "type": "difference"
+                            }
+                        ]
+                    ],
+                    "tags": [
+                        {
+                            "key": "namespace",
+                            "operator": "=~",
+                            "value": "/^$namespace$/"
+                        },
+                        {
+                            "condition": "AND",
+                            "key": "instance",
+                            "operator": "=~",
+                            "value": "/^$instance$/"
+                        }
+                    ]
+                }
+            ],
+            "thresholds": [
+                {
+                    "colorMode": "custom",
+                    "fill": true,
+                    "fillColor": "rgba(28, 255, 0, 0.08)",
+                    "line": false,
+                    "lineColor": "rgba(31, 96, 196, 0.6)",
+                    "op": "gt",
+                    "value": 0,
+                    "yaxis": "left"
+                },
+                {
+                    "colorMode": "custom",
+                    "fill": true,
+                    "fillColor": "rgba(229, 51, 54, 0.12)",
+                    "line": false,
+                    "lineColor": "rgba(31, 96, 196, 0.6)",
+                    "op": "lt",
+                    "value": 0,
+                    "yaxis": "left"
+                }
+            ],
+            "timeRegions": [],
+            "title": "Bucket Size Change",
+            "tooltip": {
+                "shared": true,
+                "sort": 0,
+                "value_type": "individual"
+            },
+            "type": "graph",
+            "xaxis": {
+                "mode": "time",
+                "show": true,
+                "values": []
+            },
+            "yaxes": [
+                {
+                    "format": "decbytes",
+                    "logBase": 1,
+                    "show": true
+                },
+                {
+                    "format": "short",
+                    "logBase": 1,
+                    "min": "0",
+                    "show": true
+                }
+            ],
+            "yaxis": {
+                "align": false
+            }
+        },
+        {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": {
+                "type": "influxdb",
+                "uid": "DsInfluxDB"
+            },
+            "description": "",
+            "fill": 1,
+            "fillGradient": 0,
+            "gridPos": {
+                "h": 6,
+                "w": 6,
+                "x": 18,
+                "y": 7
+            },
+            "hiddenSeries": false,
+            "id": 36,
+            "legend": {
+                "avg": false,
+                "current": false,
+                "max": false,
+                "min": false,
+                "show": true,
+                "total": false,
+                "values": false
+            },
+            "lines": true,
+            "linewidth": 1,
+            "nullPointMode": "connected",
+            "options": {
+                "alertThreshold": true
+            },
+            "percentage": false,
+            "pluginVersion": "9.2.6",
+            "pointradius": 2,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+                {
+                    "alias": "$tag_instance",
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "DsInfluxDB"
+                    },
+                    "groupBy": [
+                        {
+                            "params": [
+                                "instance"
+                            ],
+                            "type": "tag"
+                        }
+                    ],
+                    "measurement": "mcsbackup_s3",
+                    "orderByTime": "ASC",
+                    "policy": "default",
+                    "refId": "A",
+                    "resultFormat": "time_series",
+                    "select": [
+                        [
+                            {
+                                "params": [
+                                    "objects_total"
+                                ],
+                                "type": "field"
+                            },
+                            {
+                                "params": [],
+                                "type": "difference"
+                            }
+                        ]
+                    ],
+                    "tags": [
+                        {
+                            "key": "namespace",
+                            "operator": "=~",
+                            "value": "/^$namespace$/"
+                        },
+                        {
+                            "condition": "AND",
+                            "key": "instance",
+                            "operator": "=~",
+                            "value": "/^$instance$/"
+                        }
+                    ]
+                }
+            ],
+            "thresholds": [
+                {
+                    "colorMode": "custom",
+                    "fill": true,
+                    "fillColor": "rgba(28, 255, 0, 0.08)",
+                    "line": false,
+                    "lineColor": "rgba(31, 96, 196, 0.6)",
+                    "op": "gt",
+                    "value": 0,
+                    "yaxis": "left"
+                },
+                {
+                    "colorMode": "custom",
+                    "fill": true,
+                    "fillColor": "rgba(229, 51, 54, 0.12)",
+                    "line": false,
+                    "lineColor": "rgba(31, 96, 196, 0.6)",
+                    "op": "lt",
+                    "value": 0,
+                    "yaxis": "left"
+                }
+            ],
+            "timeRegions": [],
+            "title": "Object Count Change",
+            "tooltip": {
+                "shared": true,
+                "sort": 0,
+                "value_type": "individual"
+            },
+            "transformations": [
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {},
+                        "indexByName": {},
+                        "renameByName": {
+                            "mcsbackup_s3.distinct": "total",
+                            "mcsbackup_s3.mean": "number of objects"
+                        }
+                    }
+                }
+            ],
+            "type": "graph",
+            "xaxis": {
+                "mode": "time",
+                "show": true,
+                "values": []
+            },
+            "yaxes": [
+                {
+                    "format": "short",
+                    "logBase": 1,
+                    "show": true
+                },
+                {
+                    "decimals": 0,
+                    "format": "short",
+                    "logBase": 1,
+                    "show": true
+                }
+            ],
+            "yaxis": {
+                "align": false
+            }
+        }
+    ],
+    "refresh": false,
+    "schemaVersion": 37,
+    "style": "dark",
+    "tags": [
+        "restic-backup"
+    ],
+    "templating": {
+        "list": [
+            {
+                "allValue": "",
+                "current": {
+                    "selected": false,
+                    "text": "All",
+                    "value": "$__all"
+                },
+                "datasource": {
+                    "type": "influxdb",
+                    "uid": "DsInfluxDB"
+                },
+                "definition": "",
+                "hide": 0,
+                "includeAll": true,
+                "label": "Namespace",
+                "multi": true,
+                "name": "namespace",
+                "options": [],
+                "query": "show tag values from mcsbackup_s3 with key=namespace",
+                "refresh": 1,
+                "regex": "",
+                "skipUrlSync": false,
+                "sort": 1,
+                "tagValuesQuery": "",
+                "tagsQuery": "",
+                "type": "query",
+                "useTags": false
+            },
+            {
+                "allValue": "",
+                "current": {
+                    "selected": false,
+                    "text": "All",
+                    "value": "$__all"
+                },
+                "datasource": {
+                    "type": "influxdb",
+                    "uid": "DsInfluxDB"
+                },
+                "definition": "",
+                "hide": 0,
+                "includeAll": true,
+                "label": "Workload",
+                "multi": false,
+                "name": "instance",
+                "options": [],
+                "query": "show tag values from mcsbackup_s3 with key=instance where namespace=~/^$namespace/",
+                "refresh": 2,
+                "regex": "",
+                "skipUrlSync": false,
+                "sort": 1,
+                "tagValuesQuery": "",
+                "tagsQuery": "",
+                "type": "query",
+                "useTags": false
+            }
+        ]
+    },
+    "time": {
+        "from": "now-24h",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "Backup — Storage",
+    "uid": "McsResticBackupStorage",
+    "version": 2,
+    "weekStart": ""
+}

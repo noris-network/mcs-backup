@@ -1,0 +1,12 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: mcs-backup-metrics
+spec:
+  endpoints:
+    - port: backup-metrics
+  namespaceSelector:
+    any: true
+  selector:
+    matchLabels:
+      mcs-backup-metrics: foo

@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# TODO: noris spezifisch.........
+images:
+  - name: docker.io/library/bash
+    newName: harbor.prod.paas.pop.noris.de/dockerhub/library/bash
+  - name: local-registry:5000/mcs-backup-pvc
+    newName: harbor.prod.paas.pop.noris.de/mcs/tmp/mcs-backup-pvc
+
+resources:
+  - service.yaml
+  - pvc.yaml
+  - deployment.yaml
+  - configmap-env.yaml

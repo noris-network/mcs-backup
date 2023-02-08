@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: app-perf
+
+commonLabels:
+  environment: perf
+
+namePrefix: perf-
+
+resources:
+  - namespace.yaml
+  - ../../base
+
+patchesJson6902:
+  - target:
+      version: v1
+      kind: ConfigMap
+      name: pv-backup-env
+    patch: |-
+      - op: add
+        path: /data/RESTIC_REPOSITORY_BASE
+        value: 's3:http://minio.minio.svc:9000/bigapp-perf'
+      - op: add
+        path: /data/APPLICATION_ID
+        value: 'app-3011'
+      - op: replace
+        path: /data/CRON_SCHEDULE
+        value: '2/5 * * * *'

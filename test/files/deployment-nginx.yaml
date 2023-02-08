@@ -1,0 +1,116 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: files
+  namespace: "{{.namespace}}"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: "{{.namespace}}"
+  labels:
+    app: nginx
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      volumes:
+        - name: files
+          persistentVolumeClaim:
+            claimName: files
+        - name: hooks
+          configMap:
+            name: hooks
+            defaultMode: 0777
+        - name: cron
+          configMap:
+            name: cron
+      initContainers:
+        - name: init
+          image: docker.io/library/nginx:alpine
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - mountPath: /files
+              name: files
+          command:
+            - ash
+            - -c
+            - |
+              set -euo pipefail
+              cd /files
+              find . -delete
+              echo "<h1>welcome!</h1>" > index.html
+              #echo "ok" > healthz
+              if [ ! -d kernel ]; then
+                  wget -qO - http://data.data.svc/linux-1.0.tar.gz \
+                  | tar xvzf - -C /files
+              else
+                  echo "skip download"
+              fi
+      containers:
+        - name: nginx
+          image: docker.io/library/nginx:alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          volumeMounts:
+            - mountPath: /usr/share/nginx/html
+              name: files
+          resources: {}
+          livenessProbe:
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            httpGet:
+              path: /
+              port: http
+        - name: mcs-backup
+          image: local-registry:5000/mcs-backup-pvc
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9000
+              name: backup-metrics
+          volumeMounts:
+            - mountPath: /mnt
+              name: files
+            - mountPath: /scripts
+              name: hooks
+            - mountPath: /cron
+              name: cron
+          envFrom:
+            - configMapRef:
+                name: pv-backup-env
+          resources: {}
+          livenessProbe:
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            httpGet:
+              path: /metrics
+              port: backup-metrics
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  namespace: "{{.namespace}}"
+spec:
+  ports:
+    - name: http
+      port: 80
+    - name: backup-metrics
+      port: 9000
+  selector:
+    app: nginx

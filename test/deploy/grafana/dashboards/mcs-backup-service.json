@@ -1,0 +1,510 @@
+{
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": {
+                    "type": "datasource",
+                    "uid": "grafana"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "target": {
+                    "limit": 100,
+                    "matchAny": false,
+                    "tags": [],
+                    "type": "dashboard"
+                },
+                "type": "dashboard"
+            }
+        ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": 4,
+    "links": [
+        {
+            "icon": "external link",
+            "tags": [
+                "restic-backup"
+            ],
+            "type": "dashboards"
+        }
+    ],
+    "liveNow": false,
+    "panels": [
+        {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": {
+                "type": "prometheus",
+                "uid": "DsPrometheus"
+            },
+            "description": "Virtual and Resident Memory usage",
+            "editable": true,
+            "error": false,
+            "fill": 1,
+            "fillGradient": 0,
+            "grid": {},
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 0
+            },
+            "hiddenSeries": false,
+            "id": 4,
+            "isNew": true,
+            "legend": {
+                "alignAsTable": false,
+                "avg": false,
+                "current": false,
+                "max": false,
+                "min": false,
+                "rightSide": false,
+                "show": true,
+                "total": false,
+                "values": false
+            },
+            "lines": true,
+            "linewidth": 2,
+            "links": [],
+            "nullPointMode": "connected",
+            "options": {
+                "alertThreshold": true
+            },
+            "percentage": false,
+            "pluginVersion": "9.2.6",
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [
+                {
+                    "alias": "resident",
+                    "yaxis": 2
+                }
+            ],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "DsPrometheus"
+                    },
+                    "editorMode": "builder",
+                    "expr": "process_resident_memory_bytes{namespace=\"$namespace\", endpoint=\"backup-metrics\"}",
+                    "format": "time_series",
+                    "interval": "",
+                    "intervalFactor": 2,
+                    "legendFormat": "{{service}} (res)",
+                    "metric": "process_resident_memory_bytes",
+                    "range": true,
+                    "refId": "A",
+                    "step": 4
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "DsPrometheus"
+                    },
+                    "editorMode": "builder",
+                    "expr": "process_virtual_memory_bytes{namespace=\"$namespace\", endpoint=\"backup-metrics\"}",
+                    "format": "time_series",
+                    "interval": "",
+                    "intervalFactor": 2,
+                    "legendFormat": "{{service}} (virt)",
+                    "metric": "process_virtual_memory_bytes",
+                    "range": true,
+                    "refId": "B",
+                    "step": 4
+                }
+            ],
+            "thresholds": [],
+            "timeRegions": [],
+            "title": "Process Memory",
+            "tooltip": {
+                "msResolution": false,
+                "shared": true,
+                "sort": 0,
+                "value_type": "cumulative"
+            },
+            "type": "graph",
+            "xaxis": {
+                "mode": "time",
+                "show": true,
+                "values": []
+            },
+            "yaxes": [
+                {
+                    "$$hashKey": "object:423",
+                    "format": "decbytes",
+                    "logBase": 1,
+                    "show": true
+                },
+                {
+                    "$$hashKey": "object:424",
+                    "format": "short",
+                    "logBase": 1,
+                    "show": true
+                }
+            ],
+            "yaxis": {
+                "align": false
+            }
+        },
+        {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": {
+                "type": "prometheus",
+                "uid": "DsPrometheus"
+            },
+            "description": "",
+            "fill": 1,
+            "fillGradient": 0,
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 0
+            },
+            "hiddenSeries": false,
+            "id": 2,
+            "legend": {
+                "avg": false,
+                "current": false,
+                "max": false,
+                "min": false,
+                "show": true,
+                "total": false,
+                "values": false
+            },
+            "lines": true,
+            "linewidth": 1,
+            "nullPointMode": "null",
+            "options": {
+                "alertThreshold": true
+            },
+            "percentage": false,
+            "pluginVersion": "9.2.6",
+            "pointradius": 2,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "DsPrometheus"
+                    },
+                    "editorMode": "builder",
+                    "expr": "go_goroutines{namespace=\"$namespace\", endpoint=\"backup-metrics\"}",
+                    "interval": "",
+                    "legendFormat": "{{namespace}}: {{job}}",
+                    "range": true,
+                    "refId": "A"
+                }
+            ],
+            "thresholds": [],
+            "timeRegions": [],
+            "title": "Goroutines",
+            "tooltip": {
+                "shared": true,
+                "sort": 0,
+                "value_type": "individual"
+            },
+            "type": "graph",
+            "xaxis": {
+                "mode": "time",
+                "show": true,
+                "values": []
+            },
+            "yaxes": [
+                {
+                    "$$hashKey": "object:113",
+                    "format": "short",
+                    "logBase": 1,
+                    "show": true
+                },
+                {
+                    "$$hashKey": "object:114",
+                    "format": "short",
+                    "logBase": 1,
+                    "show": true
+                }
+            ],
+            "yaxis": {
+                "align": false
+            }
+        },
+        {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": {
+                "type": "prometheus",
+                "uid": "DsPrometheus"
+            },
+            "description": "",
+            "fill": 1,
+            "fillGradient": 0,
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 8
+            },
+            "hiddenSeries": false,
+            "id": 9,
+            "legend": {
+                "avg": false,
+                "current": false,
+                "max": false,
+                "min": false,
+                "show": true,
+                "total": false,
+                "values": false
+            },
+            "lines": true,
+            "linewidth": 1,
+            "nullPointMode": "null",
+            "options": {
+                "alertThreshold": true
+            },
+            "percentage": false,
+            "pluginVersion": "9.2.6",
+            "pointradius": 2,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "DsPrometheus"
+                    },
+                    "editorMode": "builder",
+                    "expr": "rate(process_cpu_seconds_total{namespace=\"$namespace\", endpoint=\"backup-metrics\"}[1m]) * 100",
+                    "interval": "",
+                    "legendFormat": "{{service}}",
+                    "range": true,
+                    "refId": "A"
+                }
+            ],
+            "thresholds": [],
+            "timeRegions": [],
+            "title": "CPU Usage",
+            "tooltip": {
+                "shared": true,
+                "sort": 0,
+                "value_type": "individual"
+            },
+            "type": "graph",
+            "xaxis": {
+                "mode": "time",
+                "show": true,
+                "values": []
+            },
+            "yaxes": [
+                {
+                    "$$hashKey": "object:476",
+                    "format": "percent",
+                    "label": "",
+                    "logBase": 1,
+                    "show": true
+                },
+                {
+                    "$$hashKey": "object:477",
+                    "format": "short",
+                    "logBase": 1,
+                    "show": true
+                }
+            ],
+            "yaxis": {
+                "align": false
+            }
+        },
+        {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": {
+                "type": "prometheus",
+                "uid": "DsPrometheus"
+            },
+            "fill": 1,
+            "fillGradient": 0,
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 8
+            },
+            "hiddenSeries": false,
+            "id": 6,
+            "legend": {
+                "avg": false,
+                "current": false,
+                "max": false,
+                "min": false,
+                "show": true,
+                "total": false,
+                "values": false
+            },
+            "lines": true,
+            "linewidth": 1,
+            "nullPointMode": "null",
+            "options": {
+                "alertThreshold": true
+            },
+            "percentage": false,
+            "pluginVersion": "9.2.6",
+            "pointradius": 2,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "DsPrometheus"
+                    },
+                    "editorMode": "builder",
+                    "expr": "process_open_fds{namespace=\"$namespace\", endpoint=\"backup-metrics\"}",
+                    "interval": "",
+                    "legendFormat": "{{job}}",
+                    "range": true,
+                    "refId": "A"
+                }
+            ],
+            "thresholds": [],
+            "timeRegions": [],
+            "title": "Open FDs",
+            "tooltip": {
+                "shared": true,
+                "sort": 0,
+                "value_type": "individual"
+            },
+            "type": "graph",
+            "xaxis": {
+                "mode": "time",
+                "show": true,
+                "values": []
+            },
+            "yaxes": [
+                {
+                    "$$hashKey": "object:217",
+                    "format": "short",
+                    "logBase": 1,
+                    "show": true
+                },
+                {
+                    "$$hashKey": "object:218",
+                    "format": "short",
+                    "logBase": 1,
+                    "show": true
+                }
+            ],
+            "yaxis": {
+                "align": false
+            }
+        }
+    ],
+    "refresh": false,
+    "schemaVersion": 37,
+    "style": "dark",
+    "tags": [
+        "mcs-backup"
+    ],
+    "templating": {
+        "list": [
+            {
+                "current": {
+                    "selected": true,
+                    "text": [
+                        "app-perf"
+                    ],
+                    "value": [
+                        "app-perf"
+                    ]
+                },
+                "definition": "label_values(mcsbackup_s3_objects_total,namespace)",
+                "hide": 0,
+                "includeAll": true,
+                "label": "Namespace",
+                "multi": true,
+                "name": "namespace",
+                "options": [],
+                "query": {
+                    "query": "label_values(mcsbackup_s3_objects_total,namespace)",
+                    "refId": "StandardVariableQuery"
+                },
+                "refresh": 1,
+                "regex": "",
+                "skipUrlSync": false,
+                "sort": 1,
+                "tagValuesQuery": "",
+                "tagsQuery": "",
+                "type": "query",
+                "useTags": false
+            },
+            {
+                "current": {
+                    "selected": true,
+                    "text": "database",
+                    "value": "database"
+                },
+                "datasource": {
+                    "type": "influxdb",
+                    "uid": "DsInfluxDB"
+                },
+                "definition": "label_values(mcsbackup_s3_objects_total,exported_instance)",
+                "hide": 0,
+                "includeAll": true,
+                "label": "Instance",
+                "multi": false,
+                "name": "instance",
+                "options": [],
+                "query": "label_values(mcsbackup_s3_objects_total,exported_instance)",
+                "refresh": 2,
+                "regex": "",
+                "skipUrlSync": false,
+                "sort": 0,
+                "tagValuesQuery": "",
+                "tagsQuery": "",
+                "type": "query",
+                "useTags": false
+            }
+        ]
+    },
+    "time": {
+        "from": "now-6h",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "Backup — Service",
+    "uid": "McsResticBackupService",
+    "version": 3,
+    "weekStart": ""
+}

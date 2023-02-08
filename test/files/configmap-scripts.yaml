@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hooks
+  namespace: "{{.namespace}}"
+data:
+  pre-backup.sh: |
+    #!/bin/sh
+    set -eu
+    cd $BACKUP_ROOT
+    mkdir tmp-archive
+    tar czf tmp-archive/files.tar.gz --exclude tmp-archive .
+
+  post-backup.sh: |
+    #!/bin/sh
+    set -eu
+    rm -rf $BACKUP_ROOT/tmp-archive
+
+  pre-restore.sh: |
+    #!/bin/sh
+    set -eu
+    cd $BACKUP_ROOT
+    rm -rf *
+
+  post-restore.sh: |
+    #!/bin/sh
+    set -eu
+    cd $BACKUP_ROOT
+    tar xzf tmp-archive/files.tar.gz
+    rm -rf $BACKUP_ROOT/tmp-archive
+
+  pipe-in.sh: |
+    #!/bin/sh
+    set -eu
+    cd $BACKUP_ROOT
+    tar czf - .
+
+  pipe-out.sh: |
+    #!/bin/sh
+    set -eu
+    cd $BACKUP_ROOT
+    tar xzf -
+
+  pipe-in-trickle.sh: |
+    #!/bin/sh
+    set -eu
+    while true; do
+      date
+      sleep 0.2
+    done
+
+  pipe-out-discard.sh: |
+    #!/bin/sh
+    cat >/dev/null
+
+  pipe-in-kill-once.sh: |
+    #!/bin/sh
+    set -eu
+    [ -f /tmp/kill.skip ] && exec /scripts/pipe-in.sh
+    for n in $(seq 10); do
+      date
+      sleep 0.1
+    done
+    touch /tmp/kill.skip
+    pkill -9 restic
+    sleep 1

@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+commonLabels:
+  component: backend
+
+namePrefix: backend-
+
+resources:
+  - ../_common
+  - configmap-script.yaml
+
+patchesJson6902:
+  - target:
+      version: v1
+      kind: ConfigMap
+      name: pv-backup-env
+    patch: |-
+      - op: add
+        path: /data/RESTIC_REPOSITORY_PATH
+        value: backend
+      - op: add
+        path: /data/INSTANCE
+        value: backend

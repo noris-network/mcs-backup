@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: data
+  name: data
+  namespace: data
+spec:
+  selector:
+    matchLabels:
+      app: data
+  template:
+    metadata:
+      labels:
+        app: data
+    spec:
+      containers:
+        - image: docker.io/library/nginx:alpine
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          name: nginx
+          ports:
+            - containerPort: 80
+              name: http
+          resources:
+            limits:
+              cpu: 100m
+              memory: 20M
+          volumeMounts:
+            - mountPath: /usr/share/nginx/html
+              name: data
+      initContainers:
+        - command:
+            - ash
+            - -c
+            - |
+              set -euo pipefail
+              cd /data
+              echo "<h1>data</h1>" > index.html
+              if [ ! -f linux-1.0.tar.gz ]; then
+                  wget -q https://mirrors.edge.kernel.org/pub/linux/kernel/v1.0/linux-1.0.tar.gz
+              else
+                  echo "skip download"
+              fi
+          image: docker.io/library/nginx:alpine
+          imagePullPolicy: IfNotPresent
+          name: init
+          resources:
+            limits:
+              cpu: 100m
+              memory: 10M
+          volumeMounts:
+            - mountPath: /data
+              name: data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: data
