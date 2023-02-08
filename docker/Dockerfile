@@ -10,12 +10,17 @@ FROM    library/alpine:3.17
 
 #       https://github.com/restic/restic/releases
 ARG     RESTIC_VERSION=0.15.1
+#       https://github.com/mikefarah/yq/releases/
+ARG     YQ_VERSION=4.30.8
 RUN     set -x \
         && apk --no-cache add curl \
         && curl -Lo /usr/bin/restic.bz2 \
                 https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/restic_${RESTIC_VERSION}_linux_amd64.bz2 \
         && bunzip2 /usr/bin/restic.bz2 \
         && chmod 755 /usr/bin/restic \
+        && curl -Lo /usr/bin/yq \
+                https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_amd64 \
+        && chmod 755 /usr/bin/yq \
         && chmod 777 /mnt
 
 COPY    --from=builder /go/src/app/mcs-backup /opt/mcs/bin/

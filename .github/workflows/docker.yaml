@@ -1,9 +1,11 @@
-name: docker image
+name: build-and-push-image
 
 on:
   push:
     tags:
       - "v*"
+    branches:
+      - main
 
 jobs:
   build-and-push-image:
