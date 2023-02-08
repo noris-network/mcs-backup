@@ -63,6 +63,13 @@ func TaskBuildRestoreTests(baseConfig tasks.KV) []goyek.Task {
 	files := []int{200, 332, 447}
 	backupRoot := env["BACKUP_ROOT"]
 
+	// backups = append(backups,
+	// 	util.Step{
+	// 		Log:     "sleep..............",
+	// 		Kubectl: prefix + "sleep 1d",
+	// 	},
+	// )
+
 	for idx := range dirs {
 		backups = append(backups,
 			util.Step{

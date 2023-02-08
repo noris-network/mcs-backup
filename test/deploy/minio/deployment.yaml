@@ -43,7 +43,7 @@ spec:
             - bash
             - -c
             - |
-              set -eu
+              set -e
               mc alias set s3 http://minio.minio.svc:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
               sleep infinity
           envFrom:
@@ -55,7 +55,7 @@ spec:
           resources:
             limits:
               cpu: 100m
-              memory: 10M
+              memory: 50M
       volumes:
         - name: data
           persistentVolumeClaim:
