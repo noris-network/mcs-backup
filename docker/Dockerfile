@@ -23,17 +23,14 @@ RUN     set -x \
         && chmod 755 /usr/bin/yq \
         && chmod 777 /mnt
 
-COPY    --from=builder /go/src/app/mcs-backup /opt/mcs/bin/
-COPY    scripts/cleanup-backup-root.sh /opt/mcs/bin/
-RUN     chmod 755 /opt/mcs/bin/* &&\
-        cd /opt/mcs/bin/ &&\
-        ln -s mcsbackup backup
+COPY    --from=builder /go/src/app/mcs-backup /usr/bin/
+COPY    scripts/cleanup-backup-root.sh /opt/bin/
+RUN     chmod 755 /usr/bin/mcs-backup /opt/bin/cleanup-backup-root.sh
 
 ENV     HOME=/tmp \
         TZ=GMT \
         BACKUP_ROOT=/mnt \
-        RETENTION_POLICY='{"daily":7,"last":10}' \
-        PATH=/opt/mcs/bin:$PATH
+        RETENTION_POLICY='{"daily":7,"last":10}'
 
 WORKDIR /tmp
 
