@@ -11,10 +11,10 @@ Overview:
         </tr>
     </thead>
 <tbody>
-<tr><td colspan="3">s3:</td></tr>
+<tr><td colspan="3">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s3:</td></tr>
 <tr><td><code>AWS_ACCESS_KEY_ID</code></td><td>yes</td><td>S3 Access Key ID</td></tr>
 <tr><td><code>AWS_SECRET_ACCESS_KEY</code></td><td>yes</td><td>S3 Secret Access Key</td></tr>
-<tr><td colspan="3">mcs-backup config:</td></tr>
+<tr><td colspan="3">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mcs-backup config:</td></tr>
 <tr><td><code>BACKUP_HTTP_PORT</code></td><td>no</td><td>default: <code>9000</code></td></tr>
 <tr><td><code>BACKUP_PATHS</code></td><td>no</td>
     <td><code>foo:bar</code>: only subdirectories  <code>foo</code> and
@@ -29,7 +29,7 @@ Overview:
     <td>e.g. <code>fax:baz</code>: <code>bar</code> and
         <code>baz</code> will be excluded from backup</td></tr>
 <tr><td><code>RETENTION_POLICY</code></td><td>no</td><td>default: ``</td></tr>
-<tr><td colspan="3">metrics:</td><td></td><td></td></tr>
+<tr><td colspan="3">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;metrics:</td><td></td><td></td></tr>
 <tr><td><code>INFLUXDB_DATABASE</code></td><td>no</td><td>e.g. <code>mcs</code>,
         has to pre-exist</td></tr>
 <tr><td><code>INFLUXDB_ORG</code></td><td>no</td><td></td></tr>
@@ -42,26 +42,12 @@ Overview:
     <td>e.g. <code>http://loki-dev.backup-monitoring.svc:3100</code></td></tr>
 <tr><td><code>METRICS_LABELS</code></td><td>no</td>
     <td>e.g. <code>{"namespace":"foo","service":"bar"}</code></td></tr>
-<tr>
-<td><code>S3_METRICS_TIMEOUT</code></td>
-<td>no</td>
-<td>default: <code>5s</code></td>
-</tr>
-<tr>
-<td>hook scripts:</td>
-<td></td>
-<td></td>
-</tr>
-<tr>
-<td><code>PIPE_IN_SCRIPT</code></td>
-<td>no</td>
-<td>script that dumps data to STDOUT</td>
-</tr>
-<tr>
-<td><code>PIPE_OUT_SCRIPT</code></td>
-<td>no</td>
-<td>script that read data from STDIN</td>
-</tr>
+<tr><td><code>S3_METRICS_TIMEOUT</code></td><td>no</td><td>default: <code>5s</code></td></tr>
+<tr><td colspan="3">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;hook scripts:</td></tr>
+<tr><td><code>PIPE_IN_SCRIPT</code></td><td>no</td>
+    <td>script that dumps data to STDOUT</td></tr>
+<tr><td><code>PIPE_OUT_SCRIPT</code></td><td>no</td>
+    <td>script that read data from STDIN</td></tr>
 <tr>
 <td><code>POST_BACKUP_SCRIPT</code></td>
 <td>no</td>
@@ -82,30 +68,15 @@ Overview:
 <td>no</td>
 <td>script to run before restore</td>
 </tr>
-<tr>
-<td>restic:</td>
-<td></td>
-<td></td>
-</tr>
-<tr>
-<td><code>RESTIC_REPOSITORY</code></td>
-<td>yes</td>
-<td>e.g. <code>s3:s3.example.com/bucket-name</code></td>
-</tr>
-<tr>
-<td><code>RESTIC_REPOSITORY_BASE</code></td>
-<td>no</td>
-<td>when <code>RESTIC_REPOSITORY</code> is empty and <code>_BASE</code> and <code>_PATH</code> are...</td>
-</tr>
-<tr>
-<td><code>RESTIC_REPOSITORY_PATH</code></td>
-<td>no</td>
-<td>...set, they are concatenated (_BASE+"/"+_PATH) and used instead</td>
-</tr>
-<tr>
-<td><code>RESTIC_PASSWORD</code></td>
-<td>yes</td>
-<td>Password for backup encryption</td>
-</tr>
+<tr><td colspan="3">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;restic:</td></tr>
+<tr><td><code>RESTIC_REPOSITORY</code><td rowspan="3">yes</td>
+    <td>e.g. <code>s3:s3.example.com/bucket-name</code></td></tr>
+<tr><td colspan="3">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i>or...</i></td></tr>
+<tr><td><code>RESTIC_REPOSITORY_BASE</code><br>
+        <code>RESTIC_REPOSITORY_PATH</code></td>
+    <td><code>RESTIC_REPOSITORY</code> = <code>RESTIC_REPOSITORY_BASE</code>
+        + <code>/</code> + <code>RESTIC_REPOSITORY_PATH</code></td></tr>
+<tr><td><code>RESTIC_PASSWORD</code></td><td>yes</td>
+    <td>Password for backup encryption</td></tr>
 </tbody>
 </table>
