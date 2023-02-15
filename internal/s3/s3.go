@@ -181,8 +181,6 @@ func (c Client) GetMetrics() (Metrics, error) {
 		metrics.PathMetrics = &pm
 	}
 
-	log.Printf("@@@@@@@ GetMetrics elapsed: %v", time.Since(t0))
-
 	return metrics, nil
 }
 
