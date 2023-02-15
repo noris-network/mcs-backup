@@ -17,6 +17,9 @@ Features:
   * Stale locks can be automatically removed (mcs-backup)
   * Hooks (pre, post, pipe-in/out) (mcs-backup)
 
+Detailed configuration documentation and integration examples are available
+in the [docs](docs/) directory.
+
 ## Usage
 As MCS-Backup is scheduling backups and provides prometheus metrics, it should
 be started as a background service. In a kubernetes context it can run as
