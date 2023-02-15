@@ -1,4 +1,3 @@
-
 ## Environment Variables
 
 Overview:
@@ -42,7 +41,7 @@ Overview:
         <tr>
             <td><code>BACKUP_ROOT</code></td>
             <td>no</td>
-            <td>default: <code>/mnt</code></td>
+            <td>default: "<code>/mnt</code>"</td>
         </tr>
         <tr>
             <td><code>CRON_SCHEDULE_FILE</code></td>
@@ -113,14 +112,9 @@ Overview:
                 hook scripts:</td>
         </tr>
         <tr>
-            <td><code>PIPE_IN_SCRIPT</code></td>
+            <td><code>PRE_BACKUP_SCRIPT</code></td>
             <td>no</td>
-            <td>script that dumps data to STDOUT</td>
-        </tr>
-        <tr>
-            <td><code>PIPE_OUT_SCRIPT</code></td>
-            <td>no</td>
-            <td>script that read data from STDIN</td>
+            <td>script to run before backup</td>
         </tr>
         <tr>
             <td><code>POST_BACKUP_SCRIPT</code></td>
@@ -128,19 +122,24 @@ Overview:
             <td>script to run after backup</td>
         </tr>
         <tr>
+            <td><code>PRE_RESTORE_SCRIPT</code></td>
+            <td>no</td>
+            <td>script to run before restore</td>
+        </tr>
+        <tr>
             <td><code>POST_RESTORE_SCRIPT</code></td>
             <td>no</td>
             <td>script to run after restore</td>
         </tr>
         <tr>
-            <td><code>PRE_BACKUP_SCRIPT</code></td>
+            <td><code>PIPE_IN_SCRIPT</code></td>
             <td>no</td>
-            <td>script to run before backup</td>
+            <td>script that dumps data to <code>stdout</code></td>
         </tr>
         <tr>
-            <td><code>PRE_RESTORE_SCRIPT</code></td>
+            <td><code>PIPE_OUT_SCRIPT</code></td>
             <td>no</td>
-            <td>script to run before restore</td>
+            <td>script that reads data from <code>stdin</code></td>
         </tr>
         <tr>
             <td colspan="3">
