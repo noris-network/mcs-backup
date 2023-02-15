@@ -6,12 +6,12 @@ collecting backup and S3 metrics in order to make backup status more visible.
 
 Features:
 
-  * Backups are encrypted (resic)
-  * Backups are stored in S3 buckets (resic)
-  * Backups are incremental (resic)
-  * Data is deduplicated (resic)
-  * Backups are versioned (resic)
-  * Data retention can be defined (resic)
+  * Backups are encrypted (restic)
+  * Backups are stored in S3 buckets (restic)
+  * Backups are incremental (restic)
+  * Data is deduplicated (restic)
+  * Backups are versioned (restic)
+  * Data retention can be defined (restic)
   * Backups are performed regularly (mcs-backup)
   * Backup metrics are provided (mcs-backup)
   * Stale locks can be automatically removed (mcs-backup)
