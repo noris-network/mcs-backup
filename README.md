@@ -40,8 +40,14 @@ done at the most inconvenient times, possibly under time pressure, this process
 should be as easy as possible to perform. With a properly configured mcs-backup
 a simple command `mcs-backup restore latest` is enough.
 
-## Scheduling of backups
+## Scheduling of Backups
 Backups are scheduled with cron-like expressions (e.g. `0 */2 * * *`)
+
+### Maintenance Windows
+In case you want to disable automatically scheduled backups for a maintenance
+window, you can do this manually. For example, `mcs-backup backup --maintenance
+1h` disables the backup for 1 hour. After the specified time, the backup is
+automatically reactivated.
 
 ## Hooks
 wip...
