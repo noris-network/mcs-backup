@@ -49,8 +49,10 @@ window, you can do this manually. For example, `mcs-backup backup --maintenance
 1h` disables the backup for 1 hour. After the specified time, backup is
 automatically reactivated.
 
-## Hooks
-wip...
+## Changelog
+
+  * `v1.5.0` Initial public release
+  * `v1.5.1` Cleanup Paths in Dockerfile
 
 
 [restic]: https://github.com/restic/restic
