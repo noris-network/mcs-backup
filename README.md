@@ -46,7 +46,7 @@ Backups are scheduled with cron-like expressions (e.g. `0 */2 * * *`)
 ### Maintenance Windows
 In case you want to disable automatically scheduled backups for a maintenance
 window, you can do this manually. For example, `mcs-backup backup --maintenance
-1h` disables the backup for 1 hour. After the specified time, the backup is
+1h` disables the backup for 1 hour. After the specified time, backup is
 automatically reactivated.
 
 ## Hooks
