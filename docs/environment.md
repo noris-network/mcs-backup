@@ -6,7 +6,7 @@ Overview:
     <thead>
         <tr>
             <th>Variable</th>
-            <th>Required</th>
+            <th>Required?</th>
             <th>Description</th>
         </tr>
     </thead>
@@ -150,7 +150,7 @@ Overview:
         <tr>
             <td><code>RESTIC_REPOSITORY</code>
             <td rowspan="3">yes</td>
-            <td>e.g. <code>s3:s3.example.com/bucket-name</code></td>
+            <td>e.g. "<code>s3:s3.example.com/bucket-name</code>"</td>
         </tr>
         <tr>
             <td colspan="3">
