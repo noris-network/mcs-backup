@@ -20,12 +20,19 @@ script, it is executed before `restic` is starting to restore the configured
 directory. This could be, for example, cleaning up the backup root directory to
 make sure that no unwanted files remain.
 
+Example "pre-restore" script:
+```
+#!/bin/bash
+find "${BACKUP_ROOT?not set}" -delete
+```
+
 ## pipe-in
 When the environment variable `PIPE_IN_SCRIPT` points to some existing script,
-it is executed and all output to `stdout` is piped into `restic` (think: `script | restic`). This is
-particularly beneficial if, for example, large databases are to be backed up, as
-no temporary disk space is required. In addition, the backup is faster because
-data does not have to be temporarily written to the file system.
+it is executed and all output to `stdout` is piped into `restic` (think: `script
+| restic`). This is particularly beneficial if, for example, large databases are
+to be backed up, as no temporary disk space is required. In addition, the backup
+is faster because data does not have to be temporarily written to the file
+system.
 
 Example "pipe-in" script for mariadb:
 ```
