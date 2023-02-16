@@ -27,6 +27,15 @@ particularly beneficial if, for example, large databases are to be backed up, as
 no temporary disk space is required. In addition, the backup is faster because
 data does not have to be temporarily written to the file system.
 
+Example pipe-in-script for mariadb:
+```
+#!/bin/bash
+exec mysqldump -h "$MARIADB_HOST" \
+    -u "$MARIADB_ROOT_USER" \
+    -p"$MARIADB_ROOT_PASSWORD" \
+    --single-transaction "$MARIADB_DATABASE"
+```
+
 ## pipe-out
 When the environment variable `PIPE_OUT_SCRIPT` points to some existing script,
 then it is executed and data is sent to it's stdin during recovery. This can
