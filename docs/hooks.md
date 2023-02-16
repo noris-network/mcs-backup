@@ -27,7 +27,7 @@ particularly beneficial if, for example, large databases are to be backed up, as
 no temporary disk space is required. In addition, the backup is faster because
 data does not have to be temporarily written to the file system.
 
-Example pipe-in-script for mariadb:
+Example "pipe-in" script for mariadb:
 ```
 #!/bin/bash
 exec mysqldump -h "$MARIADB_HOST" --single-transaction \
@@ -41,7 +41,7 @@ then it is executed and data is sent to it's stdin during recovery. This can
 directly send the data to the database, without taking the detour via the file
 system.
 
-Example pipe-out-script for mariadb:
+Example "pipe-out" script for mariadb:
 ```
 #!/bin/bash
 exec mysql -h "$MARIADB_HOST" \
