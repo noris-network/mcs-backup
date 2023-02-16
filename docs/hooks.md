@@ -30,10 +30,9 @@ data does not have to be temporarily written to the file system.
 Example pipe-in-script for mariadb:
 ```
 #!/bin/bash
-exec mysqldump -h "$MARIADB_HOST" \
-    -u "$MARIADB_ROOT_USER" \
-    -p"$MARIADB_ROOT_PASSWORD" \
-    --single-transaction "$MARIADB_DATABASE"
+exec mysqldump -h "$MARIADB_HOST" --single-transaction \
+    -u "$MARIADB_ROOT_USER" -p"$MARIADB_ROOT_PASSWORD" \
+     "$MARIADB_DATABASE"
 ```
 
 ## pipe-out
