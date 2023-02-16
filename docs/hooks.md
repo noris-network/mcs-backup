@@ -40,3 +40,11 @@ When the environment variable `PIPE_OUT_SCRIPT` points to some existing script,
 then it is executed and data is sent to it's stdin during recovery. This can
 directly send the data to the database, without taking the detour via the file
 system.
+
+Example pipe-out-script for mariadb:
+```
+#!/bin/bash
+exec mysql -h "$MARIADB_HOST" \
+    -u "$MARIADB_ROOT_USER" -p"$MARIADB_ROOT_PASSWORD" \
+    "$MARIADB_DATABASE"
+```
