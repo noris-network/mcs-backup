@@ -22,7 +22,7 @@ make sure that no unwanted files remain.
 
 ## pipe-in
 When the environment variable `PIPE_IN_SCRIPT` points to some existing script,
-it is executed and all output to `stdout` is piped into `restic`. This is
+it is executed and all output to `stdout` is piped into `restic` (think: `script | restic`). This is
 particularly beneficial if, for example, large databases are to be backed up, as
 no temporary disk space is required. In addition, the backup is faster because
 data does not have to be temporarily written to the file system.
@@ -37,9 +37,9 @@ exec mysqldump -h "$MARIADB_HOST" --single-transaction \
 
 ## pipe-out
 When the environment variable `PIPE_OUT_SCRIPT` points to some existing script,
-then it is executed and data is sent to it's stdin during recovery. This can
-directly send the data to the database, without taking the detour via the file
-system.
+then it is executed and data from `restic` is sent to the scripts's stdin during
+recovery (think: `restic | script`). This can directly send the data to the
+database, without taking the detour via the file system.
 
 Example "pipe-out" script for mariadb:
 ```
