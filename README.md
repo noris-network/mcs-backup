@@ -32,7 +32,7 @@ sidecar container to the main application, as this provides easy access to all
 volumes mounted in the application container ([example][sidecar]).
 
 ### Database Backup
-For example, if a mariadb is to be backed up, `mcs-backup` calls a pre hook
+For example, if a mariadb is to be backed up, `mcs-backup` calls a [pre hook][hooks]
 script which then calls mysqldump. The dump can either be written to the file
 system and then saved as a regular file, or directly to stdout, in that case
 piping the data directly into restic.
@@ -59,5 +59,5 @@ automatically reactivated.
 
 
 [restic]:    https://github.com/restic/restic
-[sidecar]:   test/deploy/demo/base/_common/deployment.yaml#L26
+[sidecar]:   test/deploy/demo/base/_common/deployment.yaml#L26-L55
 [hooks]:     docs/hooks.md
