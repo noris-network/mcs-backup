@@ -1,14 +1,14 @@
 # Hooks
-Hooks are triggered in different phases of the backup/restore process. Scripts
-are executed in the configured backup root directory, or `/mnt` when not set.
+Hooks are triggered at various stages of the backup/restore process. Scripts are
+executed in the configured backup root directory, or `/mnt` when not specified.
 
 ## pipe-in
-When the [environment variable][envs] `PIPE_IN_SCRIPT` points to some existing
-script, it is executed and all output to `stdout` is piped into `restic` (think:
-`script | restic`). This is particularly beneficial if, for example, large
-databases are to be backed up, as no temporary disk space is required. In
-addition, the backup is faster because data does not have to be temporarily
-written to the file system.
+If the [environment variable][envs] `PIPE_IN_SCRIPT` points to an existing
+script, it will be executed and all output to `stdout` will be piped into
+`restic` (think: `script | restic`). This is particularly useful when backing up
+large databases, as no temporary disk space is required. In
+addition, the backup is faster because data does not have to be written
+temporarily to the file system.
 
 Example "pipe-in" script for mariadb:
 ```
@@ -19,10 +19,10 @@ exec mysqldump -h "$MARIADB_HOST" --single-transaction \
 ```
 
 ## pipe-out
-When the [environment variable][envs] `PIPE_OUT_SCRIPT` points to some existing
-script, then it is executed and data from `restic` is sent to the scripts's
+If the [environment variable][envs] `PIPE_OUT_SCRIPT` points to an existing
+script, it will be executed and data from `restic` will be sent to the scripts's
 stdin during recovery (think: `restic | script`). This can directly send the
-data to the database, without taking the detour via the file system.
+data to the database, without going through the file system.
 
 Example "pipe-out" script for mariadb:
 ```
@@ -33,18 +33,18 @@ exec mysql -h "$MARIADB_HOST" \
 ```
 
 ## pre-backup
-When the [environment variable][envs] `PRE_BACKUP_SCRIPT` points to some
-existing script, it is executed before `restic` is starting to backup the
-configured directory. This could, for example, creata a database dump in the
-backup root directory, if the preferred "pipe-in" method cannot be used for some
-reason. As `restic` automatically compresses data, it is recommended not to
-compress dumps, as this would interfere with `restic`'s "content defined
-chunking" based deduplication.
+If the [environment variable][envs] `PRE_BACKUP_SCRIPT` points to an existing
+script, it will be executed before `restic` starts to backup the configured
+directory. This could, for example, create a database dump in the backup root
+directory, in case the preferred "pipe-in" method cannot be used for some reason. As
+`restic` automatically compresses data, it is recommended that you do not
+compress data yourself, as this would interfere with `restic`'s "content defined
+chunking" based [deduplication][cdc].
 
 ## post-backup
-When the [environment variable][envs] `POST_BACKUP_SCRIPT` points to some
-existing script, it is executed afer `restic` backup finished. This could e.g.
-cleanup database dumps created in the `pre-backup` phase.
+If the [environment variable][envs] `POST_BACKUP_SCRIPT` points an existing
+script, it will be executed afer the `restic` backup has finished. This could
+e.g. clean up database dumps created during the `pre-backup` phase.
 
 Example "post-backup" script:
 ```
@@ -53,15 +53,15 @@ find "${BACKUP_ROOT?not set}" -delete
 ```
 
 ## pre-restore
-When the [environment variable][envs] `PRE_RESTORE_SCRIPT` points to some
-existing script, it is executed before `restic` is starting to restore the
-configured directory. This could be, for example, clean up the backup root
-directory to make sure that no unwanted files remain.
-
+If the [environment variable][envs] `PRE_RESTORE_SCRIPT` points to an existing
+script, it will be executed before `restic` starts to restore the configured
+directory. This could, for example, clean up the backup root directory to ensure
+that no unwanted files are left behind.
 
 ## post-restore
-When the [environment variable][envs] `POST_RESTORE_SCRIPT` points to some
-existing script, it is executed after `restic` restored data to the configured
+If the [environment variable][envs] `POST_RESTORE_SCRIPT` points to an existing
+script, it will be executed after `restic` has restored data to the configured
 directory. This could, for example, import a restored data dump into a database.
 
-[envs]: environment.md
+[envs]:       environment.md
+[cdc]:        https://restic.readthedocs.io/en/latest/100_references.html#backups-and-deduplication
