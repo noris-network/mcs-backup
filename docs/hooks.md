@@ -1,5 +1,5 @@
 # Hooks
-Hooks are triggered in different phases of the backup / restore process. Scripts
+Hooks are triggered in different phases of the backup/restore process. Scripts
 are executed in the configured backup root directory, or `/mnt` when not set.
 
 ## pipe-in
@@ -46,17 +46,18 @@ When the environment variable `POST_BACKUP_SCRIPT` points to some existing
 script, it is executed afer `restic` backup finished. This could e.g. cleanup
 database dumps created in the `pre-backup` phase.
 
-## pre-restore
-When the environment variable `PRE_RESTORE_SCRIPT` points to some existing
-script, it is executed before `restic` is starting to restore the configured
-directory. This could be, for example, cleaning up the backup root directory to
-make sure that no unwanted files remain.
-
-Example "pre-restore" script:
+Example "post-backup" script:
 ```
 #!/bin/bash
 find "${BACKUP_ROOT?not set}" -delete
 ```
+
+## pre-restore
+When the environment variable `PRE_RESTORE_SCRIPT` points to some existing
+script, it is executed before `restic` is starting to restore the configured
+directory. This could be, for example, clean up the backup root directory to
+make sure that no unwanted files remain.
+
 
 ## post-restore
 When the environment variable `POST_RESTORE_SCRIPT` points to some existing
