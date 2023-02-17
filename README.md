@@ -29,7 +29,7 @@ sidecar container or stand-alone deployment, depending on the usage scenario.
 In order to backup plain files, `mcs-backup` needs to be able to access the file
 system to be backed up. In a Kubernetes context, it is therefore best used as a
 sidecar container to the main application, as this provides easy access to all
-volumes mounted in the application container.
+volumes mounted in the application container ([example][sidecar]).
 
 ### Database Backup
 For example, if a mariadb is to be backed up, `mcs-backup` calls a pre hook
@@ -58,4 +58,6 @@ automatically reactivated.
   * `v1.5.1` Cleanup Paths in Dockerfile
 
 
-[restic]: https://github.com/restic/restic
+[restic]:    https://github.com/restic/restic
+[sidecar]:   test/deploy/demo/base/_common/deployment.yaml#L26
+[hooks]:     docs/hooks.md
