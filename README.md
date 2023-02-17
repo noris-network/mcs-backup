@@ -35,7 +35,8 @@ volumes mounted in the application container ([example][sidecar]).
 For example, if a mariadb is to be backed up, `mcs-backup` calls a [hook][hooks]
 script which then calls mysqldump. The dump can either be written to the file
 system (pre-backup-hook) and then be backed up as a regular file, or directly to
-stdout (pipe-in-hook), in that case piping the data directly into restic.
+stdout (pipe-in-hook), in that case piping the data directly into restic (-->
+see [hooks][hooks]).
 
 ### Restore
 Since restoring data is the most important part of backup, and usually has to be
