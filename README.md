@@ -41,8 +41,8 @@ see [hooks][hooks]).
 ### Restore
 Since restoring data is the most important part of backup, and usually has to be
 done at the most inconvenient times, possibly under time pressure, this process
-should be as easy as possible to perform. With a properly configured mcs-backup
-a simple command `mcs-backup restore latest` is enough.
+should be as easy to perform as possible. With a properly configured mcs-backup
+a simple `mcs-backup restore latest` command is sufficient.
 
 ## Scheduling of Backups
 Backups are scheduled with cron-like expressions (e.g. `0 */2 * * *`)
