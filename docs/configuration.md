@@ -1,3 +1,5 @@
+[<< back to index](readme.md)
+
 # Configuration
 
 > An overview of all environment variables that are
@@ -38,7 +40,7 @@ backup`. The value must be a valid json, e.g. `{"weekly":8,"daily":7,"last":4}`.
 The [exact functioning][retention] can be found in the restic documentation.
 
 
-[envs]: environment.md
-[minio]: https://min.io/
+[envs]:       environment.md
+[minio]:      https://min.io/
 [retention]:  https://restic.readthedocs.io/en/stable/060_forget.html#removing-snapshots-according-to-a-policy
-[loki]: https://grafana.com/oss/loki/
+[loki]:       https://grafana.com/oss/loki/

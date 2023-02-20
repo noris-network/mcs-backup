@@ -1,3 +1,5 @@
+[<< back to index](readme.md)
+
 # Hooks
 Hooks are triggered at various stages of the backup/restore process. Scripts are
 executed in the configured backup root directory, or `/mnt` when not specified.
