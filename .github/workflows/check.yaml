@@ -2,7 +2,7 @@ name: regular-check
 
 on:
   schedule:
-    - cron: "11 1 * * 0"
+    - cron: "11 1 * * *"
 
 jobs:
   regular-check:
