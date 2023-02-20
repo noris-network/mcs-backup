@@ -120,6 +120,10 @@ func TaskBuildDisableTests(baseConfig tasks.KV) []goyek.Task {
 					ExpectMatch: "backup triggered via API",
 				},
 				{
+					Log:   "wait for backup to finish",
+					Sleep: 2 * time.Second,
+				},
+				{
 					Log:         "check mcs-backup logs",
 					Kubectl:     "logs svc/nginx -c mcs-backup --tail=1",
 					ExpectMatch: "backup finished",
