@@ -93,5 +93,7 @@ func main() {
 
 	flow.Flow.Use(ReportStatusWithRetry)
 
+	os.Chdir("..")
+
 	flow.Flow.Main(os.Args[1:])
 }
