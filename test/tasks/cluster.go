@@ -117,14 +117,14 @@ func TaskRunExternalCommand(name, externalCommand string) goyek.Task {
 		Usage: fmt.Sprintf("run %v, if it exists", externalCommand),
 		Action: func(tf *goyek.A) {
 
-			out, err := script.
+			_, err := script.
 				IfExists(externalCommand).
 				Exec(externalCommand).
 				String()
-			if err != nil && !strings.Contains(out, "no such file or directory") {
-				tf.Errorf("script: %v", out)
+			if err != nil && !strings.Contains(err.Error(), "no such file or directory") {
+				tf.Errorf("script: %v", err)
 			}
-			if err != nil && strings.Contains(out, "no such file or directory") {
+			if err != nil && strings.Contains(err.Error(), "no such file or directory") {
 				tf.Logf("skip %v", externalCommand)
 			}
 		},
