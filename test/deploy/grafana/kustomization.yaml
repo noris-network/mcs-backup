@@ -20,4 +20,8 @@ configMapGenerator:
     options:
       disableNameSuffixHash: true
     files:
-      - dashboards/WikiControllerLogViewer.json
+      - dashboards/workload-details.json
+      - dashboards/storage.json
+      - dashboards/overview.json
+      - dashboards/service.json
+      - dashboards/errors.json

@@ -71,15 +71,21 @@ func TaskRunKustomize(name, action, directory string) goyek.Task {
 		Name:  name,
 		Usage: action + " kustomization in " + directory,
 		Action: func(tf *goyek.A) {
-			out, err := script.
-				//Exec("kustomize build " + directory).
-				Exec("kubectl " + action + " -k " + directory).
-				String()
+			err := RunKustomize(action, directory)
 			if err != nil {
-				tf.Errorf("kustomize build: %v", out)
+				tf.Errorf("kustomize build: %v", err)
 			}
 		},
 	}
+}
+
+// RunKustomize
+func RunKustomize(action, directory string) error {
+	_, err := script.
+		//Exec("kustomize build " + directory).
+		Exec("kubectl " + action + " -k " + directory).
+		String()
+	return err
 }
 
 // TaskDeleteCluster deletes cluster and registry

@@ -3,34 +3,47 @@
         "list": [
             {
                 "builtIn": 1,
-                "datasource": "-- Grafana --",
+                "datasource": {
+                    "type": "datasource",
+                    "uid": "grafana"
+                },
                 "enable": true,
                 "hide": true,
                 "iconColor": "rgba(0, 211, 255, 1)",
                 "name": "Annotations & Alerts",
+                "target": {
+                    "limit": 100,
+                    "matchAny": false,
+                    "tags": [],
+                    "type": "dashboard"
+                },
                 "type": "dashboard"
             }
         ]
     },
     "editable": true,
-    "gnetId": null,
+    "fiscalYearStartMonth": 0,
     "graphTooltip": 0,
-    "id": 21,
+    "id": 3,
     "links": [
         {
             "icon": "external link",
             "includeVars": true,
             "keepTime": true,
             "tags": [
-                "restic-backup"
+                "mcs-backup"
             ],
             "targetBlank": false,
             "type": "dashboards"
         }
     ],
+    "liveNow": false,
     "panels": [
         {
-            "datasource": "InfluxDB",
+            "datasource": {
+                "type": "influxdb",
+                "uid": "DsInfluxDB"
+            },
             "description": "",
             "fieldConfig": {
                 "defaults": {
@@ -38,8 +51,10 @@
                         "mode": "fixed"
                     },
                     "custom": {
-                        "align": null,
-                        "filterable": false
+                        "align": "auto",
+                        "displayMode": "auto",
+                        "filterable": false,
+                        "inspect": false
                     },
                     "mappings": [],
                     "noValue": "N/A",
@@ -115,20 +130,15 @@
                                 "id": "mappings",
                                 "value": [
                                     {
-                                        "from": "",
-                                        "id": 1,
-                                        "text": "OK",
-                                        "to": "",
-                                        "type": 1,
-                                        "value": "8"
-                                    },
-                                    {
-                                        "from": "",
-                                        "id": 2,
-                                        "text": "Error",
-                                        "to": "",
-                                        "type": 1,
-                                        "value": "0"
+                                        "options": {
+                                            "0": {
+                                                "text": "Error"
+                                            },
+                                            "8": {
+                                                "text": "OK"
+                                            }
+                                        },
+                                        "type": "value"
                                     }
                                 ]
                             },
@@ -177,8 +187,8 @@
                                 "value": [
                                     {
                                         "targetBlank": true,
-                                        "title": "Show instance details",
-                                        "url": "/d/McsResticBackupWorkload?from=now-24h&to=now&var-namespace=${__data.fields.Namespace}&var-instance=${__data.fields.Workload}"
+                                        "title": "Show workload details",
+                                        "url": "  /d/mcs-backup-workload-details/backup-workload-details?from=now-24h&to=now&var-namespace=${__data.fields.Namespace}&var-workload=${__data.fields.Workload}"
                                     }
                                 ]
                             },
@@ -247,7 +257,7 @@
                                 "value": [
                                     {
                                         "title": "Show Bucket details",
-                                        "url": "/d/McsResticBackupStorage?from=now-7d&to=now&var-namespace=${__data.fields.Namespace}﻿&var-instance=﻿${__data.fields.Workload}"
+                                        "url": "/d/mcs-backup-storage/backup-storage?from=now-7d&to=now&var-namespace=${__data.fields.Namespace}&var-workload=${__data.fields.Workload}"
                                     }
                                 ]
                             }
@@ -287,68 +297,33 @@
                                 "id": "mappings",
                                 "value": [
                                     {
-                                        "from": "",
-                                        "id": 1,
-                                        "text": "prepare",
-                                        "to": "",
-                                        "type": 1,
-                                        "value": "1"
-                                    },
-                                    {
-                                        "from": "",
-                                        "id": 2,
-                                        "text": "backup",
-                                        "to": "",
-                                        "type": 1,
-                                        "value": "2"
-                                    },
-                                    {
-                                        "from": "",
-                                        "id": 3,
-                                        "text": "forget",
-                                        "to": "",
-                                        "type": 1,
-                                        "value": "3"
-                                    },
-                                    {
-                                        "from": "",
-                                        "id": 4,
-                                        "text": "prune",
-                                        "to": "",
-                                        "type": 1,
-                                        "value": "4"
-                                    },
-                                    {
-                                        "from": "",
-                                        "id": 5,
-                                        "text": "getstats",
-                                        "to": "",
-                                        "type": 1,
-                                        "value": "5"
-                                    },
-                                    {
-                                        "from": "",
-                                        "id": 6,
-                                        "text": "s3stats",
-                                        "to": "",
-                                        "type": 1,
-                                        "value": "6"
-                                    },
-                                    {
-                                        "from": "",
-                                        "id": 7,
-                                        "text": "wrapup",
-                                        "to": "",
-                                        "type": 1,
-                                        "value": "7"
-                                    },
-                                    {
-                                        "from": "",
-                                        "id": 9,
-                                        "text": "—",
-                                        "to": "",
-                                        "type": 1,
-                                        "value": "0"
+                                        "options": {
+                                            "0": {
+                                                "text": "—"
+                                            },
+                                            "1": {
+                                                "text": "prepare"
+                                            },
+                                            "2": {
+                                                "text": "backup"
+                                            },
+                                            "3": {
+                                                "text": "forget"
+                                            },
+                                            "4": {
+                                                "text": "prune"
+                                            },
+                                            "5": {
+                                                "text": "getstats"
+                                            },
+                                            "6": {
+                                                "text": "s3stats"
+                                            },
+                                            "7": {
+                                                "text": "wrapup"
+                                            }
+                                        },
+                                        "type": "value"
                                     }
                                 ]
                             },
@@ -376,7 +351,7 @@
                                     "mode": "absolute",
                                     "steps": [
                                         {
-                                            "color": "rgb(0, 0, 0)",
+                                            "color": "transparent",
                                             "value": null
                                         },
                                         {
@@ -447,6 +422,13 @@
             "id": 4,
             "links": [],
             "options": {
+                "footer": {
+                    "fields": "",
+                    "reducer": [
+                        "sum"
+                    ],
+                    "show": false
+                },
                 "frameIndex": 1,
                 "showHeader": true,
                 "sortBy": [
@@ -456,12 +438,16 @@
                     }
                 ]
             },
-            "pluginVersion": "7.3.4",
-            "repeat": "instance",
+            "pluginVersion": "9.3.6",
+            "repeat": "workload",
             "repeatDirection": "v",
             "targets": [
                 {
-                    "alias": "$tag_instance",
+                    "alias": "$tag_workload",
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "DsInfluxDB"
+                    },
                     "groupBy": [
                         {
                             "params": [
@@ -477,7 +463,7 @@
                         }
                     ],
                     "hide": false,
-                    "measurement": "backup_status",
+                    "measurement": "mcsbackup_status",
                     "orderByTime": "ASC",
                     "policy": "default",
                     "refId": "A",
@@ -549,7 +535,11 @@
                     ]
                 },
                 {
-                    "alias": "$tag_instance",
+                    "alias": "$tag_workload",
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "DsInfluxDB"
+                    },
                     "groupBy": [
                         {
                             "params": [
@@ -565,10 +555,10 @@
                         }
                     ],
                     "hide": false,
-                    "measurement": "backup_running",
+                    "measurement": "mcsbackup_running",
                     "orderByTime": "ASC",
                     "policy": "default",
-                    "query": "SELECT last(\"success\") AS \"current_status\", \"repository_id\", \"application_id\", \"time\" *1000 AS \"current_status_time\" FROM \"backup_status\" WHERE (\"phase\" != 'overall') AND $timeFilter GROUP BY \"namespace\", \"instance\"",
+                    "query": "SELECT last(\"success\") AS \"current_status\", \"repository_id\", \"application_id\", \"time\" *1000 AS \"current_status_time\" FROM \"backup_status\" WHERE (\"phase\" != 'overall') AND $timeFilter GROUP BY \"namespace\", \"workload\"",
                     "rawQuery": false,
                     "refId": "C",
                     "resultFormat": "table",
@@ -611,6 +601,10 @@
                     "tags": []
                 },
                 {
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "DsInfluxDB"
+                    },
                     "groupBy": [
                         {
                             "params": [
@@ -669,8 +663,6 @@
                     "tags": []
                 }
             ],
-            "timeFrom": null,
-            "timeShift": null,
             "title": "Overview",
             "transformations": [
                 {
@@ -775,7 +767,7 @@
                                 ],
                                 "operation": "aggregate"
                             },
-                            "instance": {
+                            "workload": {
                                 "aggregations": [
                                     "lastNotNull"
                                 ],
@@ -802,7 +794,7 @@
                             "namespace (lastNotNull)": 5,
                             "repository_id": 0,
                             "success (lastNotNull)": 1,
-                            "instance (lastNotNull)": 6
+                            "workload (lastNotNull)": 6
                         },
                         "renameByName": {
                             "Time (lastNotNull)": "Last Snapshot Taken",
@@ -815,7 +807,7 @@
                             "error (lastNotNull)": "Error",
                             "namespace (lastNotNull)": "Namespace",
                             "success (lastNotNull)": "Status",
-                            "instance (lastNotNull)": "Workload"
+                            "workload (lastNotNull)": "Workload"
                         }
                     }
                 }
@@ -824,16 +816,16 @@
         }
     ],
     "refresh": "5s",
-    "schemaVersion": 26,
+    "schemaVersion": 37,
     "style": "dark",
     "tags": [
-        "restic-backup"
+        "mcs-backup"
     ],
     "templating": {
         "list": []
     },
     "time": {
-        "from": "now-3h",
+        "from": "now-24h",
         "to": "now"
     },
     "timepicker": {
@@ -852,6 +844,7 @@
     },
     "timezone": "",
     "title": "Backup — Overview",
-    "uid": "McsResticBackupOverview",
-    "version": 17
+    "uid": "mcs-backup-overview",
+    "version": 2,
+    "weekStart": ""
 }

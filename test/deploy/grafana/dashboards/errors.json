@@ -1,0 +1,329 @@
+{
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": {
+                    "type": "datasource",
+                    "uid": "grafana"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "target": {
+                    "limit": 100,
+                    "matchAny": false,
+                    "tags": [],
+                    "type": "dashboard"
+                },
+                "type": "dashboard"
+            }
+        ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": 2,
+    "links": [
+        {
+            "asDropdown": false,
+            "icon": "external link",
+            "includeVars": true,
+            "keepTime": true,
+            "tags": [
+                "mcs-backup"
+            ],
+            "targetBlank": false,
+            "type": "dashboards"
+        }
+    ],
+    "liveNow": false,
+    "panels": [
+        {
+            "datasource": {
+                "type": "loki",
+                "uid": "DsLoki"
+            },
+            "description": "",
+            "fieldConfig": {
+                "defaults": {
+                    "custom": {
+                        "align": "auto",
+                        "displayMode": "auto",
+                        "filterable": false,
+                        "inspect": false
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Time"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.width",
+                                "value": 198
+                            },
+                            {
+                                "id": "unit",
+                                "value": "dateTimeAsSystem"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Namespace"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.width",
+                                "value": 166
+                            },
+                            {
+                                "id": "custom.filterable",
+                                "value": true
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Workload"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.width",
+                                "value": 167
+                            },
+                            {
+                                "id": "links",
+                                "value": [
+                                    {
+                                        "targetBlank": true,
+                                        "title": "Workload Details",
+                                        "url": "/d/McsResticBackupWorkload?var-namespace=${__data.fields.Namespace}&var-workload=${__data.fields.Workload}&var-successful=All"
+                                    }
+                                ]
+                            },
+                            {
+                                "id": "custom.filterable",
+                                "value": true
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Phase"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.width",
+                                "value": 104
+                            },
+                            {
+                                "id": "custom.filterable",
+                                "value": true
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Cluster"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.width",
+                                "value": 251
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "When"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "dateTimeFromNow"
+                            },
+                            {
+                                "id": "custom.width",
+                                "value": 115
+                            },
+                            {
+                                "id": "custom.align",
+                                "value": "left"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 23,
+                "w": 24,
+                "x": 0,
+                "y": 0
+            },
+            "id": 2,
+            "options": {
+                "footer": {
+                    "fields": "",
+                    "reducer": [
+                        "sum"
+                    ],
+                    "show": false
+                },
+                "showHeader": true,
+                "sortBy": [
+                    {
+                        "desc": true,
+                        "displayName": "Time"
+                    }
+                ]
+            },
+            "pluginVersion": "9.3.6",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "loki",
+                        "uid": "DsLoki"
+                    },
+                    "editorMode": "builder",
+                    "expr": "{namespace=\"$namespace\", instance=\"$instance\"} |= ``",
+                    "queryType": "range",
+                    "refId": "A"
+                }
+            ],
+            "title": "Backup Errors",
+            "transformations": [
+                {
+                    "id": "seriesToColumns",
+                    "options": {}
+                },
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {
+                            "id": true,
+                            "labels": true,
+                            "tsNs": true
+                        },
+                        "indexByName": {
+                            "Time": 0,
+                            "cluster": 1,
+                            "error": 5,
+                            "namespace": 2,
+                            "phase": 4,
+                            "workload": 3
+                        },
+                        "renameByName": {
+                            "cluster": "Cluster",
+                            "error": "Error",
+                            "namespace": "Namespace",
+                            "phase": "Phase",
+                            "time": "Time",
+                            "time2": "When",
+                            "workload": "Workload"
+                        }
+                    }
+                }
+            ],
+            "type": "table"
+        }
+    ],
+    "refresh": false,
+    "schemaVersion": 37,
+    "style": "dark",
+    "tags": [
+        "mcs-backup"
+    ],
+    "templating": {
+        "list": [
+            {
+                "allValue": "",
+                "current": {
+                    "selected": false,
+                    "text": "app-prod",
+                    "value": "app-prod"
+                },
+                "datasource": {
+                    "type": "influxdb",
+                    "uid": "DsInfluxDB"
+                },
+                "definition": "",
+                "hide": 0,
+                "includeAll": false,
+                "multi": false,
+                "name": "namespace",
+                "options": [],
+                "query": "show tag values from mcsbackup_s3 with key=namespace",
+                "refresh": 2,
+                "regex": "",
+                "skipUrlSync": false,
+                "sort": 0,
+                "tagValuesQuery": "",
+                "tagsQuery": "",
+                "type": "query",
+                "useTags": false
+            },
+            {
+                "allValue": "",
+                "current": {
+                    "selected": false,
+                    "text": "database",
+                    "value": "database"
+                },
+                "datasource": {
+                    "type": "influxdb",
+                    "uid": "DsInfluxDB"
+                },
+                "definition": "show tag values from mcsbackup_s3 with key=instance where namespace=~/^$namespace/",
+                "hide": 0,
+                "includeAll": false,
+                "label": "Instance",
+                "multi": false,
+                "name": "instance",
+                "options": [],
+                "query": "show tag values from mcsbackup_s3 with key=instance where namespace=~/^$namespace/",
+                "refresh": 2,
+                "regex": "",
+                "skipUrlSync": false,
+                "sort": 0,
+                "tagValuesQuery": "",
+                "tagsQuery": "",
+                "type": "query",
+                "useTags": false
+            }
+        ]
+    },
+    "time": {
+        "from": "now-1h",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "Backup — Errors",
+    "uid": "mcs-backup-errors",
+    "version": 1,
+    "weekStart": ""
+}

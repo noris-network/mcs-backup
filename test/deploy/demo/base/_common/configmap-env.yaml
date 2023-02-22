@@ -12,6 +12,7 @@ data:
   INFLUXDB_ORG: mcs-backup
   METRICS_LABELS: '{namespace: "$NAMESPACE", instance: "$INSTANCE", application_id: "$APPLICATION_ID"}'
   AUTO_UNLOCK_AFTER: 4m
+  LOKI_URL: "http://loki.backup-monitoring.svc:3100"
 kind: ConfigMap
 metadata:
   name: pv-backup-env

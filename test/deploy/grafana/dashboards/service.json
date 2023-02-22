@@ -24,12 +24,12 @@
     "editable": true,
     "fiscalYearStartMonth": 0,
     "graphTooltip": 0,
-    "id": 4,
+    "id": 547,
     "links": [
         {
             "icon": "external link",
             "tags": [
-                "restic-backup"
+                "mcs-backup"
             ],
             "type": "dashboards"
         }
@@ -43,7 +43,7 @@
             "dashes": false,
             "datasource": {
                 "type": "prometheus",
-                "uid": "DsPrometheus"
+                "uid": "Prometheus"
             },
             "description": "Virtual and Resident Memory usage",
             "editable": true,
@@ -79,7 +79,7 @@
                 "alertThreshold": true
             },
             "percentage": false,
-            "pluginVersion": "9.2.6",
+            "pluginVersion": "9.3.6",
             "pointradius": 5,
             "points": false,
             "renderer": "flot",
@@ -96,14 +96,14 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "DsPrometheus"
+                        "uid": "Prometheus"
                     },
                     "editorMode": "builder",
-                    "expr": "process_resident_memory_bytes{namespace=\"$namespace\", endpoint=\"backup-metrics\"}",
+                    "expr": "process_resident_memory_bytes{endpoint=~\"backup-?metrics\", namespace=~\"$namespace\"}",
                     "format": "time_series",
                     "interval": "",
                     "intervalFactor": 2,
-                    "legendFormat": "{{service}} (res)",
+                    "legendFormat": "{{namespace}}: {{service}} (res)",
                     "metric": "process_resident_memory_bytes",
                     "range": true,
                     "refId": "A",
@@ -112,14 +112,14 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "DsPrometheus"
+                        "uid": "Prometheus"
                     },
                     "editorMode": "builder",
-                    "expr": "process_virtual_memory_bytes{namespace=\"$namespace\", endpoint=\"backup-metrics\"}",
+                    "expr": "process_virtual_memory_bytes{endpoint=~\"backup-?metrics\", namespace=~\"$namespace\"}",
                     "format": "time_series",
                     "interval": "",
                     "intervalFactor": 2,
-                    "legendFormat": "{{service}} (virt)",
+                    "legendFormat": "{{namespace}}: {{service}} (virt)",
                     "metric": "process_virtual_memory_bytes",
                     "range": true,
                     "refId": "B",
@@ -143,13 +143,11 @@
             },
             "yaxes": [
                 {
-                    "$$hashKey": "object:423",
                     "format": "decbytes",
                     "logBase": 1,
                     "show": true
                 },
                 {
-                    "$$hashKey": "object:424",
                     "format": "short",
                     "logBase": 1,
                     "show": true
@@ -166,7 +164,7 @@
             "dashes": false,
             "datasource": {
                 "type": "prometheus",
-                "uid": "DsPrometheus"
+                "uid": "Prometheus"
             },
             "description": "",
             "fill": 1,
@@ -195,7 +193,7 @@
                 "alertThreshold": true
             },
             "percentage": false,
-            "pluginVersion": "9.2.6",
+            "pluginVersion": "9.3.6",
             "pointradius": 2,
             "points": false,
             "renderer": "flot",
@@ -207,13 +205,11 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "DsPrometheus"
+                        "uid": "Prometheus"
                     },
-                    "editorMode": "builder",
-                    "expr": "go_goroutines{namespace=\"$namespace\", endpoint=\"backup-metrics\"}",
+                    "expr": "go_goroutines{namespace=~\"$namespace\",job=~\"$workload\"}",
                     "interval": "",
                     "legendFormat": "{{namespace}}: {{job}}",
-                    "range": true,
                     "refId": "A"
                 }
             ],
@@ -233,13 +229,11 @@
             },
             "yaxes": [
                 {
-                    "$$hashKey": "object:113",
                     "format": "short",
                     "logBase": 1,
                     "show": true
                 },
                 {
-                    "$$hashKey": "object:114",
                     "format": "short",
                     "logBase": 1,
                     "show": true
@@ -256,7 +250,7 @@
             "dashes": false,
             "datasource": {
                 "type": "prometheus",
-                "uid": "DsPrometheus"
+                "uid": "Prometheus"
             },
             "description": "",
             "fill": 1,
@@ -285,7 +279,7 @@
                 "alertThreshold": true
             },
             "percentage": false,
-            "pluginVersion": "9.2.6",
+            "pluginVersion": "9.3.6",
             "pointradius": 2,
             "points": false,
             "renderer": "flot",
@@ -297,12 +291,12 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "DsPrometheus"
+                        "uid": "Prometheus"
                     },
-                    "editorMode": "builder",
-                    "expr": "rate(process_cpu_seconds_total{namespace=\"$namespace\", endpoint=\"backup-metrics\"}[1m]) * 100",
+                    "editorMode": "code",
+                    "expr": "rate(process_cpu_seconds_total{endpoint=~\"backup-?metrics\",job=~\"$workload\"}[1m]) * 100",
                     "interval": "",
-                    "legendFormat": "{{service}}",
+                    "legendFormat": "{{namespace}}: {{service}}",
                     "range": true,
                     "refId": "A"
                 }
@@ -323,14 +317,12 @@
             },
             "yaxes": [
                 {
-                    "$$hashKey": "object:476",
                     "format": "percent",
                     "label": "",
                     "logBase": 1,
                     "show": true
                 },
                 {
-                    "$$hashKey": "object:477",
                     "format": "short",
                     "logBase": 1,
                     "show": true
@@ -347,7 +339,7 @@
             "dashes": false,
             "datasource": {
                 "type": "prometheus",
-                "uid": "DsPrometheus"
+                "uid": "Prometheus"
             },
             "fill": 1,
             "fillGradient": 0,
@@ -375,7 +367,7 @@
                 "alertThreshold": true
             },
             "percentage": false,
-            "pluginVersion": "9.2.6",
+            "pluginVersion": "9.3.6",
             "pointradius": 2,
             "points": false,
             "renderer": "flot",
@@ -387,12 +379,12 @@
                 {
                     "datasource": {
                         "type": "prometheus",
-                        "uid": "DsPrometheus"
+                        "uid": "Prometheus"
                     },
-                    "editorMode": "builder",
-                    "expr": "process_open_fds{namespace=\"$namespace\", endpoint=\"backup-metrics\"}",
+                    "editorMode": "code",
+                    "expr": "process_open_fds{endpoint=~\"backup-?metrics\",job=~\"$workload\"}",
                     "interval": "",
-                    "legendFormat": "{{job}}",
+                    "legendFormat": "{{namespace}}: {{service}}",
                     "range": true,
                     "refId": "A"
                 }
@@ -413,13 +405,11 @@
             },
             "yaxes": [
                 {
-                    "$$hashKey": "object:217",
                     "format": "short",
                     "logBase": 1,
                     "show": true
                 },
                 {
-                    "$$hashKey": "object:218",
                     "format": "short",
                     "logBase": 1,
                     "show": true
@@ -430,35 +420,35 @@
             }
         }
     ],
-    "refresh": false,
     "schemaVersion": 37,
     "style": "dark",
-    "tags": [
-        "mcs-backup"
-    ],
+    "tags": [],
     "templating": {
         "list": [
             {
                 "current": {
                     "selected": true,
                     "text": [
-                        "app-perf"
+                        "wekan-fin-qsu",
+                        "wekan-qsu"
                     ],
                     "value": [
-                        "app-perf"
+                        "wekan-fin-qsu",
+                        "wekan-qsu"
                     ]
                 },
-                "definition": "label_values(mcsbackup_s3_objects_total,namespace)",
+                "datasource": {
+                    "type": "influxdb",
+                    "uid": "DsInfluxDB"
+                },
+                "definition": "",
                 "hide": 0,
                 "includeAll": true,
                 "label": "Namespace",
                 "multi": true,
                 "name": "namespace",
                 "options": [],
-                "query": {
-                    "query": "label_values(mcsbackup_s3_objects_total,namespace)",
-                    "refId": "StandardVariableQuery"
-                },
+                "query": "show tag values from mcsbackup_s3 with key=namespace",
                 "refresh": 1,
                 "regex": "",
                 "skipUrlSync": false,
@@ -470,22 +460,22 @@
             },
             {
                 "current": {
-                    "selected": true,
-                    "text": "database",
-                    "value": "database"
+                    "selected": false,
+                    "text": "mongodb-backup",
+                    "value": "mongodb-backup"
                 },
                 "datasource": {
                     "type": "influxdb",
                     "uid": "DsInfluxDB"
                 },
-                "definition": "label_values(mcsbackup_s3_objects_total,exported_instance)",
+                "definition": "",
                 "hide": 0,
                 "includeAll": true,
-                "label": "Instance",
+                "label": "Workload",
                 "multi": false,
-                "name": "instance",
+                "name": "workload",
                 "options": [],
-                "query": "label_values(mcsbackup_s3_objects_total,exported_instance)",
+                "query": "show tag values from mcsbackup_s3 with key=workload where namespace=~/^$namespace/",
                 "refresh": 2,
                 "regex": "",
                 "skipUrlSync": false,
@@ -498,13 +488,13 @@
         ]
     },
     "time": {
-        "from": "now-6h",
+        "from": "now-2d",
         "to": "now"
     },
     "timepicker": {},
     "timezone": "",
     "title": "Backup — Service",
-    "uid": "McsResticBackupService",
+    "uid": "mcs-backup-service",
     "version": 3,
     "weekStart": ""
 }

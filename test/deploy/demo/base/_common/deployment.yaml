@@ -46,13 +46,6 @@ spec:
           volumeMounts:
             - mountPath: /mnt
               name: files
-          resources:
-            requests:
-              memory: 15M
-              cpu: 10m
-            limits:
-              memory: 30M
-              cpu: 500m
       initContainers:
         - command:
             - bash

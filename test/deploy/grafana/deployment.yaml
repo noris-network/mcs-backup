@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: grafana
-          image: docker.io/grafana/grafana:9.2.6
+          image: docker.io/grafana/grafana:9.3.6
           ports:
             - name: http
               protocol: TCP
