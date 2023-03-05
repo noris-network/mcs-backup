@@ -12,7 +12,7 @@ require (
 	github.com/prometheus/client_golang v1.14.0
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.15.0
-	golang.org/x/mod v0.8.0
+	golang.org/x/mod v0.9.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
