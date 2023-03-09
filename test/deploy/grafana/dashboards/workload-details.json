@@ -572,7 +572,7 @@
                             },
                             {
                                 "params": [],
-                                "type": "distinct"
+                                "type": "count"
                             }
                         ]
                     ],
@@ -587,6 +587,12 @@
                             "key": "instance",
                             "operator": "=",
                             "value": "$instance"
+                        },
+                        {
+                            "condition": "AND",
+                            "key": "successful",
+                            "operator": "=",
+                            "value": "false"
                         }
                     ]
                 }
@@ -2356,6 +2362,7 @@
     "schemaVersion": 37,
     "style": "dark",
     "tags": [
+        "CR",
         "mcs-backup"
     ],
     "templating": {
@@ -2450,8 +2457,8 @@
         ]
     },
     "time": {
-        "from": "now-7d",
-        "to": "now"
+        "from": "2023-02-22T09:25:08.671Z",
+        "to": "2023-02-22T10:57:40.184Z"
     },
     "timepicker": {
         "refresh_intervals": [
@@ -2470,6 +2477,6 @@
     "timezone": "",
     "title": "Backup — Workload Details",
     "uid": "mcs-backup-workload-details",
-    "version": 2,
+    "version": 1,
     "weekStart": ""
 }

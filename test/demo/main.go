@@ -48,12 +48,12 @@ func TaskDemo(baseConfig tasks.KV) []goyek.Task {
 						return tasks.ApplyConfigMap(namespace, "pv-backup-env", env)
 					},
 				},
-				// {
-				//  	Log: "deploy demo",
-				//  	Func: func() error {
-				//  		return tasks.TaskRunKustomize(action+"-"+deploy, action, "test/deploy/"+deploy))
-				//  	},
-				//  },
+				{
+					Log: "deploy demo",
+					Func: func() error {
+						return tasks.RunKustomize("create", "test/deploy/demo")
+					},
+				},
 				/*
 					{
 						Log: "deploy configmap 'cron'",
