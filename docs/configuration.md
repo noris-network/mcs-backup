@@ -28,7 +28,31 @@ restic is much more flexible and supports various storage backends, it is
 planned to remove this limitation. The S3 storage backend requires the
 environment variables `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` to be set.
 In addition, `RESTIC_REPOSITORY` must provide the url to access the desired
-bucket.
+bucket. Subdirectories in a bucket can also be specified if several "partial
+backups" of an application are to be created, e.g. a volume backup and a
+database backup.
+
+The repository url can be as follows
+
+    # use https (default)
+    RESTIC_REPOSITORY=s3:storage.example.com/bucket-name
+
+    # explicitly use http
+    RESTIC_REPOSITORY=s3:http://storage.example.com/bucket-name
+
+    # explicitly use https
+    RESTIC_REPOSITORY=s3:https://storage.example.com/bucket-name
+
+    # write database backup in separate directory
+    RESTIC_REPOSITORY=s3:storage.example.com/bucket-name/database
+
+In some cases, to simplify configuration, it may be useful to compose the
+`RESTIC_REPOSITORY` from a base part followed by a suffix, e.g. a subdirectory
+within the bucket. To achieve this, `RESTIC_REPOSITORY` must not be set, instead
+`RESTIC_REPOSITORY_BASE` and `RESTIC_REPOSITORY_PATH` must be specified, they
+are then composed as follows:
+
+    RESTIC_REPOSITORY = $RESTIC_REPOSITORY_BASE + "/" + $RESTIC_REPOSITORY_PATH
 
 ## Backup
 Environment variables are passed on to the restic processes started by
