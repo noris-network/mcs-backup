@@ -17,13 +17,13 @@ Features:
   * Stale locks can be automatically removed (mcs-backup)
   * Hooks (pre, post, pipe-in/out) (mcs-backup)
 
-Detailed configuration documentation and integration examples are available
+> Detailed configuration documentation and integration examples are available
 in the [docs](docs/) directory.
 
 ## Usage
 As MCS-Backup is scheduling backups and provides prometheus metrics, it should
-be started as a background service. In a kubernetes context it can run as
-sidecar container or stand-alone deployment, depending on the usage scenario.
+be started as a service. In a kubernetes context it can run as sidecar container
+or stand-alone deployment, depending on the usage scenario.
 
 ### File Backup
 In order to backup plain files, `mcs-backup` needs to be able to access the file
@@ -36,7 +36,9 @@ For example, if a mariadb is to be backed up, `mcs-backup` calls a [hook][hooks]
 script which then calls mysqldump. The dump can either be written to the file
 system (pre-backup-hook) and then be backed up as a regular file, or directly to
 stdout (pipe-in-hook), in that case piping the data directly into restic (-->
-see [hooks][hooks]).
+see [hooks][hooks]). Since in this case no direct access to the database volume
+is necessary, `mcs-backup` should be deployed separately from the database, i.e.
+in the Kubernetes context it should run as an independant deployment.
 
 ### Restore
 Since restoring data is the most important part of backup, and usually has to be
