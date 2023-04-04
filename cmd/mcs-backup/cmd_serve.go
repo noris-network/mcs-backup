@@ -73,8 +73,8 @@ func serveFunc(cmd *cobra.Command, args []string) {
 	// initialize s3, restic & metrics
 	initEnv(true)
 	initServer()
-	initializeRestic(false)
 	initializeS3(false)
+	initializeRestic(false)
 	initializeService(dryrun)
 
 	// print configuration and exit

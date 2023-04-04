@@ -55,7 +55,7 @@ func NewFromEnv() *Client {
 
 	// get bucket name
 	if !strings.HasPrefix(endpoint, "http://") && !strings.HasPrefix(endpoint, "https://") {
-		endpoint = "http://" + endpoint
+		endpoint = "https://" + endpoint
 	}
 	uri, err := url.Parse(endpoint)
 	if err != nil {
@@ -69,12 +69,16 @@ func NewFromEnv() *Client {
 	c.Bucket = match[1]
 
 	// detect SSL, strip protocol prefix
-	useSSL := false
-	if strings.HasPrefix(endpoint, "https://") {
-		useSSL = true
-		endpoint = strings.TrimPrefix(endpoint, "https://")
+	useSSL := true
+	if strings.HasPrefix(endpoint, "http://") {
+		useSSL = false
+		endpoint = strings.TrimPrefix(endpoint, "http://")
 	}
-	endpoint = strings.TrimPrefix(endpoint, "http://")
+	endpoint = strings.TrimPrefix(endpoint, "https://")
+
+	if !useSSL {
+		log.Print("S3: using plain http, please consider switching to https!")
+	}
 
 	// trim bucket and path from endpoint
 	trimPathRE := regexp.MustCompile("/.*$")
