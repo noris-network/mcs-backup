@@ -23,7 +23,7 @@ exec mysqldump -h "$MARIADB_HOST" --single-transaction \
 ## pipe-out
 If the [environment variable][envs] `PIPE_OUT_SCRIPT` points to an existing
 script, it will be executed and data from `restic` will be sent to the scripts's
-stdin during recovery (think: `restic | script`). This can directly send the
+`stdin` during recovery (think: `restic | script`). This can directly send the
 data to the database, without going through the file system.
 
 Example "pipe-out" script for mariadb:
@@ -44,7 +44,7 @@ compress data yourself, as this would interfere with `restic`'s "content defined
 chunking" based [deduplication][cdc].
 
 ## post-backup
-If the [environment variable][envs] `POST_BACKUP_SCRIPT` points an existing
+If the [environment variable][envs] `POST_BACKUP_SCRIPT` points to an existing
 script, it will be executed afer the `restic` backup has finished. This could
 e.g. clean up database dumps created during the `pre-backup` phase.
 

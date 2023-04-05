@@ -58,14 +58,14 @@ Overview:
         <tr>
             <td><code>EXCLUDE_PATHS</code></td>
             <td>no</td>
-            <td>e.g. "<code>fax:baz</code>":&nbsp;&nbsp;&nbsp;&nbsp;<code>bar</code> and
+            <td>e.g. "<code>bar:baz</code>":&nbsp;&nbsp;&nbsp;&nbsp;<code>bar</code> and
                 <code>baz</code> will be excluded from backup
             </td>
         </tr>
         <tr>
             <td><code>RETENTION_POLICY</code></td>
-            <td>no</td>
-            <td>default: ``</td>
+            <td>yes</td>
+            <td>no default</td>
         </tr>
         <tr>
             <td colspan="3">

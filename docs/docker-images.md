@@ -14,7 +14,7 @@ example of how this can be implemented for mariadb using the bitnami image.
 ```
 ####### mcs-backup image
 #       see https://hub.docker.com/r/nxcc/mcs-backup/tags
-FROM    nxcc/mcs-backup:v1.5.1 as mcs-backup
+FROM    nxcc/mcs-backup:v1.5.2 as mcs-backup
 
 ####### main image
 #       see https://hub.docker.com/r/bitnami/mariadb/tags

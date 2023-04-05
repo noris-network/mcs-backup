@@ -43,25 +43,26 @@ The repository url can be as follows
     # explicitly use https
     RESTIC_REPOSITORY=s3:https://storage.example.com/bucket-name
 
-    # write database backup in separate directory
+    # write database backup to subdirectory
     RESTIC_REPOSITORY=s3:storage.example.com/bucket-name/database
 
 In some cases, to simplify configuration, it may be useful to compose the
 `RESTIC_REPOSITORY` from a base part followed by a suffix, e.g. a subdirectory
 within the bucket. To achieve this, `RESTIC_REPOSITORY` must not be set, instead
-`RESTIC_REPOSITORY_BASE` and `RESTIC_REPOSITORY_PATH` must be specified, they
+`RESTIC_REPOSITORY_BASE` and `RESTIC_REPOSITORY_PATH` have to be specified, they
 are then composed as follows:
 
     RESTIC_REPOSITORY = $RESTIC_REPOSITORY_BASE + "/" + $RESTIC_REPOSITORY_PATH
 
 ## Backup
 Environment variables are passed on to the restic processes started by
-mcs-backup. Restic requires at least `RESTIC_REPOSITORY` and `RESTIC_PASSWORD`
-to be set. To automatically start regular backups, `CRON_SCHEDULE` must contain
-a valid cron expression, e.g. "5 */3 * * *" (every three hours, 5 minutes after
-the hour). Otherwise, backups have to be started manually with `mcs-backup
-backup`. The value must be a valid json, e.g. `{"weekly":8,"daily":7,"last":4}`.
-The [exact functioning][retention] can be found in the restic documentation.
+mcs-backup. Restic requires at least `RESTIC_REPOSITORY`, `RESTIC_PASSWORD` and
+`RETENTION_POLICY` to be set. To automatically start regular backups,
+`CRON_SCHEDULE` must contain a valid cron expression, e.g. "5 */3 * * *" (every
+three hours, 5 minutes after the hour). Otherwise, backups have to be started
+manually with `mcs-backup backup`.  `RETENTION_POLICY` has to contain valid
+json, e.g. `{"weekly":8,"daily":7,"last":4}`. The [exact functioning][retention]
+can be found in the restic documentation.
 
 
 [envs]:       environment.md

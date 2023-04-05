@@ -23,7 +23,8 @@ spec:
             limits:
               memory: 10M
               cpu: 50m
-        - envFrom:
+        - name: mcs-backup
+          envFrom:
             - configMapRef:
                 name: pv-backup-env
           env:
@@ -39,7 +40,6 @@ spec:
           #     port: backup-metrics
           #   initialDelaySeconds: 5
           #   periodSeconds: 5
-          name: mcs-backup
           ports:
             - containerPort: 9000
               name: backup-metrics

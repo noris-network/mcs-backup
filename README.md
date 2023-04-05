@@ -17,9 +17,6 @@ Features:
   * Stale locks can be automatically removed (mcs-backup)
   * Hooks (pre, post, pipe-in/out) (mcs-backup)
 
-> Detailed configuration documentation and integration examples are available
-in the [docs](docs/) directory.
-
 ## Usage
 As MCS-Backup is scheduling backups and provides prometheus metrics, it should
 be started as a service. In a kubernetes context it can run as sidecar container
@@ -55,12 +52,17 @@ window, you can do this manually. For example, `mcs-backup backup --maintenance
 1h` disables the backup for 1 hour. After the specified time, backup is
 automatically reactivated.
 
+## Documentation
+Detailed configuration documentation and integration examples are available in
+the [docs directory](docs).
+
 ## Changelog
 
   * `v1.5.0` Initial public release
   * `v1.5.1` Cleanup Paths in Dockerfile
+  * `v1.5.2` Make https the default
 
 
 [restic]:    https://github.com/restic/restic
-[sidecar]:   test/deploy/demo/base/_common/deployment.yaml#L26-L55
+[sidecar]:   test/deploy/demo/base/_common/deployment.yaml#L26-L48
 [hooks]:     docs/hooks.md
