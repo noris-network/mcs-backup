@@ -64,7 +64,7 @@ func buildParameterTestTask(name, usage string, config, env tasks.KV, steps []ut
 					UntilOK: true,
 				},
 				{
-					Sleep: 250 * time.Microsecond,
+					Sleep: time.Second,
 				},
 			}, steps...)...); err != nil {
 				tf.Errorf("Error: %v", err)

@@ -22,3 +22,5 @@ jobs:
 
       - name: Tests
         run: ./test/run all
+        env:
+          MCS_BACKUP_DEBUG: true
