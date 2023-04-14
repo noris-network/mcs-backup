@@ -22,10 +22,10 @@ jobs:
           skip-readiness: true
 
       - name: Tests
-        run: ./test/run cleanup all
         env:
           MCS_BACKUP_DEBUG: true
         with:
           max_attempts: 2
           retry_on: error
           timeout_seconds: 3600
+          command: ./test/run cleanup all
