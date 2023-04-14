@@ -3,6 +3,7 @@ name: regular-check
 on:
   schedule:
     - cron: "11 1 * * *"
+  workflow_dispatch: {}
 
 jobs:
   regular-check:
