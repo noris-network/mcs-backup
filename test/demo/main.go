@@ -54,32 +54,12 @@ func TaskDemo(baseConfig tasks.KV) []goyek.Task {
 						return tasks.RunKustomize("create", "test/deploy/demo")
 					},
 				},
-				/*
-					{
-						Log: "deploy configmap 'cron'",
-						Func: func() error {
-							return tasks.ApplyYamlTmpl(files.DemoCronYaml, config)
-						},
+				{
+					Log: "deploy grafana",
+					Func: func() error {
+						return tasks.RunKustomize("create", "test/deploy/grafana")
 					},
-					{
-						Log: "deploy deployment and service 'nginx'",
-						Func: func() error {
-							return tasks.ApplyYamlTmpl(files.NginxYaml, config)
-						},
-					},
-					{
-						Log:     "wait until pod is ready",
-						Kubectl: "wait --for=condition=ready --timeout=60s pod -l app=nginx",
-					},
-					{
-						Log:     "wait for service to be ready",
-						Kubectl: "exec svc/nginx -c mcs-backup -- mcs-backup backup --status",
-						UntilOK: true,
-					},
-					{
-						Sleep: 250 * time.Microsecond,
-					},
-				*/
+				},
 			})...); err != nil {
 				tf.Errorf("Error: %v", err)
 			}

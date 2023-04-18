@@ -3,7 +3,7 @@ kind: Kustomization
 
 resources:
   - overlays/dev
-  - overlays/int
+  #- overlays/int
   - overlays/prod
-  - overlays/perf
-  - overlays/qa
+  #- overlays/perf
+  #- overlays/qa
