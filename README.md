@@ -61,6 +61,7 @@ the [docs directory](docs).
   * `v1.5.0` Initial public release
   * `v1.5.1` Cleanup Paths in Dockerfile
   * `v1.5.2` Make https the default
+  * `v1.5.3` Fix 'restore' for split repo-url (base/path)
 
 
 [restic]:    https://github.com/restic/restic
