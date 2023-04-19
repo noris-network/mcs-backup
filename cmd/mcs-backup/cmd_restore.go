@@ -34,6 +34,7 @@ var restoreCmd = &cobra.Command{
 func restoreFunc(cmd *cobra.Command, args []string) {
 	viper.BindPFlags(cmd.Flags())
 
+	initEnv(enableDebugOutput)
 	initializeRestic(false)
 	initializeS3(false)
 
