@@ -10,6 +10,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/minio/minio-go/v7 v7.0.61
 	github.com/prometheus/client_golang v1.16.0
+	github.com/rainu/go-command-chain v0.4.0
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.16.0
 	golang.org/x/mod v0.12.0

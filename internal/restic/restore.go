@@ -2,69 +2,39 @@ package restic
 
 import (
 	"bytes"
-	"fmt"
 	"log"
-	"os"
-	"os/exec"
+
+	cmdchain "github.com/rainu/go-command-chain"
 )
 
 // Restore restores a backup. When a pipeCommand is given, restic will pipe
 // data to it, think "restic | pipeCommand".
 func (r Restic) Restore(snapshot, newTarget, pipeCommand string) (string, error) {
 
-	var resticCmd *exec.Cmd
-	resticStdout := bytes.Buffer{}
+	builder := cmdchain.Builder()
 
-	// required for pipe mode
-	pipeMsg := make(chan string, 1)
-	pipeError := make(chan error, 1)
-	pipeClose := make(chan struct{}, 1)
+	commandLine := []string{"restic"}
+	if r.UseS3V1 {
+		commandLine = append(commandLine, "-o", "s3.list-objects-v1=true")
+	}
 
-	// write restic output to pipe?
+	cmd1Out := &bytes.Buffer{}
+	cmd1Err := &bytes.Buffer{}
+	cmd2Err := &bytes.Buffer{}
+
 	if pipeCommand != "" {
-		if r.Debug {
-			log.Printf(">>> pipe command: %#v", pipeCommand)
-		}
-		pipeStderr := bytes.Buffer{}
-		pipeStdout := bytes.Buffer{}
-		pipeReader, pipeWriter, _ := os.Pipe()
-		pipeCmd := exec.Command(pipeCommand)
-		pipeCmd.Stdin = pipeReader
-		pipeCmd.Dir = r.WorkDir
-		pipeCmd.Stderr = &pipeStderr
-		pipeCmd.Stdout = &pipeStdout
-		commandLine := []string{"restic"}
-		if r.UseS3V1 {
-			commandLine = append(commandLine, "-o", "s3.list-objects-v1=true")
-		}
 		commandLine = append(commandLine, "dump", snapshot, "/stdin")
 		if r.Debug {
 			log.Printf(">>> %#v", commandLine)
+			log.Printf(">>> pipe command: %#v", pipeCommand)
 		}
-		resticCmd = exec.Command(commandLine[0], commandLine[1:]...)
-		resticCmd.Stdout = pipeWriter
-		if err := pipeCmd.Start(); err != nil {
-			return "", fmt.Errorf("outpipe: %w", err)
-		}
-		go func() {
-			<-pipeClose
-			pipeWriter.Close()
-			pipeReader.Close()
-			err := pipeCmd.Wait()
-			if err != nil {
-				log.Printf("OutPipe: %v", err)
-				pipeMsg <- pipeStderr.String()
-			}
-			pipeError <- err
-		}()
+		builder.
+			Join(commandLine[0], commandLine[1:]...).WithErrorForks(cmd1Err).
+			Join(pipeCommand).WithErrorForks(cmd2Err).WithAdditionalOutputForks(cmd1Out)
 	} else {
 		target := r.WorkDir
 		if len(newTarget) > 0 {
 			target = newTarget
-		}
-		commandLine := []string{"restic"}
-		if r.UseS3V1 {
-			commandLine = append(commandLine, "-o", "s3.list-objects-v1=true")
 		}
 		commandLine = append(commandLine, "restore", "--target", target, snapshot)
 		for _, path := range r.BackupPaths {
@@ -75,25 +45,16 @@ func (r Restic) Restore(snapshot, newTarget, pipeCommand string) (string, error)
 		if r.Debug {
 			log.Printf(">>> %#v", commandLine)
 		}
-		resticCmd = exec.Command(commandLine[0], commandLine[1:]...)
-		resticCmd.Stdout = &resticStdout
-		pipeError <- nil
+		builder.Join(commandLine[0], commandLine[1:]...)
 	}
-
-	// for collecting command output
-	stderr := bytes.Buffer{}
-	resticCmd.Stderr = &stderr
-
-	// execute command
-	if err := resticCmd.Run(); err != nil {
-		return "", fmt.Errorf("Restore: restic: %+v (%#v)", err, stderr.String())
-	}
-	pipeClose <- struct{}{}
-	err := <-pipeError
+	err := builder.Finalize().Run()
 	if err != nil {
-		msg := <-pipeMsg
-		return "", fmt.Errorf("Restore: OutPipe: %w (%#v)", err, msg)
+		if len(cmd1Err.String()) > 0 {
+			log.Printf(">>> restic: %v", cmd1Err)
+		}
+		if len(cmd2Err.String()) > 0 {
+			log.Printf(">>> pipe command: %v", cmd2Err)
+		}
 	}
-
-	return resticStdout.String(), nil
+	return cmd1Out.String(), err
 }
