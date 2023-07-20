@@ -18,7 +18,6 @@ func (r Restic) Restore(snapshot, newTarget, pipeCommand string) (string, error)
 		commandLine = append(commandLine, "-o", "s3.list-objects-v1=true")
 	}
 
-	cmd1Out := &bytes.Buffer{}
 	cmd1Err := &bytes.Buffer{}
 	cmd2Err := &bytes.Buffer{}
 
@@ -30,7 +29,7 @@ func (r Restic) Restore(snapshot, newTarget, pipeCommand string) (string, error)
 		}
 		builder.
 			Join(commandLine[0], commandLine[1:]...).WithErrorForks(cmd1Err).
-			Join(pipeCommand).WithErrorForks(cmd2Err).WithAdditionalOutputForks(cmd1Out)
+			Join(pipeCommand).WithErrorForks(cmd2Err)
 	} else {
 		target := r.WorkDir
 		if len(newTarget) > 0 {
@@ -56,5 +55,5 @@ func (r Restic) Restore(snapshot, newTarget, pipeCommand string) (string, error)
 			log.Printf(">>> pipe command: %v", cmd2Err)
 		}
 	}
-	return cmd1Out.String(), err
+	return "", err
 }
