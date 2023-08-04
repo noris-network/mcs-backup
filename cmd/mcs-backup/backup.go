@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -113,8 +112,6 @@ func fullBackupRun() error {
 			break
 		}
 		loki.Infof("  done")
-
-		fmt.Printf("PATHMETRICS:>>>: %#v\n", s3metrics)
 
 		// phase: wrapup
 		phase = "wrapup"
