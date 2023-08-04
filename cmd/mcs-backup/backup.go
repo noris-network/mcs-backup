@@ -73,16 +73,18 @@ func fullBackupRun() error {
 		loki.Infof("  done, %v snapshot(s) removed", len(forgetResponse[0].Remove))
 
 		// phase: prune
-		if time.Now().After(nextHousekeepingRun) {
-			phase = "prune"
-			if runPhase(phase, metrics, []string{}, func() (interface{}, error) {
-				_, err = restic.Prune()
-				return noProvider, err
-			}) != nil {
-				break
+		if housekeepingInterval > 0 {
+			if time.Now().After(nextHousekeepingRun) {
+				phase = "prune"
+				if runPhase(phase, metrics, []string{}, func() (interface{}, error) {
+					_, err = restic.Prune()
+					return noProvider, err
+				}) != nil {
+					break
+				}
+				loki.Infof("  done, repository is healthy")
+				nextHousekeepingRun = time.Now().Add(housekeepingInterval)
 			}
-			loki.Infof("  done, repository is healthy")
-			nextHousekeepingRun = time.Now().Add(housekeepingInterval)
 		}
 
 		// phase: getstats

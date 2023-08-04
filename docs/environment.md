@@ -41,6 +41,12 @@ Overview:
             </td>
         </tr>
         <tr>
+            <td><code>BACKUP_PRUNE_INTERVAL</code></td>
+            <td>no</td>
+            <td>e.g. "<code>168h</code>":&nbsp;&nbsp;&nbsp;&nbsp;prune will be run every 168 hours; default: <code>120h</code>
+            </td>
+        </tr>
+        <tr>
             <td><code>BACKUP_ROOT</code></td>
             <td>no</td>
             <td>default: "<code>/mnt</code>"</td>

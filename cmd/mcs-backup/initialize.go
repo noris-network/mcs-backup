@@ -66,6 +66,22 @@ func initEnv(verbose bool) {
 		}
 	}
 
+	{
+		pruneIntervalStr, found := os.LookupEnv("BACKUP_PRUNE_INTERVAL")
+		if found {
+			if pruneInterval, err := time.ParseDuration(pruneIntervalStr); err != nil {
+				log.Printf("warn: BACKUP_PRUNE_INTERVAL: %v", err)
+			} else {
+				if pruneInterval > 0 {
+					housekeepingInterval = pruneInterval
+					log.Printf("prune interval set to %v", pruneInterval)
+				} else {
+					log.Printf("auto prune disabled")
+				}
+			}
+		}
+	}
+
 	checkRequiredEnv()
 
 	initEnvRan = true

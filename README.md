@@ -63,6 +63,7 @@ the [docs directory](docs).
   * `v1.5.2` Make https the default
   * `v1.5.3` Fix 'restore' for split repo-url (base/path)
   * `v1.5.4` Fix uncaught error when pipe cmd fails in restore
+  * `v1.6.0` Allow to configure prune interval, update deps
 
 
 [restic]:    https://github.com/restic/restic
