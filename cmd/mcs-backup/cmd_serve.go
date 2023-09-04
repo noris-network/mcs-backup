@@ -95,7 +95,7 @@ func serveFunc(cmd *cobra.Command, args []string) {
 
 	// "homepage"
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `<h3>mcs-packup<\h3><a href="/metrics">goto metrics</a>`)
+		fmt.Fprint(w, `<h3>mcs-backup<\h3><a href="/metrics">goto metrics</a>`)
 	})
 
 	http.HandleFunc("/api/mcs-backup/", func(w http.ResponseWriter, req *http.Request) {
