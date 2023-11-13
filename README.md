@@ -66,6 +66,7 @@ the [docs directory](docs).
   * `v1.6.0` Allow to configure prune interval, update deps
   * `v1.6.1` routine update of deps
   * `v1.6.2` routine update of deps
+  * `v1.6.3` routine update of deps
 
 
 [restic]:    https://github.com/restic/restic
