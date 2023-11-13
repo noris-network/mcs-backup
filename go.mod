@@ -13,7 +13,7 @@ require (
 	github.com/rainu/go-command-chain v0.4.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.17.0
-	golang.org/x/mod v0.13.0
+	golang.org/x/mod v0.14.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
