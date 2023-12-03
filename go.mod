@@ -8,7 +8,7 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/influxdata/influxdb-client-go/v2 v2.12.4
 	github.com/joho/godotenv v1.5.1
-	github.com/minio/minio-go/v7 v7.0.63
+	github.com/minio/minio-go/v7 v7.0.65
 	github.com/prometheus/client_golang v1.17.0
 	github.com/rainu/go-command-chain v0.4.0
 	github.com/spf13/cobra v1.8.0
