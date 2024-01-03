@@ -1,17 +1,17 @@
 #       https://hub.docker.com/_/golang
-FROM    golang:1.21.4 AS builder
+FROM    golang:1.21.5 AS builder
 WORKDIR /go/src/app
 ARG     VERSION
 COPY    . ./
 RUN     CGO_ENABLED=0 go build -trimpath -tags timetzdata -ldflags="-s -w -X 'main.build=$VERSION'" -o mcs-backup ./cmd/mcs-backup
 
 #       https://hub.docker.com/_/alpine
-FROM    library/alpine:3.18.4
+FROM    library/alpine:20231219
 
 #       https://github.com/restic/restic/releases
 ARG     RESTIC_VERSION=0.16.2
 #       https://github.com/mikefarah/yq/releases/
-ARG     YQ_VERSION=4.35.2
+ARG     YQ_VERSION=4.40.5
 RUN     set -x \
         && apk --no-cache add curl \
         && curl -Lo /usr/bin/restic.bz2 \

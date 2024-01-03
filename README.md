@@ -68,6 +68,7 @@ the [docs directory](docs).
   * `v1.6.2` routine update of deps
   * `v1.6.3` routine update of deps
   * `v1.6.4` routine update of deps
+  * `v1.6.5` routine update of Dockerfile
 
 
 [restic]:    https://github.com/restic/restic
