@@ -252,7 +252,7 @@ func initializeService(dryrun bool) {
 
 				select {
 
-				case <-time.After(time.Until(nextOccurrency.Start)):
+				case <-sleepUntil(nextOccurrency.Start):
 					loki.Infof("backup triggered via cron")
 					if err := fullBackupRun(); err != nil {
 						loki.Errorf("cron: %v", err)
@@ -276,6 +276,24 @@ func initializeService(dryrun bool) {
 	nextHousekeepingRun = time.Now().Add(housekeepingInterval)
 
 	log.Printf("initialization and preflight checks done")
+}
+
+func sleepUntil(t time.Time) <-chan time.Time {
+	tCh := make(chan time.Time)
+	step := time.Duration(time.Minute)
+	go func(t time.Time) {
+		for {
+			delta := time.Until(t)
+			if delta > step {
+				time.Sleep(step)
+			} else {
+				time.Sleep(delta)
+				break
+			}
+		}
+		tCh <- time.Now()
+	}(t)
+	return tCh
 }
 
 func readCronScheduleFile(file string) (cr *cronrange.CronRange, err error) {
