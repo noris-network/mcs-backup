@@ -70,6 +70,7 @@ the [docs directory](docs).
   * `v1.6.4` routine update of deps
   * `v1.6.5` routine update of Dockerfile
   * `v1.7.0` correct cron execution even when host was suspended between runs
+  * `v1.7.1` skip backup when next run is in the past
 
 [restic]:    https://github.com/restic/restic
 [sidecar]:   test/deploy/demo/base/_common/deployment.yaml#L26-L48

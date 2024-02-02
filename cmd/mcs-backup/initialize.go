@@ -252,7 +252,11 @@ func initializeService(dryrun bool) {
 
 				select {
 
-				case <-sleepUntil(nextOccurrency.Start):
+				case t := <-sleepUntil(nextOccurrency.Start):
+					if t.IsZero() {
+						loki.Infof("skip backup")
+						continue
+					}
 					loki.Infof("backup triggered via cron")
 					if err := fullBackupRun(); err != nil {
 						loki.Errorf("cron: %v", err)
@@ -283,6 +287,10 @@ func sleepUntil(t time.Time) <-chan time.Time {
 	step := time.Duration(time.Minute)
 	go func(t time.Time) {
 		for {
+			if t.Before(time.Now()) {
+				tCh <- time.Time{}
+				return
+			}
 			delta := time.Until(t)
 			if delta > step {
 				time.Sleep(step)
