@@ -24,7 +24,7 @@ jobs:
       - name: Tests
         env:
           MCS_BACKUP_DEBUG: true
-        uses: nick-fields/retry@v2
+        uses: nick-fields/retry@v3
         with:
           max_attempts: 2
           retry_on: error
