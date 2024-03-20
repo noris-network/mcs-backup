@@ -73,6 +73,7 @@ the [docs directory](docs).
   * `v1.7.1` skip backup when next run is in the past
   * `v1.7.2` update restic in Docker image
   * `v1.7.3` update base Docker image
+  * `v1.7.4` update base Docker image
 
 [restic]:    https://github.com/restic/restic
 [sidecar]:   test/deploy/demo/base/_common/deployment.yaml#L26-L48
