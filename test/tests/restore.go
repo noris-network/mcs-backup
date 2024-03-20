@@ -60,8 +60,7 @@ func TaskBuildRestoreTests(baseConfig tasks.KV) []goyek.Task {
 		)
 	}
 
-	//files := []int{200, 332, 447}
-	files := []int{447, 447, 447} // FIXME: workaround buggy test (1.22/loopvar)
+	files := []int{200, 332, 447}
 	backupRoot := env["BACKUP_ROOT"]
 
 	// backups = append(backups,
