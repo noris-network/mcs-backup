@@ -1,6 +1,6 @@
 module int
 
-go 1.19
+go 1.22
 
 require (
 	github.com/bitfield/script v0.21.4
