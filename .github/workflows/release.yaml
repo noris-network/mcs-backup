@@ -35,7 +35,7 @@ jobs:
       # release
 
       - name: Run Goreleaser
-        uses: goreleaser/goreleaser-action@v5
+        uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
           args: release --config=.goreleaser.yaml --clean
