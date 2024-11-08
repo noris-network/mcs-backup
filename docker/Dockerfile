@@ -1,5 +1,5 @@
 #       https://hub.docker.com/_/golang
-FROM    golang:1.23.2 AS builder
+FROM    golang:1.23.3 AS builder
 WORKDIR /go/src/app
 ARG     VERSION
 COPY    . ./
