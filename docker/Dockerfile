@@ -9,7 +9,7 @@ RUN     CGO_ENABLED=0 go build -trimpath -tags timetzdata -ldflags="-s -w -X 'ma
 FROM    library/alpine:3.20.3
 
 #       https://github.com/restic/restic/releases
-ARG     RESTIC_VERSION=0.17.2
+ARG     RESTIC_VERSION=0.17.3
 #       https://github.com/mikefarah/yq/releases/
 ARG     YQ_VERSION=4.44.3
 RUN     set -x \
