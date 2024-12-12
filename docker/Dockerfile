@@ -1,17 +1,17 @@
 #       https://hub.docker.com/_/golang
-FROM    golang:1.23.3 AS builder
+FROM    golang:1.23.4 AS builder
 WORKDIR /go/src/app
 ARG     VERSION
 COPY    . ./
 RUN     CGO_ENABLED=0 go build -trimpath -tags timetzdata -ldflags="-s -w -X 'main.build=$VERSION'" -o mcs-backup ./cmd/mcs-backup
 
 #       https://hub.docker.com/_/alpine
-FROM    library/alpine:3.20.3
+FROM    library/alpine:3.21.0
 
 #       https://github.com/restic/restic/releases
 ARG     RESTIC_VERSION=0.17.3
 #       https://github.com/mikefarah/yq/releases/
-ARG     YQ_VERSION=4.44.3
+ARG     YQ_VERSION=4.44.6
 RUN     set -x \
         && apk --no-cache add curl \
         && curl -Lo /usr/bin/restic.bz2 \
@@ -30,7 +30,7 @@ RUN     chmod 755 /usr/bin/mcs-backup /opt/bin/cleanup-backup-root.sh
 ENV     HOME=/tmp \
         TZ=GMT \
         BACKUP_ROOT=/mnt \
-        RETENTION_POLICY='{"daily":7,"last":10}'
+        RETENTION_POLICY='{"weekly":2,"daily":7,"last":10}'
 
 WORKDIR /tmp
 
