@@ -6,12 +6,12 @@ COPY    . ./
 RUN     CGO_ENABLED=0 go build -trimpath -tags timetzdata -ldflags="-s -w -X 'main.build=$VERSION'" -o mcs-backup ./cmd/mcs-backup
 
 #       https://hub.docker.com/_/alpine
-FROM    library/alpine:3.21.0
+FROM    library/alpine:3.21.2
 
 #       https://github.com/restic/restic/releases
 ARG     RESTIC_VERSION=0.17.3
 #       https://github.com/mikefarah/yq/releases/
-ARG     YQ_VERSION=4.44.6
+ARG     YQ_VERSION=4.45.1
 RUN     set -x \
         && apk --no-cache add curl \
         && curl -Lo /usr/bin/restic.bz2 \
