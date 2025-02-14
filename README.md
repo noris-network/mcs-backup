@@ -85,6 +85,7 @@ the [docs directory](docs).
   * `v1.7.13` update base Docker image
   * `v1.7.14` update base Docker image & deps & go
   * `v1.7.15` update base Docker image & deps
+  * `v1.7.16` update base Docker image & deps & go
 
 [restic]:    https://github.com/restic/restic
 [sidecar]:   test/deploy/demo/base/_common/deployment.yaml#L26-L48
