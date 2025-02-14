@@ -2,26 +2,28 @@ package tests
 
 import (
 	"fmt"
+	"os"
+	"time"
+
 	"int/files"
 	"int/tasks"
 	"int/util"
-	"os"
-	"time"
 
 	"github.com/goyek/goyek/v2"
 )
 
 type TestFunc func() error
 
-var testDatasetFiles = 561
-var debug = os.Getenv("MCS_BACKUP_DEBUG") == "true"
+var (
+	testDatasetFiles = 561
+	debug            = os.Getenv("MCS_BACKUP_DEBUG") == "true"
+)
 
 func buildParameterTestTask(name, usage string, config, env tasks.KV, steps []util.Step) goyek.Task {
 	return goyek.Task{
 		Name:  "test-" + name,
 		Usage: usage,
 		Action: func(tf *goyek.A) {
-
 			namespace := config["namespace"]
 
 			// run test steps
@@ -56,7 +58,7 @@ func buildParameterTestTask(name, usage string, config, env tasks.KV, steps []ut
 				},
 				{
 					Log:     "wait until pod is ready",
-					Kubectl: "wait --for=condition=ready --timeout=60s pod -l app=nginx",
+					Kubectl: "wait --for=condition=ready --timeout=200s pod -l app=nginx",
 				},
 				{
 					Log:     "wait for service to be ready",

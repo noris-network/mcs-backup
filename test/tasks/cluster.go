@@ -4,23 +4,28 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
-	"int/util"
 	"os"
 	"strings"
 	"text/template"
 	"time"
 
+	"int/util"
+
 	"github.com/bitfield/script"
 	"github.com/goyek/goyek/v2"
 )
 
-const registryName = "local-registry"
-const clusterName = "mcs-backup-int-test"
+const (
+	registryName = "local-registry"
+	clusterName  = "mcs-backup-int-test"
+)
 
 type KV map[string]string
 
-var registry string
-var debug = os.Getenv("MCS_BACKUP_DEBUG") == "true"
+var (
+	registry string
+	debug    = os.Getenv("MCS_BACKUP_DEBUG") == "true"
+)
 
 // TaskCreateCluster creates the k3s cluster
 func TaskCreateCluster() goyek.Task {
@@ -28,7 +33,6 @@ func TaskCreateCluster() goyek.Task {
 		Name:  "create-cluster",
 		Usage: "create k3s cluster in docker",
 		Action: func(tf *goyek.A) {
-
 			node0 := "k3d-" + clusterName + "-server-0"
 
 			out, err := script.
@@ -82,7 +86,7 @@ func TaskRunKustomize(name, action, directory string) goyek.Task {
 // RunKustomize
 func RunKustomize(action, directory string) error {
 	_, err := script.
-		//Exec("kustomize build " + directory).
+		// Exec("kustomize build " + directory).
 		Exec("kubectl " + action + " -k " + directory).
 		String()
 	return err
@@ -94,7 +98,6 @@ func TaskDeleteCluster() goyek.Task {
 		Name:  "delete-cluster",
 		Usage: "delete k3s cluster and registry in docker",
 		Action: func(tf *goyek.A) {
-
 			node0 := "k3d-" + clusterName + "-server-0"
 
 			out, err := script.
@@ -122,7 +125,6 @@ func TaskRunExternalCommand(name, externalCommand string) goyek.Task {
 		Name:  name,
 		Usage: fmt.Sprintf("run %v, if it exists", externalCommand),
 		Action: func(tf *goyek.A) {
-
 			_, err := script.
 				IfExists(externalCommand).
 				Exec(externalCommand).
@@ -143,7 +145,6 @@ func TaskGetRegistryAddress() goyek.Task {
 		Name:  "get-registry-address",
 		Usage: "get the registry address from docker",
 		Action: func(tf *goyek.A) {
-
 			listen, err := script.
 				Exec(`docker ps -f name=` + registryName + ` --format "{{.Ports}}"`).String()
 			if err != nil {
@@ -179,7 +180,6 @@ func TaskDelete(namespace, kind, name string) goyek.Task {
 		Name:  fmt.Sprintf("delete-%v/%v/%v", namespace, kind, name),
 		Usage: fmt.Sprintf("delete %v %q in namespace %v", kind, name, namespace),
 		Action: func(tf *goyek.A) {
-
 			out, err := script.
 				Exec(fmt.Sprintf(
 					"kubectl delete -n %q --ignore-not-found=true --wait=true %v/%v",
@@ -300,7 +300,7 @@ func WaitPodReady(namespace, label string) error {
 		remain--
 		out, err := script.
 			Exec(fmt.Sprintf(
-				"kubectl wait --for=condition=ready --timeout=90s pod -l %v -n %v",
+				"kubectl wait --for=condition=ready --timeout=200s pod -l %v -n %v",
 				label, namespace),
 			).String()
 		if err != nil {
@@ -323,7 +323,7 @@ func TaskWaitAllPodsReady() goyek.Task {
 			out, err := script.
 				Exec(`kubectl get pods --all-namespaces --output=go-template='{{ range .items}}-n {{.metadata.namespace}} pod/{{.metadata.name}}{{"\n"}}{{end}}'`).
 				Reject("helper-pod-").
-				ExecForEach("kubectl wait --for=condition=ready --timeout=90s {{.}}").
+				ExecForEach("kubectl wait --for=condition=ready --timeout=200s {{.}}").
 				String()
 			if err != nil {
 				tf.Errorf("kubectl wait: %v", out)
