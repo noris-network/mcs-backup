@@ -29,10 +29,8 @@ jobs:
 
       # run all tests
 
-      # tests fail with timeout, on a local vm everything works fine...
-      # so switching to local "pre-tests" otherwise this blocks releases :-(
-      #- name: Tests
-      #  run: ./test/run all
+      - name: Tests
+        run: ./test/run all
 
       # release
 
