@@ -1,5 +1,5 @@
 #       https://hub.docker.com/_/golang
-FROM    golang:1.24.1 AS builder
+FROM    golang:1.24.2 AS builder
 WORKDIR /go/src/app
 ARG     VERSION
 COPY    . ./
@@ -9,7 +9,7 @@ RUN     CGO_ENABLED=0 go build -trimpath -tags timetzdata -ldflags="-s -w -X 'ma
 FROM    library/alpine:3.21.3
 
 #       https://github.com/restic/restic/releases
-ARG     RESTIC_VERSION=0.17.3
+ARG     RESTIC_VERSION=0.18.0
 #       https://github.com/mikefarah/yq/releases/
 ARG     YQ_VERSION=4.45.1
 RUN     set -x \
