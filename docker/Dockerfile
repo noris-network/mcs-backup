@@ -1,5 +1,5 @@
 #       https://hub.docker.com/_/golang
-FROM    golang:1.24.2 AS builder
+FROM    golang:1.24.3 AS builder
 WORKDIR /go/src/app
 ARG     VERSION
 COPY    . ./
@@ -11,7 +11,7 @@ FROM    library/alpine:3.21.3
 #       https://github.com/restic/restic/releases
 ARG     RESTIC_VERSION=0.18.0
 #       https://github.com/mikefarah/yq/releases/
-ARG     YQ_VERSION=4.45.1
+ARG     YQ_VERSION=4.45.4
 RUN     set -x \
         && apk --no-cache add curl \
         && curl -Lo /usr/bin/restic.bz2 \
