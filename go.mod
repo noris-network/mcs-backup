@@ -1,6 +1,6 @@
 module github.com/noris-network/mcs-backup
 
-go 1.24
+go 1.24.0
 
 require (
 	github.com/1set/cronrange v0.0.0-20220203090001-b1b61d6744d8
@@ -13,7 +13,7 @@ require (
 	github.com/rainu/go-command-chain v0.5.1
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.20.1
-	golang.org/x/mod v0.26.0
+	golang.org/x/mod v0.28.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
