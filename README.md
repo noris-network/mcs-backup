@@ -90,6 +90,8 @@ the [docs directory](docs).
   * `v1.7.18` update base Docker image & deps & go
   * `v1.7.19` update base Docker image & deps & go
   * `v1.7.20` update base Docker image & deps & go
+  * `v1.7.21` update base Docker image & deps & go
+  * `v1.7.22` update base Docker image & deps & go
 
 [restic]:    https://github.com/restic/restic
 [sidecar]:   test/deploy/demo/base/_common/deployment.yaml#L26-L48
