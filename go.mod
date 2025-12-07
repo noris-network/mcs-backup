@@ -11,7 +11,7 @@ require (
 	github.com/minio/minio-go/v7 v7.0.97
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rainu/go-command-chain v0.5.1
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	golang.org/x/mod v0.30.0
 	gopkg.in/yaml.v2 v2.4.0
