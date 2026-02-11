@@ -356,7 +356,7 @@ func labelsFromEnv() m.Labels {
 	}
 
 	// try to parse LABELS, treat values as interface so ints/floats/bools can also be handeled
-	raw := map[string]interface{}{}
+	raw := map[string]any{}
 	if err := yaml.Unmarshal([]byte(os.ExpandEnv(os.Getenv("METRICS_LABELS"))), &raw); err != nil {
 		log.Printf("error: %v", err)
 	}

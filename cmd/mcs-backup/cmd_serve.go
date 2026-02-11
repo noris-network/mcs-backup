@@ -225,7 +225,7 @@ func runBackup(w http.ResponseWriter) error {
 
 	err := fullBackupRun()
 	if err != nil {
-		w.Write([]byte(fmt.Sprintf("<<<< ERROR: %v >>>>\n", err)))
+		w.Write(fmt.Appendf(nil, "<<<< ERROR: %v >>>>\n", err))
 	}
 	return err
 }

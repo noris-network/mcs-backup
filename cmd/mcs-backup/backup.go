@@ -40,7 +40,7 @@ func fullBackupRun() error {
 	for {
 		// phase: prepare
 		phase = "prepare"
-		if runPhase(phase, metrics, []string{}, func() (interface{}, error) {
+		if runPhase(phase, metrics, []string{}, func() (any, error) {
 			err := app.Hooks.PreBackup.Run()
 			return noProvider, err
 		}) != nil {
@@ -49,7 +49,7 @@ func fullBackupRun() error {
 
 		// phase: backup
 		phase = "backup"
-		if runPhase(phase, metrics, []string{}, func() (interface{}, error) {
+		if runPhase(phase, metrics, []string{}, func() (any, error) {
 			summary, err = restic.Backup(app.Pipes.In.Script)
 			return summary, err
 		}) != nil {
@@ -64,7 +64,7 @@ func fullBackupRun() error {
 
 		// phase: forget -- apply retention policy
 		phase = "forget"
-		if runPhase(phase, metrics, []string{}, func() (interface{}, error) {
+		if runPhase(phase, metrics, []string{}, func() (any, error) {
 			forgetResponse, err = restic.Forget()
 			return noProvider, err
 		}) != nil {
@@ -76,7 +76,7 @@ func fullBackupRun() error {
 		if housekeepingInterval > 0 {
 			if time.Now().After(nextHousekeepingRun) {
 				phase = "prune"
-				if runPhase(phase, metrics, []string{}, func() (interface{}, error) {
+				if runPhase(phase, metrics, []string{}, func() (any, error) {
 					_, err = restic.Prune()
 					return noProvider, err
 				}) != nil {
@@ -89,7 +89,7 @@ func fullBackupRun() error {
 
 		// phase: getstats
 		phase = "getstats"
-		if runPhase(phase, metrics, []string{}, func() (interface{}, error) {
+		if runPhase(phase, metrics, []string{}, func() (any, error) {
 			snapshots, err = restic.Snapshots()
 			if err != nil {
 				return metadata{}, err
@@ -107,7 +107,7 @@ func fullBackupRun() error {
 
 		// phase: s3stats
 		phase = "s3stats"
-		if runPhase(phase, metrics, []string{s3.Bucket}, func() (interface{}, error) {
+		if runPhase(phase, metrics, []string{s3.Bucket}, func() (any, error) {
 			s3metrics, err = s3.GetMetrics()
 			return s3metrics, err
 		}) != nil {
@@ -117,7 +117,7 @@ func fullBackupRun() error {
 
 		// phase: wrapup
 		phase = "wrapup"
-		if runPhase(phase, metrics, []string{}, func() (interface{}, error) {
+		if runPhase(phase, metrics, []string{}, func() (any, error) {
 			err := app.Hooks.PostBackup.Run()
 			return noProvider, err
 		}) != nil {

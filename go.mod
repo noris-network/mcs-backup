@@ -1,6 +1,6 @@
 module github.com/noris-network/mcs-backup
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/1set/cronrange v0.0.0-20220203090001-b1b61d6744d8

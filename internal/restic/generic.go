@@ -150,7 +150,7 @@ func (r Restic) UnlockAll() error {
 }
 
 // genericCommand executes restic, suitable for most actions.
-func (r Restic) genericCommand(command []string, result interface{}) error {
+func (r Restic) genericCommand(command []string, result any) error {
 	lockedRe := regexp.MustCompile(`repository is already locked.+lock was created at.+? \((.+) ago`)
 	inRetry := false
 	for {
@@ -189,7 +189,7 @@ func (r Restic) genericCommand(command []string, result interface{}) error {
 
 // genericCommandInner really executes restic, is wrapped by genericCommand to
 // allow being re-run in case a locking error occurs
-func (r Restic) genericCommandInner(command []string, result interface{}) error {
+func (r Restic) genericCommandInner(command []string, result any) error {
 	// detect preferred output mode
 	outputAsJSON := true
 	resultStr, ok := result.(*string)

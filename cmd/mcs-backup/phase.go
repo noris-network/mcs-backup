@@ -6,7 +6,7 @@ import (
 	m "github.com/noris-network/mcs-backup/internal/metrics"
 )
 
-type phaseFunc func() (interface{}, error)
+type phaseFunc func() (any, error)
 
 var phaseToCode = map[string]uint64{
 	"prepare":  1,

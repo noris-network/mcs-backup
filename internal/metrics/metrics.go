@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"maps"
 	"os"
 	"reflect"
 	"time"
@@ -46,7 +47,7 @@ type LabelNames []string
 type gaugeVecs map[string]*prometheus.GaugeVec
 
 // type influxMeasurements map[string]measurmentFields
-type influxFields map[string]interface{}
+type influxFields map[string]any
 
 // Definition map
 type Definition map[string]*struct {
@@ -57,7 +58,7 @@ type Definition map[string]*struct {
 
 // Provider type
 type Provider struct {
-	Template            interface{}
+	Template            any
 	PrometheusSubsystem string
 	InfluxdbMeasurement string
 	Labels              []LabelInit
@@ -85,7 +86,7 @@ type Opts struct {
 
 // Pair struct
 type Pair struct {
-	Datum       interface{}
+	Datum       any
 	LabelValues []string
 	Publish     bool
 }
@@ -144,7 +145,7 @@ func (m Metrics) InfluxdbCheck() error {
 	testPoint := influxdb2.NewPoint(
 		m.InfluxdbMeasurementPrefix+"startup_write_test",
 		map[string]string{},
-		map[string]interface{}{"test": 1},
+		map[string]any{"test": 1},
 		time.Now(),
 	)
 	ctx, cancel = context.WithTimeout(context.Background(), checkTimeout)
@@ -299,9 +300,7 @@ func (m Metrics) apply(pair Pair) {
 	// send influxdb metrics, if enabled
 	if m.InfluxdbEnabled() && pair.Publish {
 		labels := Labels{}
-		for k, v := range m.Labels {
-			labels[k] = v
-		}
+		maps.Copy(labels, m.Labels)
 		for n, v := range pair.LabelValues {
 			labels[provider.Labels[n].Name] = v
 		}
