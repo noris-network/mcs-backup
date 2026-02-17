@@ -11,7 +11,7 @@ FROM    library/alpine:3.23.3
 #       https://github.com/restic/restic/releases
 ARG     RESTIC_VERSION=0.18.1
 #       https://github.com/mikefarah/yq/releases/
-ARG     YQ_VERSION=4.52.2
+ARG     YQ_VERSION=4.52.4
 RUN     set -x \
         && apk --no-cache add curl \
         && curl -Lo /usr/bin/restic.bz2 \
