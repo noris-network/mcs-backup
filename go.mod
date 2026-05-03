@@ -8,7 +8,7 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/joho/godotenv v1.5.1
-	github.com/minio/minio-go/v7 v7.0.99
+	github.com/minio/minio-go/v7 v7.1.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rainu/go-command-chain v0.5.1
 	github.com/spf13/cobra v1.10.2
@@ -51,6 +51,7 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tinylib/msgp v1.6.1 // indirect
+	github.com/zeebo/xxh3 v1.1.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.46.0 // indirect
