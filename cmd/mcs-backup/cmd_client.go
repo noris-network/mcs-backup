@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/noris-network/mcs-backup/v2/internal/present"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
 
@@ -192,7 +193,7 @@ func (a *app) scheduleCommand(cmd *cobra.Command, svc service.Service, enable, d
 	}
 	switch s := st.Schedule; {
 	case s.MaintenanceUntil.After(a.now()):
-		fmt.Fprintf(a.stdout, "Scheduled backups are paused for maintenance until %s.\n", stamp(s.MaintenanceUntil))
+		fmt.Fprintf(a.stdout, "Scheduled backups are paused for maintenance until %s.\n", present.Stamp(s.MaintenanceUntil))
 	case !s.Enabled:
 		fmt.Fprintln(a.stdout, "Scheduled backups are disabled until they are enabled again or the service restarts.")
 	default:
@@ -356,9 +357,9 @@ func (a *app) printTagResult(cmd *cobra.Command, action, ref string, res service
 		return a.printJSON(res)
 	}
 	if res.ID != "" {
-		fmt.Fprintf(a.stdout, "%s: snapshot %s is now %s (restic gives a snapshot a new ID when its tags change).\n", action, short(ref), short(res.ID))
+		fmt.Fprintf(a.stdout, "%s: snapshot %s is now %s (restic gives a snapshot a new ID when its tags change).\n", action, present.Short(ref), present.Short(res.ID))
 	} else {
-		fmt.Fprintf(a.stdout, "%s: snapshot %s changed.\n", action, short(ref))
+		fmt.Fprintf(a.stdout, "%s: snapshot %s changed.\n", action, present.Short(ref))
 	}
 	for _, w := range res.Warnings {
 		fmt.Fprintf(a.stdout, "warning: %s\n", w)

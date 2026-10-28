@@ -9,6 +9,7 @@ import (
 
 	"github.com/noris-network/mcs-backup/v2/internal/config"
 	"github.com/noris-network/mcs-backup/v2/internal/engine"
+	"github.com/noris-network/mcs-backup/v2/internal/present"
 )
 
 func (a *app) newConfigCmd() *cobra.Command {
@@ -103,7 +104,7 @@ func (a *app) configCheck(cmd *cobra.Command, connect bool) error {
 			case r.Missing:
 				fmt.Fprintf(a.stdout, "%s repository: does not exist yet, the service creates it at its first start\n", r.Repo)
 			default:
-				fmt.Fprintf(a.stdout, "%s repository: ok (id %s), a lock can be taken and released\n", r.Repo, short(r.ID))
+				fmt.Fprintf(a.stdout, "%s repository: ok (id %s), a lock can be taken and released\n", r.Repo, present.Short(r.ID))
 			}
 		}
 	}

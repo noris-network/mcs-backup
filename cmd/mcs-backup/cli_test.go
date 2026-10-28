@@ -627,14 +627,3 @@ func TestStatusFollow(t *testing.T) {
 		t.Errorf("--json --follow prints one JSON object per line: %q", lines)
 	}
 }
-
-func TestHumanDuration(t *testing.T) {
-	for in, want := range map[time.Duration]string{
-		0: "0s", 45 * time.Second: "45s", 5 * time.Minute: "5m", 125 * time.Minute: "2h 5m", 3 * time.Hour: "3h",
-		50 * time.Hour: "2d 2h", 48 * time.Hour: "2d", -90 * time.Second: "-1m",
-	} {
-		if got := humanDuration(in); got != want {
-			t.Errorf("humanDuration(%v) = %q, want %q", in, got, want)
-		}
-	}
-}
