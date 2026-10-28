@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	_ "time/tzdata" // time zones for TZ and cron schedules in minimal images
 )
 
 func main() {
