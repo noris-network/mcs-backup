@@ -60,7 +60,7 @@ func (e *Engine) rewriteTags(ctx context.Context, repo *restic.Repo, appendOnly 
 	// restic 0.17 does not report the new ID: find the rewritten snapshot
 	after, err := repo.Snapshots(ctx)
 	if err != nil {
-		return "", nil
+		return "", nil //nolint:nilerr // the tag change succeeded, only the new ID is unknown
 	}
 	for _, s := range after {
 		if s.ID != old.ID && s.Tree == old.Tree && s.Time.Equal(old.Time) && s.Hostname == old.Hostname && slices.Equal(s.Paths, old.Paths) {

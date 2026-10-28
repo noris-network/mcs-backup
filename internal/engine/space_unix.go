@@ -3,6 +3,7 @@
 package engine
 
 import (
+	"math"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -16,7 +17,7 @@ func freeBytes(path string) (int64, error) {
 		err := syscall.Statfs(path, &st)
 		if err == nil {
 			// the field types differ between Linux and macOS
-			return int64(uint64(st.Bavail) * uint64(st.Bsize)), nil
+			return int64(min(st.Bavail*uint64(st.Bsize), math.MaxInt64)), nil //nolint:gosec // the block size is positive
 		}
 		parent := filepath.Dir(path)
 		if !os.IsNotExist(err) || parent == path {

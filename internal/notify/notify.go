@@ -206,7 +206,7 @@ func (n *Notifier) Send(ctx context.Context, ev Event) error {
 
 	ctx, cancel := context.WithTimeout(ctx, n.cfg.Timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", n.cfg.Command)
+	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", n.cfg.Command) //nolint:gosec // running the configured command is the purpose
 	cmd.Env = append(slices.Clone(n.env),
 		"MCS_BACKUP_EVENT="+ev.Name,
 		"MCS_BACKUP_KIND="+ev.Kind,
@@ -237,7 +237,7 @@ func (n *Notifier) Send(ctx context.Context, ev Event) error {
 		}
 		return fmt.Errorf("NOTIFY_COMMAND: %w", err)
 	}
-	n.log.Debug("notification sent", "event", ev.Name)
+	n.log.DebugContext(ctx, "notification sent", "event", ev.Name)
 	return nil
 }
 

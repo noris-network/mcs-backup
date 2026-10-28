@@ -92,7 +92,7 @@ func (r *Repo) Locks(ctx context.Context) ([]Lock, error) {
 			if ctx.Err() != nil {
 				return nil, err
 			}
-			r.log.Debug("skip lock", "id", id, "error", err)
+			r.log.DebugContext(ctx, "skip lock", "id", id, "error", err)
 			continue
 		}
 		l.ID = id

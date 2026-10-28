@@ -27,6 +27,12 @@ linters:
     presets:
       - comments
       - std-error-handling
+    rules:
+      # tests and the fake restic create files and run processes on purpose
+      - path: _test\.go
+        linters: [gosec, prealloc]
+      - path: internal/resticfake/
+        linters: [gosec]
 
 formatters:
   enable:

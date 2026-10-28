@@ -71,7 +71,7 @@ func New(o Options) *Engine {
 		e.log = slog.New(slog.DiscardHandler)
 	}
 	if e.rnd == nil {
-		e.rnd = rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 1))
+		e.rnd = rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 1)) //nolint:gosec // picks test files, not secrets
 	}
 	if e.hooks == nil {
 		e.hooks = &hooks.Runner{Dir: o.Config.Root, Env: o.Config.Environ()}
@@ -281,7 +281,7 @@ func (e *Engine) open(ctx context.Context, repo, from *restic.Repo) (RepoInfo, e
 	if !errors.Is(err, restic.ErrRepoMissing) {
 		return RepoInfo{}, err
 	}
-	e.log.Info("repository does not exist, creating it")
+	e.log.InfoContext(ctx, "repository does not exist, creating it")
 	id, err := repo.Init(ctx, from)
 	if err != nil {
 		return RepoInfo{}, fmt.Errorf("create repository: %w", err)

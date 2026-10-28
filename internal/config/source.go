@@ -29,7 +29,7 @@ func parseEnviron(environ []string) map[string]string {
 // argument strings (colon separated for the *_PATHS variables) and mappings
 // become JSON.
 func mergeFile(env map[string]string, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // the operator chooses the config file
 	if err != nil {
 		return err
 	}

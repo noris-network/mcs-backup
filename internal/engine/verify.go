@@ -308,7 +308,7 @@ func within(dir, path string) bool {
 func forceRemove(dir string) {
 	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err == nil && d.IsDir() {
-			_ = os.Chmod(p, 0o700)
+			_ = os.Chmod(p, 0o700) //nolint:gosec // directories need the owner bits to be deleted
 		}
 		return nil
 	})

@@ -224,7 +224,7 @@ func TestRestoreVariants(t *testing.T) {
 		},
 		{
 			name: "empty target needs no safety snapshot", req: RestoreRequest{Snapshot: "snap1", Confirm: "snap1"},
-			prepare:    func(t *testing.T, r *rig) { _ = os.RemoveAll(filepath.Join(r.root, "data")) },
+			prepare:    func(_ *testing.T, r *rig) { _ = os.RemoveAll(filepath.Join(r.root, "data")) },
 			wantDelete: true, wantBackup: false,
 		},
 		{

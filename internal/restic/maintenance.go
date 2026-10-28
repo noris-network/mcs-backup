@@ -3,7 +3,7 @@ package restic
 import (
 	"context"
 	"encoding/json/v2"
-	"fmt"
+	"errors"
 	"io"
 	"slices"
 	"strings"
@@ -136,7 +136,7 @@ type CopyOptions struct {
 // Copy copies snapshots from the repository from into this one. Output goes to out.
 func (r *Repo) Copy(ctx context.Context, from *Repo, o CopyOptions, out io.Writer) error {
 	if from == nil {
-		return fmt.Errorf("restic copy: no source repository")
+		return errors.New("restic copy: no source repository")
 	}
 	args := []string{"copy"}
 	for _, h := range o.Hosts {

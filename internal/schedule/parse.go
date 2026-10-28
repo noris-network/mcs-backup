@@ -2,6 +2,7 @@
 package schedule
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -18,7 +19,7 @@ type Schedule = cron.Schedule
 func Parse(expr string, loc *time.Location) (Schedule, error) {
 	expr = strings.TrimSpace(expr)
 	if expr == "" {
-		return nil, fmt.Errorf("empty cron expression")
+		return nil, errors.New("empty cron expression")
 	}
 	if loc != nil && !strings.HasPrefix(expr, "TZ=") && !strings.HasPrefix(expr, "CRON_TZ=") {
 		expr = "CRON_TZ=" + loc.String() + " " + expr

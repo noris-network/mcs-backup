@@ -96,8 +96,8 @@ func (e *Engine) backupPhases(ctx context.Context, req BackupRequest, sink Sink,
 	// plausibility
 	own := service.Own(snaps, service.OwnHosts(e.cfg.Host, snaps))
 	regular := service.Regular(own)
-	if verdict, err := e.plausibility(ctx, sum, regular, res, sink); err != nil || verdict != nil {
-		return e.afterImplausible(ctx, verdict, err, res, sink)
+	if verdict := e.plausibility(sum, regular); verdict != nil {
+		return e.afterImplausible(ctx, verdict, res, sink)
 	}
 
 	res.Message = fmt.Sprintf("snapshot %s created: %d files, %s processed", short(sum.SnapshotID), sum.TotalFilesProcessed, formatBytes(sum.TotalBytesProcessed))
@@ -202,8 +202,8 @@ type implausible struct {
 }
 
 // plausibility checks the new snapshot against the previous regular ones. It
-// returns a verdict for implausible snapshots.
-func (e *Engine) plausibility(ctx context.Context, sum restic.BackupSummary, regular []restic.Snapshot, res *BackupResult, sink Sink) (*implausible, error) {
+// returns a verdict for implausible snapshots, nil for plausible ones.
+func (e *Engine) plausibility(sum restic.BackupSummary, regular []restic.Snapshot) *implausible {
 	empty := sum.TotalFilesProcessed == 0
 	if e.cfg.PipeMode() {
 		empty = sum.TotalBytesProcessed == 0
@@ -211,41 +211,38 @@ func (e *Engine) plausibility(ctx context.Context, sum restic.BackupSummary, reg
 	if empty && !e.cfg.Backup.AllowEmpty {
 		if len(regular) == 0 {
 			// first backup of an empty source: nothing to protect, nothing worth keeping
-			return &implausible{result: service.ResultSkipped, message: "nothing to back up yet: the source is empty", remove: true}, nil
+			return &implausible{result: service.ResultSkipped, message: "nothing to back up yet: the source is empty", remove: true}
 		}
 		return &implausible{
 			result:  service.ResultFailure,
 			message: fmt.Sprintf("the backup is empty although %d regular snapshots exist", len(regular)),
-		}, nil
+		}
 	}
 
-	if max := e.cfg.Backup.MaxShrink; max > 0 && !empty {
+	if limit := e.cfg.Backup.MaxShrink; limit > 0 && !empty {
 		for _, prev := range slices.Backward(regular) {
 			if prev.Summary == nil {
 				continue // snapshots without statistics (1.x) are no baseline
 			}
 			base := prev.Summary.TotalBytesProcessed
-			if base > 0 && float64(sum.TotalBytesProcessed) < float64(base)*(1-max/100) {
+			if base > 0 && float64(sum.TotalBytesProcessed) < float64(base)*(1-limit/100) {
 				return &implausible{
 					result: service.ResultSuspicious,
 					message: fmt.Sprintf("the backup is %.0f%% smaller than snapshot %s (%s instead of %s)",
 						100*(1-float64(sum.TotalBytesProcessed)/float64(base)), short(prev.ID),
 						formatBytes(sum.TotalBytesProcessed), formatBytes(base)),
-				}, nil
+				}
 			}
 			break
 		}
 	}
-	return nil, nil
+	return nil
 }
 
 // afterImplausible handles a snapshot that failed the plausibility check. An
 // empty snapshot is tagged suspicious as well, so that "latest" never selects
 // it: restoring it would wipe the data.
-func (e *Engine) afterImplausible(ctx context.Context, v *implausible, err error, res *BackupResult, sink Sink) error {
-	if err != nil {
-		return err
-	}
+func (e *Engine) afterImplausible(ctx context.Context, v *implausible, res *BackupResult, sink Sink) error {
 	sink.logf("plausibility check: %s", v.message)
 	res.Message = v.message
 

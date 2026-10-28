@@ -83,8 +83,8 @@ func quoteArg(a string) string {
 		return "''"
 	}
 	safe := !strings.ContainsFunc(a, func(r rune) bool {
-		return !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' ||
-			strings.ContainsRune("_@%+=:,./-", r))
+		alnum := r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9'
+		return !alnum && !strings.ContainsRune("_@%+=:,./-", r)
 	})
 	if safe {
 		return a

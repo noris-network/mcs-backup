@@ -18,7 +18,7 @@ func TestFake(t *testing.T) {
 	f.On(t, "backup", Response{Stderr: "boom\n", Exit: 1}, Response{Stdout: "ok\n"})
 
 	run := func(args ...string) (string, string, int) {
-		cmd := exec.Command(f.Bin, args...)
+		cmd := exec.CommandContext(t.Context(), f.Bin, args...)
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout, cmd.Stderr = &stdout, &stderr
 		cmd.Env = append(cmd.Environ(), "FAKE_MARKER=yes")

@@ -536,7 +536,7 @@ func (l *loader) scheduleFile(envExpr string, loc *time.Location) string {
 		l.fail("CRON_SCHEDULE_FILE", errors.New("set CRON_SCHEDULE or CRON_SCHEDULE_FILE, not both"))
 		return path
 	}
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // the operator chooses the schedule file
 	switch {
 	case errors.Is(err, os.ErrNotExist):
 		l.warn(fmt.Sprintf("CRON_SCHEDULE_FILE %q not found: no backups until it exists", path))

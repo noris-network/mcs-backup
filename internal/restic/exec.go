@@ -64,7 +64,7 @@ func (r *Repo) cmd(ctx context.Context, args []string, extraEnv ...string) *exec
 	full = append(full, r.global...)
 	full = append(full, args[1:]...)
 
-	cmd := exec.CommandContext(ctx, r.bin, full...)
+	cmd := exec.CommandContext(ctx, r.bin, full...) //nolint:gosec // running the configured restic binary is the purpose
 	cmd.Env = append(slices.Clone(r.env), extraEnv...)
 	cmd.Dir = r.dir
 	cmd.Cancel = func() error { return cmd.Process.Signal(os.Interrupt) }
@@ -116,7 +116,7 @@ func (r *Repo) run(ctx context.Context, args []string, o runOpts) ([]byte, error
 		}
 	}
 
-	r.log.Debug("run restic", "args", args)
+	r.log.DebugContext(ctx, "run restic", "args", args)
 	err := cmd.Run()
 	for _, c := range closers {
 		c()

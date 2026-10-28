@@ -77,7 +77,7 @@ func (r *Runner) Pipe(ctx context.Context, name, script string, args []string, p
 		return fmt.Errorf("%s: %w", name, err)
 	}
 	produceErr := produce(stdin)
-	stdin.Close() // lets the script see EOF
+	_ = stdin.Close() // lets the script see EOF
 	waitErr := cmd.Wait()
 
 	var errs []error
@@ -86,14 +86,14 @@ func (r *Runner) Pipe(ctx context.Context, name, script string, args []string, p
 	}
 	// A script that exits early closes the pipe: the broken pipe is a
 	// consequence of its failure, not a separate problem.
-	if produceErr != nil && !(waitErr != nil && errors.Is(produceErr, syscall.EPIPE)) {
+	if produceErr != nil && (waitErr == nil || !errors.Is(produceErr, syscall.EPIPE)) {
 		errs = append(errs, produceErr)
 	}
 	return errors.Join(errs...)
 }
 
 func (r *Runner) command(ctx context.Context, name, script string, args, extraEnv []string) (*exec.Cmd, *tailBuffer, func()) {
-	cmd := exec.CommandContext(ctx, script, args...)
+	cmd := exec.CommandContext(ctx, script, args...) //nolint:gosec // running the configured scripts is the purpose
 	cmd.Dir = r.Dir
 	cmd.Env = append(append([]string(nil), r.Env...), extraEnv...)
 	// own process group so that a timeout also stops what the script started
