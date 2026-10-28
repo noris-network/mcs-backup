@@ -1,0 +1,352 @@
+package webui
+
+import (
+	"errors"
+	"net/http"
+	"slices"
+	"strings"
+	"time"
+
+	"github.com/noris-network/mcs-backup/v2/internal/present"
+	"github.com/noris-network/mcs-backup/v2/internal/service"
+)
+
+// liveData is the part of the overview that refreshes by itself.
+type liveData struct {
+	Rows, Notes []present.Row
+	Op          *service.Operation
+	OpLine      string
+	Log         []string
+	Result      *service.RunResult
+	ResultLines []string
+	ResultOK    bool
+	Retry       *service.RetryInfo
+	// CanRepeat: the last restore failed and can be repeated without the safety snapshot.
+	CanRepeat   bool
+	RepeatWhat  string
+	Web         service.WebUIStatus
+	ForgetHeld  bool
+	AppendOnly  bool
+	VerifyReady bool
+}
+
+func (h *Handler) liveData(r *http.Request) (liveData, error) {
+	st, err := h.svc.Status(r.Context())
+	if err != nil {
+		return liveData{}, err
+	}
+	d := liveData{Op: st.Operation, Retry: st.Retry, Web: st.WebUI, ForgetHeld: st.ForgetHeld, AppendOnly: st.AppendOnly, VerifyReady: st.VerifyConfigured}
+	for _, row := range present.StatusRows(st, h.o.Now()) {
+		if row.Severity != "" || row.Label == "Notes" {
+			d.Notes = append(d.Notes, row)
+		} else {
+			d.Rows = append(d.Rows, row)
+		}
+	}
+	switch {
+	case st.Operation != nil:
+		d.OpLine = present.OperationLine(h.o.Now(), *st.Operation)
+		if l, err := h.svc.Log(r.Context(), st.Operation.Kind); err == nil {
+			d.Log = l.Lines[max(0, len(l.Lines)-6):]
+		}
+	default:
+		// the most recent result of any kind
+		var last *service.RunResult
+		for _, res := range st.LastRuns {
+			if last == nil || res.Started.After(last.Started) {
+				last = &res
+			}
+		}
+		if last != nil {
+			d.Result, d.ResultLines, d.ResultOK = last, present.ResultLines(*last), last.Result.OK()
+			h.mu.Lock()
+			rr := h.lastRestore
+			h.mu.Unlock()
+			if last.Kind == service.KindRestore && !last.Result.OK() && rr != nil && rr.Target == "" && !rr.NoSafetySnapshot {
+				d.CanRepeat, d.RepeatWhat = true, rr.Snapshot
+			}
+		}
+	}
+	return d, nil
+}
+
+func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
+	d, err := h.liveData(h.ctx(r))
+	if err != nil {
+		h.fail(w, r, "overview", err)
+		return
+	}
+	h.render(w, r, "overview", "overview", d)
+}
+
+// live is the fragment that htmx reloads every few seconds.
+func (h *Handler) live(w http.ResponseWriter, r *http.Request) {
+	d, err := h.liveData(h.ctx(r))
+	if err != nil {
+		http.Error(w, describe(err), http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := h.pages["overview"].ExecuteTemplate(w, "live", d); err != nil {
+		h.o.Log.ErrorContext(r.Context(), "web UI fragment failed", "error", err)
+	}
+}
+
+// fail shows an error where a page would have been.
+func (h *Handler) fail(w http.ResponseWriter, r *http.Request, name string, err error) {
+	h.setFlash(w, r, false, describe(err))
+	if r.URL.Path != "/" {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+	// the overview itself failed: show the message on an otherwise empty page
+	h.render(w, r, name, "overview", liveData{})
+}
+
+type snapshotsData struct {
+	Snapshots []service.Snapshot
+	Retention *service.RetentionInfo
+}
+
+func (h *Handler) snapshots(w http.ResponseWriter, r *http.Request) {
+	r = h.ctx(r)
+	snaps, err := h.svc.Snapshots(r.Context())
+	if err != nil {
+		h.fail(w, r, "snapshots", err)
+		return
+	}
+	slices.SortStableFunc(snaps, func(a, b service.Snapshot) int { return b.Time.Compare(a.Time) })
+	d := snapshotsData{Snapshots: snaps}
+	if ret, err := h.svc.Retention(r.Context()); err == nil {
+		d.Retention = &ret
+	}
+	h.render(w, r, "snapshots", "snapshots", d)
+}
+
+func (h *Handler) locks(w http.ResponseWriter, r *http.Request) {
+	r = h.ctx(r)
+	locks, err := h.svc.Locks(r.Context())
+	if err != nil {
+		h.fail(w, r, "locks", err)
+		return
+	}
+	h.render(w, r, "locks", "locks", locks)
+}
+
+type accessData struct {
+	Info     service.EnvInfo
+	Revealed bool
+}
+
+func (h *Handler) access(w http.ResponseWriter, r *http.Request) {
+	r = h.ctx(r)
+	reveal := r.URL.Query().Get("reveal") == "1"
+	info, err := h.svc.Env(r.Context(), reveal)
+	if err != nil {
+		h.fail(w, r, "access", err)
+		return
+	}
+	if reveal {
+		h.o.Log.InfoContext(r.Context(), "restic environment revealed", "source", service.SourceFrom(r.Context()))
+	}
+	h.render(w, r, "access", "access", accessData{info, reveal})
+}
+
+type logData struct {
+	Kind  service.Kind
+	Lines []string
+	Start time.Time
+}
+
+func (h *Handler) logPage(w http.ResponseWriter, r *http.Request) {
+	r = h.ctx(r)
+	kind := service.Kind(r.PathValue("kind"))
+	l, err := h.svc.Log(r.Context(), kind)
+	if err != nil {
+		h.fail(w, r, "log", err)
+		return
+	}
+	h.render(w, r, "log", "overview", logData{Kind: l.Kind, Lines: l.Lines, Start: l.Start})
+}
+
+// ---- restore ----
+
+type restoreForm struct {
+	Snapshot string
+	Target   string
+	Include  string
+	Merge    bool
+}
+
+func (h *Handler) restoreForm(w http.ResponseWriter, r *http.Request) {
+	snap := r.URL.Query().Get("snapshot")
+	if snap == "" {
+		snap = "latest"
+	}
+	h.render(w, r, "restore", "snapshots", restoreForm{Snapshot: snap})
+}
+
+// restoreRequest reads the restore fields of a form.
+func restoreRequest(r *http.Request) service.RestoreRequest {
+	req := service.RestoreRequest{
+		Snapshot: strings.TrimSpace(r.PostFormValue("snapshot")),
+		Target:   strings.TrimSpace(r.PostFormValue("target")),
+		Includes: strings.Fields(r.PostFormValue("include")),
+		Mode:     service.ModeExact,
+	}
+	if r.PostFormValue("mode") == string(service.ModeMerge) {
+		req.Mode = service.ModeMerge
+	}
+	req.IgnoreSpaceWarning = r.PostFormValue("ignore_space") == "1"
+	req.NoSafetySnapshot = r.PostFormValue("no_safety_snapshot") == "1"
+	req.Confirm = strings.TrimSpace(r.PostFormValue("confirm"))
+	return req
+}
+
+type restoreCheckData struct {
+	Request service.RestoreRequest
+	Rows    []present.Row
+	Pre     service.RestorePreflight
+	Include string
+}
+
+func (h *Handler) restoreCheck(w http.ResponseWriter, r *http.Request) {
+	r = h.ctx(r)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	req := restoreRequest(r)
+	if req.Snapshot == "" {
+		h.setFlash(w, r, false, "Name a snapshot, or latest.")
+		http.Redirect(w, r, "/restore", http.StatusSeeOther)
+		return
+	}
+	pre, err := h.svc.RestorePreflight(r.Context(), req)
+	if err != nil {
+		h.setFlash(w, r, false, describe(err))
+		http.Redirect(w, r, "/restore?snapshot="+req.Snapshot, http.StatusSeeOther)
+		return
+	}
+	h.render(w, r, "restore_check", "snapshots", restoreCheckData{
+		Request: req, Pre: pre, Rows: present.PreflightRows(pre, h.o.Now()), Include: strings.Join(req.Includes, " "),
+	})
+}
+
+func (h *Handler) restore(r *http.Request) (string, error) {
+	if err := r.ParseForm(); err != nil {
+		return "", errors.New("bad form")
+	}
+	req := restoreRequest(r)
+	if req.NoSafetySnapshot && r.PostFormValue("confirm_no_safety") != "no-safety-snapshot" {
+		return "", errors.New("to restore without the safety snapshot, type no-safety-snapshot")
+	}
+	op, err := h.svc.StartRestore(r.Context(), req)
+	if err != nil {
+		return "", err
+	}
+	h.mu.Lock()
+	h.lastRestore = &req
+	h.mu.Unlock()
+	return "Restore started (" + string(op.Kind) + ").", nil
+}
+
+// ---- actions ----
+
+func (h *Handler) backup(r *http.Request) (string, error) {
+	if err := r.ParseForm(); err != nil {
+		return "", errors.New("bad form")
+	}
+	_, err := h.svc.StartBackup(r.Context(), service.BackupRequest{Note: strings.TrimSpace(r.PostFormValue("note")), Keep: r.PostFormValue("keep") == "1"})
+	return "Backup started.", err
+}
+
+func (h *Handler) verify(r *http.Request) (string, error) {
+	_, err := h.svc.StartVerify(r.Context(), service.VerifyRequest{})
+	return "Restore test started.", err
+}
+
+func (h *Handler) cancel(r *http.Request) (string, error) {
+	return "Cancel requested.", h.svc.Cancel(r.Context())
+}
+
+func (h *Handler) notifyTest(r *http.Request) (string, error) {
+	return "Test notification sent.", h.svc.NotifyTest(r.Context())
+}
+
+func (h *Handler) schedule(r *http.Request) (string, error) {
+	if err := r.ParseForm(); err != nil {
+		return "", errors.New("bad form")
+	}
+	req := service.ScheduleRequest{Action: service.ScheduleAction(r.PostFormValue("action"))}
+	switch req.Action {
+	case service.ScheduleEnable, service.ScheduleDisable:
+	case service.ScheduleMaintenance:
+		d, err := time.ParseDuration(strings.TrimSpace(r.PostFormValue("for")))
+		if err != nil || d <= 0 {
+			return "", errors.New("say how long, for example 90m or 2h")
+		}
+		req.For = service.Duration(d)
+	default:
+		return "", errors.New("unknown schedule action")
+	}
+	_, err := h.svc.SetSchedule(r.Context(), req)
+	return "Schedule changed.", err
+}
+
+func (h *Handler) approveForget(r *http.Request) (string, error) {
+	if err := r.ParseForm(); err != nil {
+		return "", errors.New("bad form")
+	}
+	_, err := h.svc.ApproveForget(r.Context(), strings.TrimSpace(r.PostFormValue("confirm")))
+	return "Forget started.", err
+}
+
+func (h *Handler) keep(on bool) func(*http.Request) (string, error) {
+	return func(r *http.Request) (string, error) {
+		id := r.PathValue("id")
+		if on {
+			_, err := h.svc.Keep(r.Context(), id)
+			return "Snapshot " + present.Short(id) + " is kept.", err
+		}
+		_, err := h.svc.Unkeep(r.Context(), id)
+		return "Snapshot " + present.Short(id) + " is no longer kept.", err
+	}
+}
+
+func (h *Handler) acknowledge(r *http.Request) (string, error) {
+	if err := r.ParseForm(); err != nil {
+		return "", errors.New("bad form")
+	}
+	id := r.PathValue("id")
+	_, err := h.svc.Acknowledge(r.Context(), id, strings.TrimSpace(r.PostFormValue("confirm")))
+	return "Snapshot " + present.Short(id) + " is a regular snapshot now.", err
+}
+
+func (h *Handler) unlock(r *http.Request) (string, error) {
+	if err := r.ParseForm(); err != nil {
+		return "", errors.New("bad form")
+	}
+	all := r.PostFormValue("all") == "1"
+	if err := h.svc.Unlock(r.Context(), all, strings.TrimSpace(r.PostFormValue("confirm"))); err != nil {
+		return "", err
+	}
+	if all {
+		return "All locks removed.", nil
+	}
+	return "Stale locks removed.", nil
+}
+
+// webOff switches the web UI off. The answer is a page of its own, because
+// there is nothing to go back to once the server is gone.
+func (h *Handler) webOff(w http.ResponseWriter, r *http.Request) {
+	if h.o.Off == nil {
+		h.setFlash(w, r, false, describe(service.ErrUnavailable))
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+	h.o.Log.InfoContext(h.ctx(r).Context(), "web UI switched off from the web UI", "remote", r.RemoteAddr)
+	h.render(w, r, "off", "", nil)
+	// Switching off waits for open requests, this one included, so it must not block here.
+	go func() { _ = h.o.Off() }()
+}

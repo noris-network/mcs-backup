@@ -1,0 +1,6 @@
+{{define "content"}}
+<h1>Not logged in</h1>
+<p>This page needs a login. Ask the service for a one-time link:</p>
+<pre>mcs-backup web</pre>
+<p>The link works once and for two minutes. In a pod, run it with <code>kubectl exec</code>. If a token was configured (<code>MCS_BACKUP_WEB_TOKEN</code>), the browser can also ask for it.</p>
+{{end}}

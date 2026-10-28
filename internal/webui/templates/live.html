@@ -1,0 +1,49 @@
+{{define "live"}}
+<table class="rows">
+{{range .Rows}}<tr><th>{{.Label}}</th><td>{{.Text}}</td></tr>
+{{end}}
+<tr><th>Web UI</th><td>{{if .Web.Enabled}}on at {{.Web.Addr}}{{if not .Web.Until.IsZero}} until {{stamp .Web.Until}}{{end}}{{else}}off{{end}}</td></tr>
+{{if not .VerifyReady}}<tr><th></th><td class="dim">The restore test is not set up (see VERIFY_MODE and VERIFY_SCRIPT).</td></tr>{{end}}
+</table>
+
+{{if .Notes}}
+<h2>Needs attention</h2>
+<ul class="notes">
+{{range .Notes}}<li class="{{.Severity}}">{{.Text}}</li>{{end}}
+</ul>
+{{end}}
+{{if and .ForgetHeld (not .AppendOnly)}}
+<p class="flash bad">The retention guard holds back a forget that would remove many snapshots. <a href="/snapshots">Review it</a> before approving.</p>
+{{end}}
+
+{{if .Op}}
+<section class="panel">
+  <h2>Running</h2>
+  <p>{{.OpLine}}</p>
+  {{with .Op.Progress}}{{if gt .Percent 0.0}}<p><progress max="100" value="{{percent .Percent}}"></progress> {{percent .Percent}}% <span class="dim">{{.Current}}</span></p>{{end}}{{end}}
+  {{if .Log}}<pre class="log">{{range .Log}}{{.}}
+{{end}}</pre>{{end}}
+  <form method="post" action="/cancel"><button>Cancel</button> <a href="/log/{{.Op.Kind}}">Full log</a></form>
+</section>
+{{else if .Result}}
+<section class="panel">
+  <h2>Last result</h2>
+  <pre class="{{if .ResultOK}}ok{{else}}bad{{end}}">{{range .ResultLines}}{{.}}
+{{end}}</pre>
+  <p><a href="/log/{{.Result.Kind}}">Log of the {{.Result.Kind}} run</a></p>
+  {{if .CanRepeat}}
+  <form method="post" action="/restore" class="stack">
+    <p class="bad">The restore failed. If the safety snapshot is the reason (for example because the application is dead and its dump cannot run), you can repeat the restore without it. The current data is then lost for good.</p>
+    <input type="hidden" name="snapshot" value="{{.RepeatWhat}}">
+    <input type="hidden" name="no_safety_snapshot" value="1">
+    <label>Type <code>no-safety-snapshot</code> <input name="confirm_no_safety" autocomplete="off"></label>
+    <label>Type <code>{{.RepeatWhat}}</code> to replace the current data <input name="confirm" autocomplete="off"></label>
+    <button class="danger">Restore without safety snapshot</button>
+  </form>
+  {{end}}
+</section>
+{{else if .Retry}}
+<p>The failed backup is retried ({{.Retry.Attempt}}/{{.Retry.Max}}) at {{stamp .Retry.At}}.</p>
+<form method="post" action="/cancel"><button>Cancel the retry</button></form>
+{{end}}
+{{end}}

@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -253,7 +252,7 @@ func (d *Daemon) NotifyTest(ctx context.Context) error {
 	return n.Send(ctx, notify.Event{Name: "test", Message: "This is a test notification from mcs-backup.", Time: d.now()})
 }
 
-var errNoWebUI = errors.New("the web UI is not available")
+var errNoWebUI = fmt.Errorf("%w: the web UI is not part of this build", service.ErrUnavailable)
 
 // WebUI implements service.Service.
 func (d *Daemon) WebUI(context.Context) (service.WebUIStatus, error) {

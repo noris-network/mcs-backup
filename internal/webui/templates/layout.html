@@ -1,0 +1,30 @@
+{{define "page"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="htmx-config" content='{"allowEval":false,"includeIndicatorStyles":false}'>
+<title>mcs-backup</title>
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/htmx.min.js" defer></script>
+</head>
+<body>
+<header>
+  <strong>mcs-backup</strong>{{with .Status}} <span class="dim">{{.Host}}</span>{{end}}
+  {{if .Nav}}
+  <nav>
+    <a href="/"{{if eq .Nav "overview"}} aria-current="page"{{end}}>Overview</a>
+    <a href="/snapshots"{{if eq .Nav "snapshots"}} aria-current="page"{{end}}>Snapshots</a>
+    <a href="/locks"{{if eq .Nav "locks"}} aria-current="page"{{end}}>Locks</a>
+    <a href="/access"{{if eq .Nav "access"}} aria-current="page"{{end}}>Access</a>
+  </nav>
+  <form method="post" action="/logout" class="inline"><button class="link">Log out</button></form>
+  {{end}}
+</header>
+<main>
+{{with .Flash}}<p class="flash {{if .OK}}ok{{else}}bad{{end}}" role="status">{{.Text}}</p>{{end}}
+{{template "content" .}}
+</main>
+</body>
+</html>
+{{end}}

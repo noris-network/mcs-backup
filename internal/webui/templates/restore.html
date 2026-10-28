@@ -1,0 +1,14 @@
+{{define "content"}}
+<h1>Restore</h1>
+<form method="post" action="/restore/check" class="stack">
+  <label>Snapshot (ID or latest) <input name="snapshot" value="{{.Data.Snapshot}}" required></label>
+  <label>Target directory <span class="dim">(empty: replace the live data)</span> <input name="target" value="{{.Data.Target}}" placeholder="/path/to/directory"></label>
+  <label>Only these paths <span class="dim">(optional, separated by spaces)</span> <input name="include" value="{{.Data.Include}}"></label>
+  <label>Mode when replacing the live data
+    <select name="mode">
+      <option value="exact">exact: files that are not in the snapshot are removed</option>
+      <option value="merge"{{if .Data.Merge}} selected{{end}}>merge: files that are not in the snapshot stay</option>
+    </select></label>
+  <button>Check</button>
+</form>
+{{end}}

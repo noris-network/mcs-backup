@@ -1,0 +1,12 @@
+{{define "content"}}
+<h1>Access</h1>
+<p>What it takes to run restic against this repository from another place.
+{{if .Data.Revealed}}<strong class="bad">The secrets are shown.</strong> <a href="/access">Hide them</a>{{else}}The secrets are hidden. <a href="/access?reveal=1">Show them</a>{{end}}</p>
+<table class="rows">
+{{range .Data.Info.Vars}}<tr><th><code>{{.Name}}</code></th><td><code>{{.Value}}</code></td></tr>
+{{end}}
+{{if .Data.Info.Args}}<tr><th>restic options</th><td><code>{{join .Data.Info.Args " "}}</code></td></tr>{{end}}
+</table>
+<p>restic {{.Data.Info.MinVersion}} or newer is needed.</p>
+<ul>{{range .Data.Info.Notes}}<li class="dim">{{.}}</li>{{end}}</ul>
+{{end}}

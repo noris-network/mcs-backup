@@ -37,6 +37,9 @@ linters:
       # to finish (and run their post-hook) while the service shuts down
       - path: internal/daemon/
         linters: [contextcheck]
+      # the handlers derive the request with the source of the call and use its context
+      - path: internal/webui/
+        linters: [contextcheck]
       # the command tree passes the context through cobra
       - path: cmd/mcs-backup/
         linters: [contextcheck]

@@ -1,0 +1,6 @@
+{{define "content"}}
+<h1>Log of the last {{.Data.Kind}} run</h1>
+{{if .Data.Lines}}<pre class="log">{{range .Data.Lines}}{{.}}
+{{end}}</pre>{{else}}<p>The log is empty.</p>{{end}}
+<p><a href="/">Back</a></p>
+{{end}}

@@ -1,0 +1,24 @@
+{{define "content"}}
+<h1>Restore</h1>
+<table class="rows">
+{{range .Data.Rows}}<tr><th>{{.Label}}</th><td{{if .Severity}} class="bad"{{end}}>{{.Text}}</td></tr>
+{{end}}
+</table>
+<form method="post" action="/restore" class="stack">
+  <input type="hidden" name="snapshot" value="{{.Data.Request.Snapshot}}">
+  <input type="hidden" name="target" value="{{.Data.Request.Target}}">
+  <input type="hidden" name="include" value="{{.Data.Include}}">
+  <input type="hidden" name="mode" value="{{.Data.Request.Mode}}">
+  {{if .Data.Pre.SpaceWarning}}
+  <label><input type="checkbox" name="ignore_space" value="1"> restore although the space looks too small</label>
+  {{end}}
+  {{if .Data.Pre.InPlace}}
+  <p class="bad">This replaces the current data.</p>
+  <label>Type <code>{{.Data.Request.Snapshot}}</code> to confirm <input name="confirm" autocomplete="off"></label>
+  <button class="danger">Restore</button>
+  {{else}}
+  <button>Restore</button>
+  {{end}}
+  <a href="/restore?snapshot={{.Data.Request.Snapshot}}">Back</a>
+</form>
+{{end}}
