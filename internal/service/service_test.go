@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json/v2"
 	"slices"
 	"strings"
 	"testing"
@@ -125,5 +126,25 @@ func TestFromRestic(t *testing.T) {
 	}
 	if FromRestic(restic.Snapshot{ID: "x"}).HasSummary {
 		t.Error("a snapshot without summary must not claim one")
+	}
+}
+
+func TestDurationJSON(t *testing.T) {
+	type wrap struct {
+		D Duration `json:"d"`
+	}
+	data, err := json.Marshal(wrap{D: Duration(90 * time.Minute)})
+	if err != nil || string(data) != `{"d":"1h30m0s"}` {
+		t.Fatalf("Marshal() = %s, %v", data, err)
+	}
+	for in, want := range map[string]time.Duration{`{"d":"2h"}`: 2 * time.Hour, `{"d":"1h30m0s"}`: 90 * time.Minute, `{"d":"250ms"}`: 250 * time.Millisecond} {
+		var w wrap
+		if err := json.Unmarshal([]byte(in), &w); err != nil || w.D.Std() != want {
+			t.Errorf("Unmarshal(%s) = %v, %v; want %v", in, w.D, err, want)
+		}
+	}
+	var w wrap
+	if err := json.Unmarshal([]byte(`{"d":"soon"}`), &w); err == nil {
+		t.Error("an invalid duration was accepted")
 	}
 }

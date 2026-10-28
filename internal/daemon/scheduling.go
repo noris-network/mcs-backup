@@ -263,11 +263,11 @@ func (d *Daemon) SetSchedule(ctx context.Context, req service.ScheduleRequest) (
 			d.catchUp("enabled")
 		}
 	case service.ScheduleMaintenance:
-		if req.For <= 0 || req.For > maxMaintenance {
+		if req.For.Std() <= 0 || req.For.Std() > maxMaintenance {
 			return service.Status{}, fmt.Errorf("a maintenance window must last between 1s and %v", maxMaintenance)
 		}
 		d.mu.Lock()
-		d.maintUntil = d.now().Add(req.For)
+		d.maintUntil = d.now().Add(req.For.Std())
 		until := d.maintUntil
 		d.armMaintenanceLocked()
 		d.mu.Unlock()

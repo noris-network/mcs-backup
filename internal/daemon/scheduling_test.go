@@ -341,7 +341,7 @@ func TestMaintenanceWindow(t *testing.T) {
 		ctx, stop := start(t, d)
 		synctest.Wait()
 
-		st, err := d.SetSchedule(service.WithSource(ctx, service.SourceCLI), service.ScheduleRequest{Action: service.ScheduleMaintenance, For: time.Hour})
+		st, err := d.SetSchedule(service.WithSource(ctx, service.SourceCLI), service.ScheduleRequest{Action: service.ScheduleMaintenance, For: service.Duration(time.Hour)})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -390,8 +390,8 @@ func TestMaintenanceWindow(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			d := newTestDaemon(t, nil)
 			for _, req := range []service.ScheduleRequest{
-				{Action: service.ScheduleMaintenance}, {Action: service.ScheduleMaintenance, For: -time.Hour},
-				{Action: service.ScheduleMaintenance, For: 365 * 24 * time.Hour}, {Action: "explode"},
+				{Action: service.ScheduleMaintenance}, {Action: service.ScheduleMaintenance, For: service.Duration(-time.Hour)},
+				{Action: service.ScheduleMaintenance, For: service.Duration(365 * 24 * time.Hour)}, {Action: "explode"},
 			} {
 				if _, err := d.SetSchedule(t.Context(), req); err == nil {
 					t.Errorf("%+v was accepted", req)
@@ -406,7 +406,7 @@ func TestMaintenanceWindowSurvivesARestart(t *testing.T) {
 		first := newTestDaemon(t, nil)
 		ctx, stop := start(t, first)
 		synctest.Wait()
-		if _, err := first.SetSchedule(ctx, service.ScheduleRequest{Action: service.ScheduleMaintenance, For: 2 * time.Hour}); err != nil {
+		if _, err := first.SetSchedule(ctx, service.ScheduleRequest{Action: service.ScheduleMaintenance, For: service.Duration(2 * time.Hour)}); err != nil {
 			t.Fatal(err)
 		}
 		stop()
@@ -459,7 +459,7 @@ func TestDisableEndsAMaintenanceWindow(t *testing.T) {
 		d := newTestDaemon(t, func(f *fakeEngine) { f.setSnaps(snap("a", "me", 0, 100)) }, "CRON_SCHEDULE=0 3 * * *")
 		ctx, stop := start(t, d)
 		synctest.Wait()
-		_, _ = d.SetSchedule(ctx, service.ScheduleRequest{Action: service.ScheduleMaintenance, For: time.Hour})
+		_, _ = d.SetSchedule(ctx, service.ScheduleRequest{Action: service.ScheduleMaintenance, For: service.Duration(time.Hour)})
 		st, _ := d.SetSchedule(ctx, service.ScheduleRequest{Action: service.ScheduleDisable})
 		if st.Schedule.Enabled || !st.Schedule.MaintenanceUntil.IsZero() {
 			t.Errorf("schedule = %+v", st.Schedule)

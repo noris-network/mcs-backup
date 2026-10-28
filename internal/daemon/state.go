@@ -136,7 +136,7 @@ func (d *Daemon) metricsState() metrics.State {
 		if res.Result == service.ResultSkipped || res.Result == service.ResultCancelled || kind == service.KindTag || kind == service.KindUnlock {
 			continue
 		}
-		s.LastRuns[string(kind)] = metrics.LastRun{Success: res.Result == service.ResultSuccess || res.Result == service.ResultWarning, At: res.Started, Duration: res.Duration}
+		s.LastRuns[string(kind)] = metrics.LastRun{Success: res.Result == service.ResultSuccess || res.Result == service.ResultWarning, At: res.Started, Duration: res.Duration.Std()}
 	}
 	return s
 }

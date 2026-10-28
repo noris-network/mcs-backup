@@ -268,13 +268,13 @@ func (d *Daemon) SetWebUI(ctx context.Context, req service.WebUIRequest) (servic
 	if d.o.WebUI == nil {
 		return service.WebUIStatus{}, errNoWebUI
 	}
-	d.log.InfoContext(ctx, "web UI switched", "enable", req.Enable, "addr", req.Addr, "for", req.For, "source", service.SourceFrom(ctx))
+	d.log.InfoContext(ctx, "web UI switched", "enable", req.Enable, "addr", req.Addr, "for", req.For.Std(), "source", service.SourceFrom(ctx))
 	var (
 		st  service.WebUIStatus
 		err error
 	)
 	if req.Enable {
-		st, err = d.o.WebUI.Enable(req.Addr, req.For)
+		st, err = d.o.WebUI.Enable(req.Addr, req.For.Std())
 	} else {
 		st, err = d.o.WebUI.Disable()
 	}

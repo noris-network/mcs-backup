@@ -101,7 +101,7 @@ func (e *Engine) Locks(ctx context.Context) ([]service.Lock, error) {
 	for i, l := range locks {
 		age := now.Sub(l.Time)
 		out[i] = service.Lock{
-			ID: l.ID, Time: l.Time, Age: age, Exclusive: l.Exclusive,
+			ID: l.ID, Time: l.Time, Age: service.Duration(age), Exclusive: l.Exclusive,
 			Hostname: l.Hostname, Username: l.Username, PID: l.PID, Stale: age > staleLockAge,
 		}
 	}

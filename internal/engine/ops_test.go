@@ -188,7 +188,7 @@ func TestLocks(t *testing.T) {
 	if err != nil || len(locks) != 2 {
 		t.Fatalf("Locks() = %+v, %v", locks, err)
 	}
-	if locks[0].Stale || locks[0].Age != 5*time.Minute || !locks[1].Stale || locks[1].Age != 2*time.Hour {
+	if locks[0].Stale || locks[0].Age.Std() != 5*time.Minute || !locks[1].Stale || locks[1].Age.Std() != 2*time.Hour {
 		t.Errorf("locks = %+v", locks)
 	}
 	if err := r.e.Unlock(t.Context(), true); err != nil {

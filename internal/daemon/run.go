@@ -45,7 +45,7 @@ func (d *Daemon) launch(ctx context.Context, kind service.Kind, detail string, r
 		out := run(opCtx, d.sink(r))
 		res := service.RunResult{
 			ID: r.op.ID, Kind: kind, Result: out.result, Message: out.message, Error: out.err, Snapshot: out.snapshot,
-			Warnings: out.warnings, Source: r.op.Source, Started: r.op.Started, Duration: d.now().Sub(r.op.Started),
+			Warnings: out.warnings, Source: r.op.Source, Started: r.op.Started, Duration: service.Duration(d.now().Sub(r.op.Started)),
 		}
 		if out.refresh {
 			ctx, cancel := context.WithTimeout(d.opsCtx, afterTimeout)
@@ -89,7 +89,7 @@ func (d *Daemon) finishBackup(r *running, req service.BackupRequest, attempt int
 	run := service.RunResult{
 		ID: r.op.ID, Kind: service.KindBackup, Result: res.Result, Message: res.Message, Error: res.Error,
 		Snapshot: res.Snapshot, Warnings: res.Warnings, Source: r.op.Source, Started: r.op.Started,
-		Duration: res.Duration, Attempt: attempt,
+		Duration: service.Duration(res.Duration), Attempt: attempt,
 	}
 
 	// bring the state up to date; statistics are never worth a failure
@@ -135,7 +135,7 @@ func (d *Daemon) finishBackup(r *running, req service.BackupRequest, attempt int
 	if res.Copy != nil {
 		cr := service.RunResult{
 			ID: r.op.ID, Kind: service.KindCopy, Result: res.Copy.Result, Error: res.Copy.Error, Snapshot: res.Snapshot,
-			Source: r.op.Source, Started: r.op.Started, Duration: res.Duration,
+			Source: r.op.Source, Started: r.op.Started, Duration: service.Duration(res.Duration),
 		}
 		d.record(cr)
 		d.notifyRun(cr)

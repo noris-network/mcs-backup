@@ -65,6 +65,29 @@ func (e *BusyError) Error() string {
 // Is makes errors.Is(err, ErrBusy) work.
 func (e *BusyError) Is(target error) bool { return target == ErrBusy }
 
+// Duration is a time.Duration that appears in JSON as a string such as
+// "1h30m0s". Decoding accepts everything time.ParseDuration does, so that a
+// request can say "2h".
+type Duration time.Duration
+
+// Std returns d as a time.Duration.
+func (d Duration) Std() time.Duration { return time.Duration(d) }
+
+func (d Duration) String() string { return time.Duration(d).String() }
+
+// MarshalText implements encoding.TextMarshaler.
+func (d Duration) MarshalText() ([]byte, error) { return []byte(d.String()), nil }
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (d *Duration) UnmarshalText(text []byte) error {
+	v, err := time.ParseDuration(string(text))
+	if err != nil {
+		return err
+	}
+	*d = Duration(v)
+	return nil
+}
+
 // Progress is the progress of a running backup or restore.
 type Progress struct {
 	Percent    float64 `json:"percent"` // 0..1
@@ -92,16 +115,16 @@ type Operation struct {
 
 // RunResult is the outcome of an operation.
 type RunResult struct {
-	ID       string        `json:"id"`
-	Kind     Kind          `json:"kind"`
-	Result   Result        `json:"result"`
-	Message  string        `json:"message,omitempty"`
-	Error    string        `json:"error,omitempty"`
-	Snapshot string        `json:"snapshot,omitempty"`
-	Warnings []string      `json:"warnings,omitempty"`
-	Source   string        `json:"source,omitempty"`
-	Started  time.Time     `json:"started"`
-	Duration time.Duration `json:"duration"`
+	ID       string    `json:"id"`
+	Kind     Kind      `json:"kind"`
+	Result   Result    `json:"result"`
+	Message  string    `json:"message,omitempty"`
+	Error    string    `json:"error,omitempty"`
+	Snapshot string    `json:"snapshot,omitempty"`
+	Warnings []string  `json:"warnings,omitempty"`
+	Source   string    `json:"source,omitempty"`
+	Started  time.Time `json:"started"`
+	Duration Duration  `json:"duration"`
 	// Attempt is the number of the attempt (1 for the first).
 	Attempt int `json:"attempt,omitempty"`
 	// WillRetry: the operation failed and will be tried again.
@@ -232,13 +255,13 @@ type RetentionInfo struct {
 
 // Lock is a lock in the repository.
 type Lock struct {
-	ID        string        `json:"id"`
-	Time      time.Time     `json:"time"`
-	Age       time.Duration `json:"age"`
-	Exclusive bool          `json:"exclusive"`
-	Hostname  string        `json:"hostname"`
-	Username  string        `json:"username"`
-	PID       int           `json:"pid"`
+	ID        string    `json:"id"`
+	Time      time.Time `json:"time"`
+	Age       Duration  `json:"age"`
+	Exclusive bool      `json:"exclusive"`
+	Hostname  string    `json:"hostname"`
+	Username  string    `json:"username"`
+	PID       int       `json:"pid"`
 	// Stale: restic would remove this lock with a plain unlock.
 	Stale bool `json:"stale"`
 }
@@ -261,7 +284,7 @@ const (
 type ScheduleRequest struct {
 	Action ScheduleAction `json:"action"`
 	// For is the length of a maintenance window.
-	For time.Duration `json:"for,omitempty"`
+	For Duration `json:"for,omitempty"`
 }
 
 // EnvVar is one variable of the restic environment.
@@ -294,7 +317,7 @@ type WebUIRequest struct {
 	// Addr is the listen address; the configured one if empty.
 	Addr string `json:"addr,omitempty"`
 	// For limits how long the web UI stays on.
-	For time.Duration `json:"for,omitempty"`
+	For Duration `json:"for,omitempty"`
 }
 
 // Service is everything a user interface can ask of mcs-backup. The daemon

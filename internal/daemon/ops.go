@@ -73,7 +73,7 @@ func (d *Daemon) end(r *running, res service.RunResult) {
 	d.lastRuns[res.Kind] = res
 	d.publishLocked(service.Event{Type: service.EventFinished, Result: &res})
 	d.mu.Unlock()
-	d.log.Info("operation finished", "kind", res.Kind, "result", res.Result, "duration", res.Duration.Round(time.Millisecond),
+	d.log.Info("operation finished", "kind", res.Kind, "result", res.Result, "duration", res.Duration.Std().Round(time.Millisecond),
 		"id", res.ID, "error", res.Error)
 	r.cancel()
 	close(r.done)
@@ -130,7 +130,7 @@ func (d *Daemon) exclusive(ctx context.Context, kind service.Kind, detail string
 	}
 	start := d.now()
 	err = fn(opCtx)
-	res := service.RunResult{ID: r.op.ID, Kind: kind, Result: service.ResultSuccess, Source: r.op.Source, Started: start, Duration: d.now().Sub(start)}
+	res := service.RunResult{ID: r.op.ID, Kind: kind, Result: service.ResultSuccess, Source: r.op.Source, Started: start, Duration: service.Duration(d.now().Sub(start))}
 	if err != nil {
 		res.Result, res.Error = service.ResultFailure, err.Error()
 	}
