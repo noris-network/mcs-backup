@@ -3,13 +3,16 @@ package engine
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"slices"
 	"strings"
 
 	"github.com/noris-network/mcs-backup/v2/internal/config"
+	"github.com/noris-network/mcs-backup/v2/internal/envexport"
 	"github.com/noris-network/mcs-backup/v2/internal/hooks"
 	"github.com/noris-network/mcs-backup/v2/internal/restic"
+	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
 
 // NewFromConfig builds an Engine for cfg: the restic repositories, the hook
@@ -47,6 +50,13 @@ func SecondEnv(cfg *config.Config) []string {
 		return append(env, "RESTIC_PASSWORD_FILE="+cfg.Copy.PasswordFile)
 	}
 	return append(env, "RESTIC_PASSWORD="+cfg.Copy.Password)
+}
+
+// EnvInfo describes how to run restic against the main repository elsewhere.
+// Secrets are masked unless reveal is set.
+func EnvInfo(cfg *config.Config, reveal bool) service.EnvInfo {
+	oldest := fmt.Sprintf("%d.%d", MinResticVersion.Major, MinResticVersion.Minor)
+	return envexport.Build(cfg.ResticEnviron(), cfg.Restic.Global, oldest, reveal)
 }
 
 // ProbeResult is what Probe found out about one repository.

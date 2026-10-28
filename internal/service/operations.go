@@ -297,6 +297,9 @@ type EnvVar struct {
 // EnvInfo is what is needed to run restic against the repository elsewhere.
 type EnvInfo struct {
 	Vars []EnvVar `json:"vars"`
+	// Args are restic options that have no environment variable and have to
+	// be passed every time.
+	Args []string `json:"args,omitempty"`
 	// Notes are hints, e.g. about file based credentials.
 	Notes []string `json:"notes,omitempty"`
 	// MinVersion is the oldest restic that works with mcs-backup.

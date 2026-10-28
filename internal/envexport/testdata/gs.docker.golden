@@ -1,0 +1,8 @@
+# restic 0.17 or newer is needed
+# GOOGLE_APPLICATION_CREDENTIALS names the file /etc/gcp/key.json: it has to exist, with the same content, where restic runs.
+docker run --rm -it \
+  -e RESTIC_REPOSITORY='gs:bucket:/app' \
+  -e RESTIC_PASSWORD='pw' \
+  -e GOOGLE_APPLICATION_CREDENTIALS='/etc/gcp/key.json' \
+  -e GOOGLE_PROJECT_ID='proj' \
+  restic/restic

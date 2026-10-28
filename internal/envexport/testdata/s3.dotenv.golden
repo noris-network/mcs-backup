@@ -1,0 +1,8 @@
+# restic 0.17 or newer is needed
+# Pass -o s3.list-objects-v1=true to restic every time: these options have no environment variable.
+RESTIC_REPOSITORY=s3:https://s3.example.com/bucket/app
+RESTIC_PASSWORD="pa ss'word"
+AWS_ACCESS_KEY_ID=AKIA123
+AWS_DEFAULT_REGION=eu-central-1
+AWS_SECRET_ACCESS_KEY=s3cr3t
+RESTIC_CACHE_DIR=/tmp/cache

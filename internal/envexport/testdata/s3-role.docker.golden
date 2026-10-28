@@ -1,0 +1,7 @@
+# restic 0.17 or newer is needed
+# RESTIC_PASSWORD_FILE names the file /run/secrets/pw: it has to exist, with the same content, where restic runs.
+# No S3 credentials are set: if this instance gets them from an IAM role or a workload identity, they are not part of this export. Use an access key or run restic where the role is available.
+docker run --rm -it \
+  -e RESTIC_REPOSITORY='s3:s3.example.com/bucket' \
+  -e RESTIC_PASSWORD_FILE='/run/secrets/pw' \
+  restic/restic

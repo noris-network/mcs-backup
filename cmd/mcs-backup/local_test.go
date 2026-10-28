@@ -446,3 +446,35 @@ func waitFor(t *testing.T, timeout time.Duration, cond func() bool) {
 	}
 	t.Fatal("condition not met in time")
 }
+
+func TestEnv(t *testing.T) {
+	fake := resticfake.New(t)
+	c := newCLI(t)
+	c.env, _ = localEnv(t, fake, "RESTIC_REPOSITORY=s3:s3.example.com/bucket", "S3_USE_V1=true", "CRON_SCHEDULE=0 2 * * *")
+
+	if code := c.run("env"); code != 0 {
+		t.Fatalf("exit %d: %s", code, c.err())
+	}
+	for _, want := range []string{"export RESTIC_REPOSITORY='s3:s3.example.com/bucket'", "export RESTIC_PASSWORD='pw-secret'", "export AWS_SECRET_ACCESS_KEY='aws-secret'", "-o s3.list-objects-v1=true"} {
+		if !strings.Contains(c.out(), want) {
+			t.Errorf("output lacks %q:\n%s", want, c.out())
+		}
+	}
+	for _, unwanted := range []string{"BACKUP_ROOT", "CRON_SCHEDULE", "MCS_BACKUP"} {
+		if strings.Contains(c.out(), unwanted) {
+			t.Errorf("output contains %q, which is no business of restic:\n%s", unwanted, c.out())
+		}
+	}
+
+	if code := c.run("env", "--format", "docker"); code != 0 || !strings.Contains(c.out(), "docker run") || !strings.Contains(c.out(), "restic/restic -o s3.list-objects-v1=true") {
+		t.Errorf("docker format: exit %d\n%s%s", code, c.out(), c.err())
+	}
+
+	if code := c.run("env", "--json"); code != 0 || !strings.Contains(c.out(), `"min_version": "0.17"`) {
+		t.Errorf("json: exit %d\n%s%s", code, c.out(), c.err())
+	}
+
+	if code := c.run("env", "--format", "yaml"); code != exitCodeUsage || !strings.Contains(c.err(), "unknown format") {
+		t.Errorf("bad format: exit %d\n%s", code, c.err())
+	}
+}

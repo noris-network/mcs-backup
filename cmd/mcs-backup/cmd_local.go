@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/noris-network/mcs-backup/v2/internal/engine"
+	"github.com/noris-network/mcs-backup/v2/internal/envexport"
 )
 
 func (a *app) newResticCmd() *cobra.Command {
@@ -39,6 +40,41 @@ from the configuration. Everything after "restic" is passed on unchanged.`,
 			return nil
 		},
 	}
+}
+
+func (a *app) newEnvCmd() *cobra.Command {
+	var format string
+	cmd := &cobra.Command{
+		Use:   "env",
+		Short: "Print what is needed to run restic against this repository",
+		Long: `Print the restic environment of this instance (repository, password, backend
+credentials) so that restic can be run elsewhere, for example to restore on another
+machine. The service does not have to run.
+
+The secrets are printed in clear text: whoever can run this command can read them
+anyway. Formats: export (default, for eval "$(mcs-backup env)"), dotenv (an .env
+file) and docker (a docker run command with the restic image). Hints about
+credentials that are not part of the environment, such as files, IAM roles or SSH
+keys, are printed as comments.`,
+		Args: usageArgs(cobra.NoArgs),
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			style, err := envexport.ParseStyle(format)
+			if err != nil {
+				return usageError(err)
+			}
+			cfg, err := a.loadConfig()
+			if err != nil {
+				return err
+			}
+			info := engine.EnvInfo(cfg, true)
+			if a.wantJSON(cmd) {
+				return a.printJSON(info)
+			}
+			return envexport.Write(a.stdout, info, style)
+		},
+	}
+	cmd.Flags().StringVar(&format, "format", string(envexport.StyleExport), "output format: export, dotenv or docker")
+	return cmd
 }
 
 func (a *app) newRestoreIfEmptyCmd() *cobra.Command {

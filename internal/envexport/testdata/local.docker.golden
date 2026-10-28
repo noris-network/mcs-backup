@@ -1,0 +1,6 @@
+# restic 0.17 or newer is needed
+# The repository is a local path: it has to be reachable under the same path where restic runs.
+docker run --rm -it \
+  -e RESTIC_REPOSITORY='/srv/restic' \
+  -e RESTIC_PASSWORD='pw' \
+  restic/restic

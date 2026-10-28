@@ -1,0 +1,6 @@
+# restic 0.17 or newer is needed
+# The SFTP backend uses the SSH configuration, keys and known hosts of the user who runs restic.
+docker run --rm -it \
+  -e RESTIC_REPOSITORY='sftp:backup@host:/srv/restic' \
+  -e RESTIC_PASSWORD='pw' \
+  restic/restic

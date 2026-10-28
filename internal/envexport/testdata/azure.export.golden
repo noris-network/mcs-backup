@@ -1,0 +1,5 @@
+# restic 0.17 or newer is needed
+# No Azure key or SAS token is set: if this instance uses a managed identity, it is not part of this export.
+export RESTIC_REPOSITORY='azure:container:/app'
+export RESTIC_PASSWORD='pw'
+export AZURE_ACCOUNT_NAME='acct'

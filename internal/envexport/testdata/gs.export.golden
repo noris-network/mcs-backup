@@ -1,0 +1,6 @@
+# restic 0.17 or newer is needed
+# GOOGLE_APPLICATION_CREDENTIALS names the file /etc/gcp/key.json: it has to exist, with the same content, where restic runs.
+export RESTIC_REPOSITORY='gs:bucket:/app'
+export RESTIC_PASSWORD='pw'
+export GOOGLE_APPLICATION_CREDENTIALS='/etc/gcp/key.json'
+export GOOGLE_PROJECT_ID='proj'

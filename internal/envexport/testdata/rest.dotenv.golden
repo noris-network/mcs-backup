@@ -1,0 +1,5 @@
+# restic 0.17 or newer is needed
+# RESTIC_PASSWORD_COMMAND is run by restic: the command has to work where restic runs.
+RESTIC_REPOSITORY=rest:https://user:hunter2@backup.example.com:8000/app
+RESTIC_PASSWORD_COMMAND="pass show restic"
+HTTPS_PROXY=http://proxy:3128

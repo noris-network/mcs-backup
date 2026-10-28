@@ -1,0 +1,7 @@
+# restic 0.17 or newer is needed
+# No Azure key or SAS token is set: if this instance uses a managed identity, it is not part of this export.
+docker run --rm -it \
+  -e RESTIC_REPOSITORY='azure:container:/app' \
+  -e RESTIC_PASSWORD='pw' \
+  -e AZURE_ACCOUNT_NAME='acct' \
+  restic/restic

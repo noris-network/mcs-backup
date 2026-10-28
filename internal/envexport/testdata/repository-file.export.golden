@@ -1,0 +1,6 @@
+# restic 0.17 or newer is needed
+# RESTIC_REPOSITORY_FILE names the file /run/secrets/repo: it has to exist, with the same content, where restic runs.
+export RESTIC_REPOSITORY_FILE='/run/secrets/repo'
+export RESTIC_PASSWORD='pw'
+export AWS_ACCESS_KEY_ID='AKIA123'
+export B2_ACCOUNT_ID='b2id'

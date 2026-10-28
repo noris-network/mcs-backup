@@ -13,6 +13,7 @@ import (
 	"github.com/noris-network/mcs-backup/v2/internal/daemon"
 	"github.com/noris-network/mcs-backup/v2/internal/engine"
 	"github.com/noris-network/mcs-backup/v2/internal/notify"
+	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
 
 // loadConfig reads the configuration from the environment. An invalid
@@ -63,6 +64,7 @@ func (a *app) serve(cmd *cobra.Command, _ []string) error {
 	d := daemon.New(daemon.Options{
 		Config: cfg, Engine: engine.NewFromConfig(cfg, log), Notifier: notifier, Logger: log,
 		Version: version(), HTTPAddr: fmt.Sprintf(":%d", cfg.Server.HTTPPort),
+		Env: func(reveal bool) (service.EnvInfo, error) { return engine.EnvInfo(cfg, reveal), nil },
 	})
 
 	log.InfoContext(ctx, "mcs-backup starting", "version", version(), "host", cfg.Host, "socket", cfg.Server.Socket,

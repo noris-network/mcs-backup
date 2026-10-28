@@ -1,0 +1,10 @@
+# restic 0.17 or newer is needed
+# Pass -o s3.list-objects-v1=true to restic every time: these options have no environment variable.
+docker run --rm -it \
+  -e RESTIC_REPOSITORY='s3:https://s3.example.com/bucket/app' \
+  -e RESTIC_PASSWORD='pa ss'\''word' \
+  -e AWS_ACCESS_KEY_ID='AKIA123' \
+  -e AWS_DEFAULT_REGION='eu-central-1' \
+  -e AWS_SECRET_ACCESS_KEY='s3cr3t' \
+  -e RESTIC_CACHE_DIR='/tmp/cache' \
+  restic/restic -o s3.list-objects-v1=true

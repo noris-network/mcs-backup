@@ -1,0 +1,4 @@
+# restic 0.17 or newer is needed
+# The repository is a local path: it has to be reachable under the same path where restic runs.
+export RESTIC_REPOSITORY='/srv/restic'
+export RESTIC_PASSWORD='pw'
