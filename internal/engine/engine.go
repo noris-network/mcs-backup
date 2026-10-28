@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand/v2"
 	"strings"
 	"time"
 
@@ -44,6 +45,8 @@ type Options struct {
 	Logger *slog.Logger
 	// Now returns the current time, time.Now if nil.
 	Now func() time.Time
+	// Rand picks the files of the restore test, randomly seeded if nil.
+	Rand *rand.Rand
 }
 
 // Engine runs operations. It is safe for concurrent use as long as callers
@@ -55,16 +58,20 @@ type Engine struct {
 	hooks  *hooks.Runner
 	log    *slog.Logger
 	now    func() time.Time
+	rnd    *rand.Rand
 }
 
 // New creates an Engine.
 func New(o Options) *Engine {
-	e := &Engine{cfg: o.Config, main: o.Main, second: o.Second, hooks: o.Hooks, log: o.Logger, now: o.Now}
+	e := &Engine{cfg: o.Config, main: o.Main, second: o.Second, hooks: o.Hooks, log: o.Logger, now: o.Now, rnd: o.Rand}
 	if e.now == nil {
 		e.now = time.Now
 	}
 	if e.log == nil {
 		e.log = slog.New(slog.DiscardHandler)
+	}
+	if e.rnd == nil {
+		e.rnd = rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 1))
 	}
 	if e.hooks == nil {
 		e.hooks = &hooks.Runner{Dir: o.Config.Root, Env: o.Config.Environ()}

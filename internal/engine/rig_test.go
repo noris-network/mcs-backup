@@ -3,6 +3,7 @@ package engine
 import (
 	"encoding/json/v2"
 	"fmt"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"slices"
@@ -53,6 +54,7 @@ func newRig(t *testing.T, withSecond bool, env ...string) *rig {
 		Config: cfg,
 		Main:   restic.New(restic.Options{Bin: r.main.Bin, Env: cfg.ResticEnviron(), Dir: root}),
 		Now:    func() time.Time { return testNow },
+		Rand:   rand.New(rand.NewPCG(1, 2)),
 	}
 	if withSecond {
 		r.second = resticfake.New(t)
@@ -151,3 +153,37 @@ func subslices(s []string, n int) [][]string {
 }
 
 func rootPaths(r *rig) []string { return []string{r.root} }
+
+// lsOutput is the output of restic ls --json for the given nodes.
+func lsOutput(nodes ...restic.Node) string {
+	var b strings.Builder
+	b.WriteString(`{"message_type":"snapshot","struct_type":"snapshot","id":"x","paths":["/data"]}` + "\n")
+	for _, n := range nodes {
+		line, _ := json.Marshal(n)
+		b.Write(line)
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
+func file(path string, size int64) restic.Node {
+	return restic.Node{Name: filepath.Base(path), Type: "file", Path: path, Size: size}
+}
+
+func statsJSON(size int64) string {
+	return fmt.Sprintf(`{"total_size":%d,"total_file_count":3,"snapshots_count":1}`, size)
+}
+
+func restoreSummary(files int64) string {
+	return fmt.Sprintf(`{"message_type":"summary","total_files":%d,"files_restored":%d,"total_bytes":10,"bytes_restored":10}`+"\n", files, files)
+}
+
+func writeFile(t *testing.T, path string, size int) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, make([]byte, size), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
