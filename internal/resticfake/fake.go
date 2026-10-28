@@ -38,8 +38,19 @@ for a in "$@"; do printf '%%s\037' "$a"; done >> "$d/calls.log"
 printf '\n' >> "$d/calls.log"
 pwd > "$d/last.cwd"
 env > "$d/last.env"
-key="$1"
-[ -f "$d/${1}_${2}.last" ] && key="${1}_${2}"
+# the command and its second word, skipping options such as "-o name=value"
+cmd=""; sub=""; skip=0
+for a in "$@"; do
+  if [ $skip = 1 ]; then skip=0; continue; fi
+  case "$a" in
+    -o) skip=1; continue;;
+    -*) continue;;
+  esac
+  if [ -z "$cmd" ]; then cmd="$a"; continue; fi
+  sub="$a"; break
+done
+key="$cmd"
+[ -n "$sub" ] && [ -f "$d/${cmd}_${sub}.last" ] && key="${cmd}_${sub}"
 if [ ! -f "$d/$key.last" ]; then
   echo "fake restic: no response registered for: $*" >&2
   exit 99
@@ -115,16 +126,34 @@ func (f *Fake) Calls(t testing.TB) [][]string {
 	return calls
 }
 
-// CallsTo returns the invocations whose first argument is command.
+// CallsTo returns the invocations of a command. Options before the command,
+// such as -o name=value, are not mistaken for it.
 func (f *Fake) CallsTo(t testing.TB, command string) [][]string {
 	t.Helper()
 	var out [][]string
 	for _, c := range f.Calls(t) {
-		if len(c) > 0 && c[0] == command {
+		if commandOf(c) == command {
 			out = append(out, c)
 		}
 	}
 	return out
+}
+
+// commandOf returns the first word that is neither an option nor the value of -o.
+func commandOf(args []string) string {
+	skip := false
+	for _, a := range args {
+		switch {
+		case skip:
+			skip = false
+		case a == "-o":
+			skip = true
+		case strings.HasPrefix(a, "-"):
+		default:
+			return a
+		}
+	}
+	return ""
 }
 
 // LastDir returns the working directory of the latest invocation.

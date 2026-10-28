@@ -25,6 +25,7 @@ type cli struct {
 	fake   *servicetest.Fake
 	stdin  string
 	tty    bool
+	env    []string
 	stdout bytes.Buffer
 	stderr bytes.Buffer
 }
@@ -44,7 +45,7 @@ func (c *cli) runCtx(ctx context.Context, args ...string) int {
 	c.stderr.Reset()
 	a := &app{
 		stdout: &c.stdout, stderr: &c.stderr, stdin: strings.NewReader(c.stdin),
-		getenv: func(string) string { return "" }, environ: func() []string { return nil },
+		getenv: func(string) string { return "" }, environ: func() []string { return c.env },
 		interactive: c.tty, dial: func(string) service.Service { return c.fake },
 		now: func() time.Time { return cliNow }, poll: 10 * time.Millisecond,
 	}

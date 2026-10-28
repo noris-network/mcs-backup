@@ -26,8 +26,16 @@ func (a *app) newRootCmd() *cobra.Command {
 	pf.String("socket", a.getenv("MCS_BACKUP_SOCKET"), "socket of the running service (default "+config.DefaultSocket()+")")
 	pf.Bool("json", false, "print machine readable JSON")
 
+	info := a.newConfigCheckCmd("info", true)
+	info.Short = "Check the configuration and the access to the repositories"
+
 	cmd.AddCommand(
 		a.newVersionCmd(),
+		a.newServeCmd(),
+		a.newConfigCmd(),
+		info,
+		a.newResticCmd(),
+		a.newRestoreIfEmptyCmd(),
 		a.newStatusCmd(),
 		a.newSnapshotsCmd(),
 		a.newBackupCmd(),

@@ -187,6 +187,9 @@ func New(o Options) *Daemon {
 		queued:   map[service.Kind]bool{},
 		enabled:  true,
 	}
+	// operations run on a context of their own; it ends when the service
+	// shuts down, after the operations were asked to stop
+	d.opsCtx, d.cancelOps = context.WithCancel(context.Background())
 	d.sched = schedule.New(schedule.Options{Now: o.Now, Log: o.Logger})
 	d.reg = metrics.NewRegistry(d.metricsState, o.Config.MetricsLabels)
 	return d
@@ -196,7 +199,6 @@ func New(o Options) *Daemon {
 // the service cannot start (unsupported restic, port in use); problems with
 // the repository are not fatal, they are retried.
 func (d *Daemon) Run(ctx context.Context) error {
-	d.opsCtx, d.cancelOps = context.WithCancel(context.WithoutCancel(ctx))
 	defer d.cancelOps()
 
 	d.mu.Lock()

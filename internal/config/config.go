@@ -142,6 +142,8 @@ type Server struct {
 
 // ResticArgs are additional arguments appended to restic invocations.
 type ResticArgs struct {
+	// Bin is the restic executable (MCS_BACKUP_RESTIC), "restic" by default.
+	Bin     string
 	Global  []string
 	Backup  []string
 	Forget  []string
@@ -662,6 +664,7 @@ func (l *loader) server() Server {
 
 func (l *loader) resticArgs() ResticArgs {
 	a := ResticArgs{
+		Bin:     l.str("MCS_BACKUP_RESTIC", "restic"),
 		Backup:  l.args("RESTIC_BACKUP_ARGS", OpBackup),
 		Forget:  l.args("RESTIC_FORGET_ARGS", OpForget),
 		Prune:   l.args("RESTIC_PRUNE_ARGS", OpPrune),

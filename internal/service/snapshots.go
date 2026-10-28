@@ -16,14 +16,14 @@ type Snapshot struct {
 	Paths      []string  `json:"paths"`
 	Origin     Origin    `json:"origin,omitempty"`
 	Note       string    `json:"note,omitempty"`
-	Keep       bool      `json:"keep,omitempty"`
-	Suspicious bool      `json:"suspicious,omitempty"`
-	PreRestore bool      `json:"pre_restore,omitempty"`
+	Keep       bool      `json:"keep,omitzero"`
+	Suspicious bool      `json:"suspicious,omitzero"`
+	PreRestore bool      `json:"pre_restore,omitzero"`
 	Tags       []string  `json:"tags,omitempty"`
 	HasSummary bool      `json:"has_summary"`
-	Files      int64     `json:"files,omitempty"`
-	Bytes      int64     `json:"bytes,omitempty"`
-	AddedBytes int64     `json:"added_bytes,omitempty"`
+	Files      int64     `json:"files,omitzero"`
+	Bytes      int64     `json:"bytes,omitzero"`
+	AddedBytes int64     `json:"added_bytes,omitzero"`
 	CopiedFrom string    `json:"copied_from,omitempty"`
 }
 

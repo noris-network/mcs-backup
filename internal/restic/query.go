@@ -52,6 +52,14 @@ func (r *Repo) Config(ctx context.Context) (RepoConfig, error) {
 	return c, r.query(ctx, []string{"cat", "config", "--no-lock"}, &c)
 }
 
+// LockCheck takes and releases a lock on the repository. It shows early
+// whether the credentials may create (and, for append-only storage, delete)
+// lock objects.
+func (r *Repo) LockCheck(ctx context.Context) error {
+	_, err := r.run(ctx, []string{"snapshots", "--json", "--latest", "1"}, runOpts{})
+	return err
+}
+
 // Snapshots lists all snapshots of the repository.
 func (r *Repo) Snapshots(ctx context.Context) ([]Snapshot, error) {
 	var s []Snapshot

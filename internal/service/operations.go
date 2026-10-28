@@ -91,10 +91,10 @@ func (d *Duration) UnmarshalText(text []byte) error {
 // Progress is the progress of a running backup or restore.
 type Progress struct {
 	Percent    float64 `json:"percent"` // 0..1
-	FilesDone  int64   `json:"files_done,omitempty"`
-	FilesTotal int64   `json:"files_total,omitempty"`
-	BytesDone  int64   `json:"bytes_done,omitempty"`
-	BytesTotal int64   `json:"bytes_total,omitempty"`
+	FilesDone  int64   `json:"files_done,omitzero"`
+	FilesTotal int64   `json:"files_total,omitzero"`
+	BytesDone  int64   `json:"bytes_done,omitzero"`
+	BytesTotal int64   `json:"bytes_total,omitzero"`
 	Current    string  `json:"current,omitempty"`
 }
 
@@ -110,7 +110,7 @@ type Operation struct {
 	Phase    string    `json:"phase,omitempty"`
 	Progress *Progress `json:"progress,omitempty"`
 	// Attempt counts retries of a failed scheduled backup, starting at 1.
-	Attempt int `json:"attempt,omitempty"`
+	Attempt int `json:"attempt,omitzero"`
 }
 
 // RunResult is the outcome of an operation.
@@ -126,9 +126,9 @@ type RunResult struct {
 	Started  time.Time `json:"started"`
 	Duration Duration  `json:"duration"`
 	// Attempt is the number of the attempt (1 for the first).
-	Attempt int `json:"attempt,omitempty"`
+	Attempt int `json:"attempt,omitzero"`
 	// WillRetry: the operation failed and will be tried again.
-	WillRetry bool `json:"will_retry,omitempty"`
+	WillRetry bool `json:"will_retry,omitzero"`
 }
 
 // EventType tells what an Event reports.
@@ -164,7 +164,7 @@ type BackupRequest struct {
 	// Note is stored with the snapshot.
 	Note string `json:"note,omitempty"`
 	// Keep protects the snapshot from forget.
-	Keep bool `json:"keep,omitempty"`
+	Keep bool `json:"keep,omitzero"`
 	// Origin says why the backup is made; manual if empty.
 	Origin Origin `json:"origin,omitempty"`
 }
@@ -191,9 +191,9 @@ type RestoreRequest struct {
 	Mode RestoreMode `json:"mode,omitempty"`
 	// NoSafetySnapshot skips the snapshot of the current data that is taken
 	// before an in-place restore.
-	NoSafetySnapshot bool `json:"no_safety_snapshot,omitempty"`
+	NoSafetySnapshot bool `json:"no_safety_snapshot,omitzero"`
 	// IgnoreSpaceWarning restores although the free space looks too small.
-	IgnoreSpaceWarning bool `json:"ignore_space_warning,omitempty"`
+	IgnoreSpaceWarning bool `json:"ignore_space_warning,omitzero"`
 	// HookArgs are passed to the pre- and post-restore hooks.
 	HookArgs []string `json:"hook_args,omitempty"`
 	// Confirm must equal Snapshot for an in-place restore.
@@ -284,14 +284,14 @@ const (
 type ScheduleRequest struct {
 	Action ScheduleAction `json:"action"`
 	// For is the length of a maintenance window.
-	For Duration `json:"for,omitempty"`
+	For Duration `json:"for,omitzero"`
 }
 
 // EnvVar is one variable of the restic environment.
 type EnvVar struct {
 	Name   string `json:"name"`
 	Value  string `json:"value"`
-	Secret bool   `json:"secret,omitempty"`
+	Secret bool   `json:"secret,omitzero"`
 }
 
 // EnvInfo is what is needed to run restic against the repository elsewhere.
@@ -317,7 +317,7 @@ type WebUIRequest struct {
 	// Addr is the listen address; the configured one if empty.
 	Addr string `json:"addr,omitempty"`
 	// For limits how long the web UI stays on.
-	For Duration `json:"for,omitempty"`
+	For Duration `json:"for,omitzero"`
 }
 
 // Service is everything a user interface can ask of mcs-backup. The daemon
