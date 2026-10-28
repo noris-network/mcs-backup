@@ -1,0 +1,499 @@
+package tui
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"slices"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/noris-network/mcs-backup/v2/internal/service"
+)
+
+type tab int
+
+const (
+	tabOverview tab = iota
+	tabSnapshots
+	tabLocks
+	tabAccess
+	numTabs
+)
+
+var tabNames = [numTabs]string{"Overview", "Snapshots", "Locks", "Access"}
+
+const maxLog = 200
+
+// Model is the Bubble Tea model of the TUI.
+type Model struct {
+	ctx context.Context //nolint:containedctx // a Bubble Tea model has no other way to reach the commands
+	svc service.Service
+	o   Options
+
+	width, height int
+	tab           tab
+	cursor        [numTabs]int
+	showForget    bool // snapshots tab: the forget preview instead of the list
+	help          bool
+	quitting      bool
+
+	status    *service.Status
+	snapshots []service.Snapshot // newest first
+	locks     []service.Lock
+	retention *service.RetentionInfo
+	env       *service.EnvInfo
+	revealed  bool
+	webLink   string
+
+	// connErr is why the service cannot be reached, empty while it can.
+	connErr string
+	flash   string
+	flashAt time.Time
+
+	op          *service.Operation
+	log         []string
+	lastResult  *service.RunResult
+	lastRestore *service.RestoreRequest
+
+	dlg dialog
+}
+
+// New creates the model. ctx should carry service.SourceTUI.
+func New(ctx context.Context, svc service.Service, o Options) *Model {
+	if o.Now == nil {
+		o.Now = time.Now
+	}
+	return &Model{ctx: ctx, svc: svc, o: o, width: 100, height: 30}
+}
+
+// Init implements tea.Model.
+func (m *Model) Init() tea.Cmd { return tea.Batch(m.refresh(), tick()) }
+
+func (m *Model) refresh() tea.Cmd {
+	return tea.Batch(fetchStatus(m.ctx, m.svc), fetchSnapshots(m.ctx, m.svc), fetchLocks(m.ctx, m.svc), fetchRetention(m.ctx, m.svc))
+}
+
+func (m *Model) appendOnly() bool { return m.status != nil && m.status.AppendOnly }
+
+func (m *Model) say(format string, args ...any) {
+	m.flash, m.flashAt = fmt.Sprintf(format, args...), m.o.Now()
+}
+
+// Update implements tea.Model.
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width, m.height = msg.Width, msg.Height
+	case tea.KeyPressMsg:
+		return m, m.key(msg)
+	case tickMsg:
+		if m.flash != "" && m.o.Now().Sub(m.flashAt) > 10*time.Second {
+			m.flash = ""
+		}
+		return m, tick()
+	case statusMsg:
+		m.gotStatus(msg)
+	case snapshotsMsg:
+		if m.fail("snapshots", msg.err) {
+			break
+		}
+		m.snapshots = slices.Clone(msg.list)
+		slices.SortStableFunc(m.snapshots, func(a, b service.Snapshot) int { return b.Time.Compare(a.Time) })
+		m.clamp(tabSnapshots, len(m.snapshots))
+	case locksMsg:
+		if !m.fail("locks", msg.err) {
+			m.locks = msg.list
+			m.clamp(tabLocks, len(m.locks))
+		}
+	case retentionMsg:
+		if !m.fail("retention", msg.err) {
+			m.retention = &msg.info
+		}
+	case envMsg:
+		if !m.fail("access", msg.err) {
+			m.env, m.revealed = &msg.info, msg.revealed
+		}
+	case logMsg:
+		if !m.fail("log", msg.err) {
+			m.dlg = &textDialog{title: "Log of the last " + string(msg.log.Kind) + " run", lines: msg.log.Lines, follow: true}
+		}
+	case preflightMsg:
+		return m, m.gotPreflight(msg)
+	case linkMsg:
+		if !m.fail("web UI", msg.err) {
+			m.webLink = msg.url
+			d := &linkDialog{url: msg.url}
+			if m.o.Hint != nil {
+				d.hint = m.o.Hint(msg.url)
+			}
+			m.dlg = d
+		}
+	case doneMsg:
+		return m, m.done(msg)
+	case eventMsg:
+		return m, m.event(msg.ev)
+	case streamMsg:
+		if msg.err != nil {
+			m.connErr = msg.err.Error()
+			return m, nil
+		}
+		m.connErr, m.op = "", nil // the stream starts with the running operation, if any
+		return m, m.refresh()
+	}
+	return m, nil
+}
+
+func (m *Model) gotStatus(msg statusMsg) {
+	if msg.err != nil {
+		m.connErr = msg.err.Error()
+		return
+	}
+	m.connErr = ""
+	m.status = &msg.st
+	if msg.st.Operation != nil { // a status that was fetched before an operation began must not hide it
+		m.op = msg.st.Operation
+	}
+}
+
+// fail reports an error of a call and tells whether there was one.
+func (m *Model) fail(what string, err error) bool {
+	if err == nil {
+		return false
+	}
+	m.say("%s: %s", what, describe(err))
+	return true
+}
+
+// describe turns an error of the service into a sentence for the screen.
+func describe(err error) string {
+	if b, ok := errors.AsType[*service.BusyError](err); ok {
+		return fmt.Sprintf("another operation is running (%s); wait for it or cancel it", b.Current.Kind)
+	}
+	switch {
+	case errors.Is(err, service.ErrUnavailable):
+		return "not available in this configuration"
+	case errors.Is(err, service.ErrAppendOnly):
+		return "not possible, the repository is append-only"
+	}
+	return err.Error()
+}
+
+func (m *Model) clamp(t tab, n int) {
+	m.cursor[t] = max(0, min(m.cursor[t], n-1))
+}
+
+func (m *Model) done(msg doneMsg) tea.Cmd {
+	if m.fail(msg.what, msg.err) {
+		return nil
+	}
+	if msg.note != "" {
+		m.say("%s", msg.note)
+	} else {
+		m.say("%s: done", msg.what)
+	}
+	return m.refresh()
+}
+
+func (m *Model) event(ev service.Event) tea.Cmd {
+	switch ev.Type {
+	case service.EventStarted:
+		m.op, m.lastResult, m.log = ev.Operation, nil, nil
+		return fetchStatus(m.ctx, m.svc)
+	case service.EventPhase, service.EventProgress:
+		if ev.Operation != nil {
+			m.op = ev.Operation
+		}
+	case service.EventLog:
+		m.log = append(m.log, ev.Line)
+		if len(m.log) > maxLog {
+			m.log = m.log[len(m.log)-maxLog:]
+		}
+		if t, ok := m.dlg.(*textDialog); ok && t.follow {
+			t.lines = append(t.lines, ev.Line)
+		}
+	case service.EventFinished:
+		m.op = nil
+		if ev.Result != nil {
+			m.lastResult = ev.Result
+		}
+		return m.refresh()
+	case service.EventStatus:
+		return fetchStatus(m.ctx, m.svc)
+	}
+	return nil
+}
+
+// selectedSnapshot returns the snapshot under the cursor.
+func (m *Model) selectedSnapshot() (service.Snapshot, bool) {
+	if m.tab != tabSnapshots || m.cursor[tabSnapshots] >= len(m.snapshots) {
+		return service.Snapshot{}, false
+	}
+	return m.snapshots[m.cursor[tabSnapshots]], true
+}
+
+// key handles a key press.
+func (m *Model) key(k tea.KeyPressMsg) tea.Cmd {
+	if cur := m.dlg; cur != nil {
+		cmd, closed := cur.key(m, k)
+		if closed && m.dlg == cur { // a dialog may have opened its successor
+			m.dlg = nil
+		}
+		return cmd
+	}
+	s := k.String()
+	if m.help {
+		m.help = false
+		return nil
+	}
+	switch s {
+	case "ctrl+c", "q":
+		m.quitting = true
+		return tea.Quit
+	case "?":
+		m.help = true
+	case "tab", "right":
+		return m.switchTab((m.tab + 1) % numTabs)
+	case "shift+tab", "left":
+		return m.switchTab((m.tab + numTabs - 1) % numTabs)
+	case "1", "2", "3", "4":
+		return m.switchTab(tab(s[0] - '1'))
+	case "up", "k":
+		m.move(-1)
+	case "down", "j":
+		m.move(1)
+	case "r":
+		return m.refresh()
+	case "b":
+		m.dlg = newBackupDialog(m)
+	case "c":
+		return m.cancel()
+	case "v":
+		return m.start("restore test", func() (service.Operation, error) {
+			return m.svc.StartVerify(m.ctx, service.VerifyRequest{})
+		})
+	case "l":
+		return fetchLog(m.ctx, m.svc, m.logKind())
+	case "s":
+		m.dlg = newScheduleDialog()
+	case "n":
+		return act("test notification", func() error { return m.svc.NotifyTest(m.ctx) })
+	case "w":
+		return m.openWeb()
+	case "x":
+		return m.retryWithoutSafety()
+	default:
+		return m.tabKey(s)
+	}
+	return nil
+}
+
+func (m *Model) switchTab(t tab) tea.Cmd {
+	m.tab = t
+	if t == tabAccess && m.env == nil {
+		return fetchEnv(m.ctx, m.svc, false)
+	}
+	return nil
+}
+
+func (m *Model) move(delta int) {
+	n := 0
+	switch m.tab {
+	case tabSnapshots:
+		n = len(m.snapshots)
+	case tabLocks:
+		n = len(m.locks)
+	}
+	m.cursor[m.tab] = max(0, min(m.cursor[m.tab]+delta, n-1))
+}
+
+// logKind picks the log to show: the running or last operation, else the backup.
+func (m *Model) logKind() service.Kind {
+	switch {
+	case m.op != nil:
+		return m.op.Kind
+	case m.lastResult != nil:
+		return m.lastResult.Kind
+	}
+	return service.KindBackup
+}
+
+func (m *Model) cancel() tea.Cmd {
+	if m.op == nil && (m.status == nil || m.status.Retry == nil) {
+		m.say("nothing to cancel")
+		return nil
+	}
+	return act("cancel", func() error { return m.svc.Cancel(m.ctx) })
+}
+
+// start begins an operation and reports it as an action.
+func (m *Model) start(what string, fn func() (service.Operation, error)) tea.Cmd {
+	return func() tea.Msg {
+		_, err := fn()
+		return doneMsg{what: what, note: what + " started", err: err}
+	}
+}
+
+// tabKey handles the keys of the active tab.
+func (m *Model) tabKey(s string) tea.Cmd {
+	switch m.tab {
+	case tabSnapshots:
+		return m.snapshotKey(s)
+	case tabLocks:
+		return m.lockKey(s)
+	case tabAccess:
+		return m.accessKey(s)
+	case tabOverview:
+		return m.overviewKey(s)
+	}
+	return nil
+}
+
+func (m *Model) overviewKey(s string) tea.Cmd {
+	if s == "F" && m.status != nil && m.status.ForgetHeld && !m.appendOnly() {
+		m.dlg = newConfirmDialog("Approve the held forget", "The retention guard held back a forget that would remove many snapshots. Review them in Snapshots, then type "+service.ConfirmForget+" to run it now.", service.ConfirmForget,
+			func(word string) tea.Cmd {
+				return m.start("forget", func() (service.Operation, error) { return m.svc.ApproveForget(m.ctx, word) })
+			})
+	}
+	return nil
+}
+
+func (m *Model) snapshotKey(s string) tea.Cmd {
+	snap, ok := m.selectedSnapshot()
+	switch s {
+	case "f":
+		m.showForget = !m.showForget
+		return nil
+	case "enter":
+		if ok {
+			m.dlg = newRestoreDialog(snap.ShortID)
+		}
+		return nil
+	case "t":
+		m.dlg = newRestoreDialog("latest")
+		return nil
+	}
+	if !ok || m.appendOnly() {
+		if ok && (s == "k" || s == "a") {
+			m.say("not possible, the repository is append-only")
+		}
+		return nil
+	}
+	switch s {
+	case "K":
+		if snap.Keep {
+			return act("unkeep", func() error { _, err := m.svc.Unkeep(m.ctx, snap.ID); return err })
+		}
+		return act("keep", func() error { _, err := m.svc.Keep(m.ctx, snap.ID); return err })
+	case "a":
+		if !snap.Suspicious {
+			m.say("snapshot %s is not marked suspicious", snap.ShortID)
+			return nil
+		}
+		m.dlg = newConfirmDialog("Acknowledge the size change", "Snapshot "+snap.ShortID+" is much smaller than the one before. If that is expected, type "+service.ConfirmAcknowledge+": it becomes a regular snapshot and the retention applies again.", service.ConfirmAcknowledge,
+			func(word string) tea.Cmd {
+				return act("acknowledge", func() error { _, err := m.svc.Acknowledge(m.ctx, snap.ID, word); return err })
+			})
+	}
+	return nil
+}
+
+func (m *Model) lockKey(s string) tea.Cmd {
+	switch s {
+	case "u":
+		return act("unlock", func() error { return m.svc.Unlock(m.ctx, false, "") })
+	case "U":
+		if m.appendOnly() {
+			m.say("not possible, the repository is append-only")
+			return nil
+		}
+		m.dlg = newConfirmDialog("Remove all locks", "This also removes locks of running processes, which can corrupt a running backup. Type "+service.ConfirmRemoveAll+" to continue.", service.ConfirmRemoveAll,
+			func(word string) tea.Cmd {
+				return act("unlock all", func() error { return m.svc.Unlock(m.ctx, true, word) })
+			})
+	}
+	return nil
+}
+
+func (m *Model) accessKey(s string) tea.Cmd {
+	switch s {
+	case "p":
+		return fetchEnv(m.ctx, m.svc, !m.revealed)
+	case "y":
+		return m.copyEnv()
+	}
+	return nil
+}
+
+// copyEnv copies the environment in export format, with the secrets.
+func (m *Model) copyEnv() tea.Cmd {
+	ctx := m.ctx
+	return func() tea.Msg {
+		info, err := m.svc.Env(ctx, true)
+		if err != nil {
+			return doneMsg{what: "copy", err: err}
+		}
+		return copyText(m.o, exportText(info), "restic environment copied to the clipboard (with the secrets)")()
+	}
+}
+
+// openWeb switches the web UI on and shows a one-time login link.
+func (m *Model) openWeb() tea.Cmd {
+	return func() tea.Msg {
+		st, err := m.svc.WebUI(m.ctx)
+		if err != nil {
+			return linkMsg{err: err}
+		}
+		if !st.Enabled {
+			if _, err := m.svc.SetWebUI(m.ctx, service.WebUIRequest{Enable: true}); err != nil {
+				return linkMsg{err: err}
+			}
+		}
+		url, err := m.svc.LoginLink(m.ctx)
+		return linkMsg{url: url, err: err}
+	}
+}
+
+// retryWithoutSafety offers to repeat a failed in-place restore without the
+// safety snapshot, for example when the application is dead and its dump
+// cannot run any more.
+func (m *Model) retryWithoutSafety() tea.Cmd {
+	r, req := m.lastResult, m.lastRestore
+	if r == nil || r.Kind != service.KindRestore || r.Result.OK() || req == nil || req.NoSafetySnapshot || req.Target != "" {
+		m.say("there is no failed restore to repeat")
+		return nil
+	}
+	again := *req
+	again.NoSafetySnapshot = true
+	m.dlg = newConfirmDialog("Restore without safety snapshot", "The safety snapshot of the current data failed. Without it, the current data is lost for good. Type no-safety-snapshot to go on.", "no-safety-snapshot",
+		func(string) tea.Cmd {
+			m.dlg = newConfirmDialog("Confirm the restore", "Type "+again.Snapshot+" to replace the current data.", again.Snapshot,
+				func(word string) tea.Cmd {
+					again.Confirm = word
+					return m.startRestore(again)
+				})
+			return nil
+		})
+	return nil
+}
+
+func (m *Model) startRestore(req service.RestoreRequest) tea.Cmd {
+	m.lastRestore = &req
+	return m.start("restore", func() (service.Operation, error) { return m.svc.StartRestore(m.ctx, req) })
+}
+
+// gotPreflight moves the restore dialog on to the preview.
+func (m *Model) gotPreflight(msg preflightMsg) tea.Cmd {
+	d, ok := m.dlg.(*restoreDialog)
+	if !ok {
+		return nil
+	}
+	if msg.err != nil {
+		d.err = describe(msg.err)
+		return nil
+	}
+	d.req, d.pre, d.stage, d.err, d.now = msg.req, &msg.pre, stagePreview, "", m.o.Now()
+	return nil
+}
