@@ -14,7 +14,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	a := &app{stdout: os.Stdout, stderr: os.Stderr, getenv: os.Getenv}
+	a := newApp()
 	code := a.run(ctx, os.Args[1:])
 	stop()
 	os.Exit(code)

@@ -2,6 +2,8 @@ package main
 
 import (
 	"github.com/spf13/cobra"
+
+	"github.com/noris-network/mcs-backup/v2/internal/config"
 )
 
 func (a *app) newRootCmd() *cobra.Command {
@@ -20,7 +22,28 @@ func (a *app) newRootCmd() *cobra.Command {
 	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
 		return usageError(err)
 	})
-	cmd.AddCommand(a.newVersionCmd())
+	pf := cmd.PersistentFlags()
+	pf.String("socket", a.getenv("MCS_BACKUP_SOCKET"), "socket of the running service (default "+config.DefaultSocket()+")")
+	pf.Bool("json", false, "print machine readable JSON")
+
+	cmd.AddCommand(
+		a.newVersionCmd(),
+		a.newStatusCmd(),
+		a.newSnapshotsCmd(),
+		a.newBackupCmd(),
+		a.newRestoreCmd(),
+		a.newCancelCmd(),
+		a.newVerifyCmd(),
+		a.newKeepCmd("keep"),
+		a.newKeepCmd("unkeep"),
+		a.newAcknowledgeCmd(),
+		a.newApproveForgetCmd(),
+		a.newForgetCmd(),
+		a.newLocksCmd(),
+		a.newUnlockCmd(),
+		a.newLogCmd(),
+		a.newNotifyCmd(),
+	)
 	return cmd
 }
 

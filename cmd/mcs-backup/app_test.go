@@ -6,11 +6,16 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 func newTestApp() (*app, *bytes.Buffer, *bytes.Buffer) {
 	var stdout, stderr bytes.Buffer
-	return &app{stdout: &stdout, stderr: &stderr, getenv: func(string) string { return "" }}, &stdout, &stderr
+	return &app{
+		stdout: &stdout, stderr: &stderr, stdin: strings.NewReader(""),
+		getenv: func(string) string { return "" }, environ: func() []string { return nil },
+		now: func() time.Time { return time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC) },
+	}, &stdout, &stderr
 }
 
 func TestExitCode(t *testing.T) {

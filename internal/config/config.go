@@ -150,6 +150,9 @@ type ResticArgs struct {
 	Restore []string
 }
 
+// DefaultSocket is the socket path when MCS_BACKUP_SOCKET is not set.
+func DefaultSocket() string { return filepath.Join(os.TempDir(), "mcs-backup.sock") }
+
 // PipeMode reports whether data is backed up as a stream.
 func (c *Config) PipeMode() bool { return c.Pipe.InScript != "" }
 
@@ -639,7 +642,7 @@ func (l *loader) notify() Notify {
 func (l *loader) server() Server {
 	s := Server{
 		HTTPPort: l.integer("BACKUP_HTTP_PORT", 9000, 1),
-		Socket:   l.str("MCS_BACKUP_SOCKET", filepath.Join(os.TempDir(), "mcs-backup.sock")),
+		Socket:   l.str("MCS_BACKUP_SOCKET", DefaultSocket()),
 		StateDir: l.str("MCS_BACKUP_STATE_DIR", filepath.Join(os.TempDir(), "mcs-backup")),
 		WebAddr:  l.str("MCS_BACKUP_WEB_ADDR", ""),
 		WebToken: l.env["MCS_BACKUP_WEB_TOKEN"],

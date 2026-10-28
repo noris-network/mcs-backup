@@ -37,6 +37,9 @@ linters:
       # to finish (and run their post-hook) while the service shuts down
       - path: internal/daemon/
         linters: [contextcheck]
+      # the command tree passes the context through cobra
+      - path: cmd/mcs-backup/
+        linters: [contextcheck]
 
 formatters:
   enable:
