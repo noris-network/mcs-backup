@@ -51,6 +51,12 @@ func (r *Repo) Forget(ctx context.Context, o ForgetOptions) ([]ForgetGroup, erro
 	return groups, r.query(ctx, args, &groups)
 }
 
+// Remove forgets the given snapshots without pruning their data.
+func (r *Repo) Remove(ctx context.Context, ids ...string) error {
+	_, err := r.run(ctx, append([]string{"forget"}, ids...), runOpts{})
+	return err
+}
+
 // Prune removes unreferenced data. Output goes to out.
 func (r *Repo) Prune(ctx context.Context, extra []string, out io.Writer) error {
 	_, err := r.run(ctx, append([]string{"prune"}, extra...), runOpts{combined: out})

@@ -1,0 +1,122 @@
+package engine
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/noris-network/mcs-backup/v2/internal/restic"
+	"github.com/noris-network/mcs-backup/v2/internal/service"
+)
+
+// staleLockAge is the age at which restic itself treats a lock as stale.
+const staleLockAge = 30 * time.Minute
+
+// RepoResult is the outcome of an operation on one repository.
+type RepoResult struct {
+	Repo   string // "main" or "copy"
+	Result service.Result
+	Error  string
+}
+
+// MaintenanceResult is the outcome of prune or check.
+type MaintenanceResult struct {
+	Result   service.Result
+	Error    string
+	Repos    []RepoResult
+	Duration time.Duration
+}
+
+// Prune removes unreferenced data from the main and the secondary repository.
+// Append-only repositories are skipped.
+func (e *Engine) Prune(ctx context.Context, sink Sink) MaintenanceResult {
+	return e.maintain(ctx, e.cfg.Timeouts.Prune, "prune", sink, func(ctx context.Context, repo *restic.Repo, _ bool) error {
+		return repo.Prune(ctx, e.cfg.Restic.Prune, sink.writer())
+	}, true)
+}
+
+// Check verifies the structure of the main and the secondary repository. It
+// also works on append-only repositories.
+func (e *Engine) Check(ctx context.Context, sink Sink) MaintenanceResult {
+	return e.maintain(ctx, e.cfg.Timeouts.Check, "check", sink, func(ctx context.Context, repo *restic.Repo, _ bool) error {
+		return repo.Check(ctx, e.cfg.Restic.Check, sink.writer())
+	}, false)
+}
+
+func (e *Engine) maintain(ctx context.Context, timeout time.Duration, phase string, sink Sink,
+	run func(context.Context, *restic.Repo, bool) error, modifies bool) MaintenanceResult {
+
+	start := e.now()
+	ctx, cancel := withTimeout(ctx, timeout)
+	defer cancel()
+	sink.phase(phase)
+
+	type target struct {
+		name       string
+		repo       *restic.Repo
+		appendOnly bool
+	}
+	targets := []target{{"main", e.main, e.cfg.AppendOnly}}
+	if e.second != nil {
+		targets = append(targets, target{"copy", e.second, e.cfg.Copy.AppendOnly})
+	}
+
+	res := MaintenanceResult{Result: service.ResultSkipped}
+	var errs []error
+	for _, t := range targets {
+		rr := RepoResult{Repo: t.name, Result: service.ResultSkipped}
+		switch {
+		case modifies && t.appendOnly:
+			sink.logf("%s: skipping the %s repository, it is append-only", phase, t.name)
+		case ctx.Err() != nil:
+			rr.Result = classify(ctx, ctx.Err())
+		default:
+			sink.logf("%s: %s repository", phase, t.name)
+			err := e.retryLocked(ctx, t.repo, t.appendOnly, sink, func() error { return run(ctx, t.repo, t.appendOnly) })
+			rr.Result = classify(ctx, err)
+			if err != nil {
+				rr.Error = err.Error()
+				errs = append(errs, fmt.Errorf("%s repository: %w", t.name, err))
+			}
+		}
+		res.Repos = append(res.Repos, rr)
+		res.Result = res.Result.Worse(rr.Result)
+	}
+	if err := errors.Join(errs...); err != nil {
+		res.Error = err.Error()
+	}
+	res.Duration = e.now().Sub(start)
+	return res
+}
+
+// LockInfo describes a lock in the repository.
+type LockInfo struct {
+	restic.Lock
+	Age time.Duration
+	// Stale: restic would remove this lock with a plain unlock.
+	Stale bool
+}
+
+// Locks lists the locks of the main repository.
+func (e *Engine) Locks(ctx context.Context) ([]LockInfo, error) {
+	locks, err := e.main.Locks(ctx)
+	if err != nil {
+		return nil, err
+	}
+	now := e.now()
+	out := make([]LockInfo, len(locks))
+	for i, l := range locks {
+		age := now.Sub(l.Time)
+		out[i] = LockInfo{Lock: l, Age: age, Stale: age > staleLockAge}
+	}
+	return out, nil
+}
+
+// Unlock removes stale locks, or all locks if all is set.
+func (e *Engine) Unlock(ctx context.Context, all bool) error {
+	if all && e.cfg.AppendOnly {
+		return ErrAppendOnly
+	}
+	return e.main.Unlock(ctx, all)
+}

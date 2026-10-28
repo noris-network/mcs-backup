@@ -601,3 +601,14 @@ func TestStartFailure(t *testing.T) {
 		t.Error("a missing binary is not an ExitError")
 	}
 }
+
+func TestRemove(t *testing.T) {
+	f := resticfake.New(t)
+	f.On(t, "forget", resticfake.Response{Stdout: "removed snapshot abc\n"})
+	if err := newRepo(t, f).Remove(t.Context(), "abc", "def"); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.CallsTo(t, "forget")[0]; !slices.Equal(got, []string{"forget", "abc", "def"}) {
+		t.Errorf("args = %q", got)
+	}
+}
