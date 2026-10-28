@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"encoding/json/v2"
+	"io"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -476,5 +478,119 @@ func TestEnv(t *testing.T) {
 
 	if code := c.run("env", "--format", "yaml"); code != exitCodeUsage || !strings.Contains(c.err(), "unknown format") {
 		t.Errorf("bad format: exit %d\n%s", code, c.err())
+	}
+}
+
+func TestServeWithWebUI(t *testing.T) {
+	fake := resticfake.New(t)
+	fake.On(t, "version", resticfake.Response{Stdout: resticVersion019})
+	fake.On(t, "cat config", resticfake.Response{Stdout: `{"version":2,"id":"0123456789abcdef","chunker_polynomial":"x"}`})
+	fake.On(t, "snapshots", resticfake.Response{Stdout: snapshotsJSON("mcs-backup", "mcs-backup")})
+	fake.On(t, "stats", resticfake.Response{Stdout: `{"total_size":4096,"total_file_count":2,"snapshots_count":1}`})
+	fake.On(t, "list locks", resticfake.Response{})
+	webAddr := "127.0.0.1:" + strconv.Itoa(freePort(t))
+	env, _ := localEnv(t, fake, "BACKUP_HTTP_PORT="+strconv.Itoa(freePort(t)), "PRUNE_SCHEDULE=", "CHECK_SCHEDULE=", "VERIFY_SCHEDULE=",
+		"MCS_BACKUP_WEB_ADDR="+webAddr, "MCS_BACKUP_WEB_TOKEN=tok-123")
+	socket := ""
+	for _, kv := range env {
+		if v, ok := strings.CutPrefix(kv, "MCS_BACKUP_SOCKET="); ok {
+			socket = v
+		}
+	}
+	stop, out := runServe(t, env)
+	svc := newApp().dial(socket)
+	waitFor(t, 20*time.Second, func() bool {
+		st, err := svc.Status(t.Context())
+		return err == nil && st.Ready
+	})
+
+	// the address from the environment is on from the start
+	if st, err := svc.WebUI(t.Context()); err != nil || !st.Enabled || st.Addr != webAddr {
+		t.Fatalf("WebUI() = %+v, %v", st, err)
+	}
+	get := func(path, user, pass string) (int, string) {
+		req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+webAddr+path, nil)
+		if pass != "" {
+			req.SetBasicAuth(user, pass)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return 0, err.Error()
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(b)
+	}
+	if code, _ := get("/", "", ""); code != http.StatusUnauthorized {
+		t.Errorf("no login: status %d", code)
+	}
+	if code, body := get("/", "admin", "tok-123"); code != http.StatusOK || !strings.Contains(body, "abcdef01") && !strings.Contains(body, "reachable") {
+		t.Errorf("basic auth: status %d\n%s", code, body)
+	}
+	if code, _ := get("/", "admin", "nope"); code != http.StatusUnauthorized {
+		t.Errorf("wrong token: status %d", code)
+	}
+	if code, body := get("/snapshots", "admin", "tok-123"); code != http.StatusOK || !strings.Contains(body, "abcdef01") {
+		t.Errorf("snapshots page: status %d\n%s", code, body)
+	}
+
+	// the CLI hands out a login link
+	a := newApp()
+	var stdout strings.Builder
+	a.stdout, a.stderr, a.getenv = &stdout, &stdout, func(string) string { return socket }
+	if code := a.run(t.Context(), []string{"web", "--no-open"}); code != 0 || !strings.Contains(stdout.String(), "http://"+webAddr+"/login?code=") {
+		t.Errorf("web: exit %d\n%s", code, stdout.String())
+	}
+
+	// switched off at run time
+	stdout.Reset()
+	if code := a.run(t.Context(), []string{"web", "disable"}); code != 0 || !strings.Contains(stdout.String(), "off") {
+		t.Errorf("web disable: exit %d\n%s", code, stdout.String())
+	}
+	if code, _ := get("/", "admin", "tok-123"); code != 0 {
+		t.Errorf("the web UI still answers: status %d", code)
+	}
+	if code := stop(); code != 0 {
+		t.Errorf("serve exited with %d\n%s", code, out.String())
+	}
+	if strings.Contains(out.String(), "tok-123") || strings.Contains(out.String(), "code=") {
+		t.Errorf("the log leaks the token or a login code:\n%s", out.String())
+	}
+}
+
+func TestServeSurvivesABusyWebPort(t *testing.T) {
+	fake := resticfake.New(t)
+	fake.On(t, "version", resticfake.Response{Stdout: resticVersion019})
+	fake.On(t, "cat config", resticfake.Response{Stdout: `{"version":2,"id":"0123456789abcdef","chunker_polynomial":"x"}`})
+	fake.On(t, "snapshots", resticfake.Response{Stdout: snapshotsJSON("mcs-backup", "mcs-backup")})
+	fake.On(t, "stats", resticfake.Response{Stdout: `{"total_size":4096,"total_file_count":2,"snapshots_count":1}`})
+	fake.On(t, "list locks", resticfake.Response{})
+	busy, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer busy.Close()
+	env, _ := localEnv(t, fake, "BACKUP_HTTP_PORT="+strconv.Itoa(freePort(t)), "PRUNE_SCHEDULE=", "CHECK_SCHEDULE=", "VERIFY_SCHEDULE=",
+		"MCS_BACKUP_WEB_ADDR="+busy.Addr().String())
+	socket := ""
+	for _, kv := range env {
+		if v, ok := strings.CutPrefix(kv, "MCS_BACKUP_SOCKET="); ok {
+			socket = v
+		}
+	}
+	stop, out := runServe(t, env)
+	svc := newApp().dial(socket)
+	waitFor(t, 20*time.Second, func() bool {
+		st, err := svc.Status(t.Context())
+		return err == nil && st.Ready
+	})
+	if st, _ := svc.WebUI(t.Context()); st.Enabled {
+		t.Error("the web UI is on although its port is taken")
+	}
+	if code := stop(); code != 0 {
+		t.Errorf("serve exited with %d\n%s", code, out.String())
+	}
+	if !strings.Contains(out.String(), "the web UI could not be started") {
+		t.Errorf("the problem is not logged:\n%s", out.String())
 	}
 }
