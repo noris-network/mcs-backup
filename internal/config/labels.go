@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -12,6 +13,11 @@ import (
 
 func parseSchedule(expr string, loc *time.Location) (schedule.Schedule, error) {
 	return schedule.Parse(expr, loc)
+}
+
+// reservedLabels are label names that mcs-backup uses on its own metrics.
+func reservedLabels() []string {
+	return []string{"version", "repository_id", "kind", "state", "type", "operation"}
 }
 
 var labelName = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
@@ -27,7 +33,7 @@ func parseLabels(s string) (map[string]string, error) {
 		switch {
 		case !labelName.MatchString(k) || strings.HasPrefix(k, "__"):
 			return nil, fmt.Errorf("invalid label name %q", k)
-		case k == "version" || k == "repository_id":
+		case slices.Contains(reservedLabels(), k):
 			return nil, fmt.Errorf("label name %q is reserved", k)
 		}
 		switch v.(type) {

@@ -225,6 +225,7 @@ func TestLoadErrors(t *testing.T) {
 		{"rejected restic arg", []string{"RESTIC_BACKUP_ARGS=--host other"}, []string{"RESTIC_BACKUP_ARGS", "--host"}},
 		{"unterminated quote", []string{`RESTIC_CHECK_ARGS=--x "y`}, []string{"RESTIC_CHECK_ARGS"}},
 		{"reserved label", []string{"METRICS_LABELS={version: x}"}, []string{"METRICS_LABELS", "reserved"}},
+		{"reserved label kind", []string{"METRICS_LABELS={kind: x}"}, []string{"METRICS_LABELS", "reserved"}},
 		{"bad label name", []string{`METRICS_LABELS={"a-b": x}`}, []string{"METRICS_LABELS"}},
 		{"copy without password", []string{"COPY_REPOSITORY=/copy"}, []string{"COPY_PASSWORD"}},
 		{"copy two passwords", []string{"COPY_REPOSITORY=/copy", "COPY_PASSWORD=a", "COPY_PASSWORD_FILE=/x"}, []string{"not both"}},
