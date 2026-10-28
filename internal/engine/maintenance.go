@@ -90,25 +90,20 @@ func (e *Engine) maintain(ctx context.Context, timeout time.Duration, phase stri
 	return res
 }
 
-// LockInfo describes a lock in the repository.
-type LockInfo struct {
-	restic.Lock
-	Age time.Duration
-	// Stale: restic would remove this lock with a plain unlock.
-	Stale bool
-}
-
 // Locks lists the locks of the main repository.
-func (e *Engine) Locks(ctx context.Context) ([]LockInfo, error) {
+func (e *Engine) Locks(ctx context.Context) ([]service.Lock, error) {
 	locks, err := e.main.Locks(ctx)
 	if err != nil {
 		return nil, err
 	}
 	now := e.now()
-	out := make([]LockInfo, len(locks))
+	out := make([]service.Lock, len(locks))
 	for i, l := range locks {
 		age := now.Sub(l.Time)
-		out[i] = LockInfo{Lock: l, Age: age, Stale: age > staleLockAge}
+		out[i] = service.Lock{
+			ID: l.ID, Time: l.Time, Age: age, Exclusive: l.Exclusive,
+			Hostname: l.Hostname, Username: l.Username, PID: l.PID, Stale: age > staleLockAge,
+		}
 	}
 	return out, nil
 }

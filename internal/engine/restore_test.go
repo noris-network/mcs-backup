@@ -31,11 +31,11 @@ func restoreRig(t *testing.T, env ...string) *rig {
 func TestRestorePreflight(t *testing.T) {
 	t.Run("in place", func(t *testing.T) {
 		r := restoreRig(t)
-		p, err := r.e.RestorePreflight(t.Context(), RestoreRequest{Snapshot: "latest"})
+		p, err := r.e.RestorePreflight(t.Context(), service.RestoreRequest{Snapshot: "latest"})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if p.Snapshot.ID != "snap1" || !p.InPlace || p.Mode != ModeExact || p.TargetEmpty || !p.SafetySnapshot || p.PipeMode {
+		if p.Snapshot.ID != "snap1" || !p.InPlace || p.Mode != service.ModeExact || p.TargetEmpty || !p.SafetySnapshot || p.PipeMode {
 			t.Errorf("preflight = %+v", p)
 		}
 		// 1000 bytes in the snapshot, 400 already there, plus 10 percent
@@ -50,16 +50,16 @@ func TestRestorePreflight(t *testing.T) {
 	t.Run("other target always merges", func(t *testing.T) {
 		r := restoreRig(t)
 		target := t.TempDir()
-		p, err := r.e.RestorePreflight(t.Context(), RestoreRequest{Snapshot: "snap1", Target: target, Mode: ModeExact})
+		p, err := r.e.RestorePreflight(t.Context(), service.RestoreRequest{Snapshot: "snap1", Target: target, Mode: service.ModeExact})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if p.InPlace || p.Mode != ModeMerge || !p.TargetEmpty || p.SafetySnapshot || p.NeedBytes != 1100 || len(p.Warnings) != 0 {
+		if p.InPlace || p.Mode != service.ModeMerge || !p.TargetEmpty || p.SafetySnapshot || p.NeedBytes != 1100 || len(p.Warnings) != 0 {
 			t.Errorf("preflight = %+v", p)
 		}
 
 		writeFile(t, filepath.Join(target, "x"), 1)
-		p, err = r.e.RestorePreflight(t.Context(), RestoreRequest{Snapshot: "snap1", Target: target})
+		p, err = r.e.RestorePreflight(t.Context(), service.RestoreRequest{Snapshot: "snap1", Target: target})
 		if err != nil || p.TargetEmpty || len(p.Warnings) != 1 || !strings.Contains(p.Warnings[0], "not empty") {
 			t.Errorf("preflight = %+v, %v", p, err)
 		}
@@ -70,7 +70,7 @@ func TestRestorePreflight(t *testing.T) {
 		target := t.TempDir()
 		writeFile(t, filepath.Join(target, "lost+found", "x"), 1)
 		writeFile(t, filepath.Join(target, ".DS_Store"), 1)
-		p, err := r.e.RestorePreflight(t.Context(), RestoreRequest{Snapshot: "snap1", Target: target})
+		p, err := r.e.RestorePreflight(t.Context(), service.RestoreRequest{Snapshot: "snap1", Target: target})
 		if err != nil || !p.TargetEmpty {
 			t.Errorf("preflight = %+v, %v", p, err)
 		}
@@ -79,7 +79,7 @@ func TestRestorePreflight(t *testing.T) {
 	t.Run("space warning", func(t *testing.T) {
 		r := restoreRig(t)
 		r.main.On(t, "stats", resticfake.Response{Stdout: statsJSON(1 << 60)})
-		p, err := r.e.RestorePreflight(t.Context(), RestoreRequest{Snapshot: "snap1"})
+		p, err := r.e.RestorePreflight(t.Context(), service.RestoreRequest{Snapshot: "snap1"})
 		if err != nil || !p.SpaceWarning || len(p.Warnings) != 1 {
 			t.Errorf("preflight = %+v, %v", p, err)
 		}
@@ -89,7 +89,7 @@ func TestRestorePreflight(t *testing.T) {
 		r := restoreRig(t)
 		r.main.On(t, "ls", resticfake.Response{Stdout: lsOutput(
 			restic.Node{Type: "dir", Path: "/a"}, file("/a/f1", 100), file("/a/f2", 200))})
-		p, err := r.e.RestorePreflight(t.Context(), RestoreRequest{Snapshot: "snap1", Includes: []string{"/a"}})
+		p, err := r.e.RestorePreflight(t.Context(), service.RestoreRequest{Snapshot: "snap1", Includes: []string{"/a"}})
 		if err != nil || p.NeedBytes != 330 {
 			t.Errorf("preflight = %+v, %v", p, err)
 		}
@@ -100,10 +100,10 @@ func TestRestorePreflight(t *testing.T) {
 
 	t.Run("errors", func(t *testing.T) {
 		r := restoreRig(t)
-		if _, err := r.e.RestorePreflight(t.Context(), RestoreRequest{Snapshot: "nope"}); !errors.Is(err, ErrNoSnapshot) {
+		if _, err := r.e.RestorePreflight(t.Context(), service.RestoreRequest{Snapshot: "nope"}); !errors.Is(err, ErrNoSnapshot) {
 			t.Errorf("unknown snapshot: %v", err)
 		}
-		if _, err := r.e.RestorePreflight(t.Context(), RestoreRequest{Snapshot: "snap1", Mode: "weird"}); err == nil {
+		if _, err := r.e.RestorePreflight(t.Context(), service.RestoreRequest{Snapshot: "snap1", Mode: "weird"}); err == nil {
 			t.Error("unknown mode accepted")
 		}
 	})
@@ -111,7 +111,7 @@ func TestRestorePreflight(t *testing.T) {
 	t.Run("a failing size estimate only warns", func(t *testing.T) {
 		r := restoreRig(t)
 		r.main.On(t, "stats", resticfake.Response{Stderr: "Fatal: boom\n", Exit: 1})
-		p, err := r.e.RestorePreflight(t.Context(), RestoreRequest{Snapshot: "snap1"})
+		p, err := r.e.RestorePreflight(t.Context(), service.RestoreRequest{Snapshot: "snap1"})
 		if err != nil || p.SpaceWarning || len(p.Warnings) != 1 {
 			t.Errorf("preflight = %+v, %v", p, err)
 		}
@@ -124,7 +124,7 @@ func TestRestoreInPlace(t *testing.T) {
 	post := script(t, `echo "post $*" >> "$HOOKLOG"`)
 	r := restoreRig(t, "HOOKLOG="+log, "PRE_RESTORE_SCRIPT="+pre, "POST_RESTORE_SCRIPT="+post)
 
-	res := r.e.Restore(t.Context(), RestoreRequest{Snapshot: "latest", Confirm: "latest", HookArgs: []string{"db1", "db2"}}, r.sink())
+	res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "latest", Confirm: "latest", HookArgs: []string{"db1", "db2"}}, r.sink())
 	if res.Result != service.ResultSuccess || res.Snapshot != "snap1" || res.SafetySnapshot != "safety1" || res.Summary.FilesRestored != 3 {
 		t.Fatalf("result = %+v", res)
 	}
@@ -153,7 +153,7 @@ func TestRestoreInPlace(t *testing.T) {
 func TestRestoreNeedsConfirmation(t *testing.T) {
 	for _, confirm := range []string{"", "yes", "snap2", "snap"} {
 		r := restoreRig(t)
-		res := r.e.Restore(t.Context(), RestoreRequest{Snapshot: "snap1", Confirm: confirm}, r.sink())
+		res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "snap1", Confirm: confirm}, r.sink())
 		if res.Result != service.ResultFailure || !strings.Contains(res.Error, "confirm with \"snap1\"") {
 			t.Errorf("confirm %q: result = %+v", confirm, res)
 		}
@@ -162,7 +162,7 @@ func TestRestoreNeedsConfirmation(t *testing.T) {
 		}
 	}
 	r := restoreRig(t)
-	if res := r.e.Restore(t.Context(), RestoreRequest{Snapshot: "snap1", Confirm: "snap1"}, r.sink()); res.Result != service.ResultSuccess {
+	if res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "snap1", Confirm: "snap1"}, r.sink()); res.Result != service.ResultSuccess {
 		t.Errorf("the ID works as confirmation too: %+v", res)
 	}
 }
@@ -173,7 +173,7 @@ func TestRestoreSafetySnapshotFailure(t *testing.T) {
 	r := restoreRig(t, "HOOKLOG="+log, "POST_RESTORE_SCRIPT="+post)
 	r.main.On(t, "backup", resticfake.Response{Stderr: "Fatal: database is down\n", Exit: 1})
 
-	res := r.e.Restore(t.Context(), RestoreRequest{Snapshot: "latest", Confirm: "latest"}, r.sink())
+	res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "latest", Confirm: "latest"}, r.sink())
 	if res.Result != service.ResultFailure || !strings.Contains(res.Error, "safety snapshot failed") || !strings.Contains(res.Error, "without a safety snapshot") {
 		t.Fatalf("result = %+v", res)
 	}
@@ -184,7 +184,7 @@ func TestRestoreSafetySnapshotFailure(t *testing.T) {
 		t.Error("the post-restore hook must not run after a failed restore")
 	}
 
-	res = r.e.Restore(t.Context(), RestoreRequest{Snapshot: "latest", Confirm: "latest", NoSafetySnapshot: true}, r.sink())
+	res = r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "latest", Confirm: "latest", NoSafetySnapshot: true}, r.sink())
 	if res.Result != service.ResultSuccess || res.SafetySnapshot != "" {
 		t.Fatalf("explicitly skipping the safety snapshot: %+v", res)
 	}
@@ -196,7 +196,7 @@ func TestRestoreSafetySnapshotFailure(t *testing.T) {
 func TestRestoreSafetySnapshotWithUnreadableFiles(t *testing.T) {
 	r := restoreRig(t)
 	r.main.On(t, "backup", resticfake.Response{Stdout: summaryLine("safety1", 2, 400), Stderr: "Warning: at least one source file could not be read\n", Exit: 3})
-	res := r.e.Restore(t.Context(), RestoreRequest{Snapshot: "latest", Confirm: "latest"}, r.sink())
+	res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "latest", Confirm: "latest"}, r.sink())
 	if res.Result != service.ResultSuccess || res.SafetySnapshot != "safety1" {
 		t.Errorf("result = %+v", res)
 	}
@@ -205,30 +205,30 @@ func TestRestoreSafetySnapshotWithUnreadableFiles(t *testing.T) {
 func TestRestoreVariants(t *testing.T) {
 	tests := []struct {
 		name       string
-		req        RestoreRequest
+		req        service.RestoreRequest
 		prepare    func(t *testing.T, r *rig)
 		wantDelete bool
 		wantBackup bool
 		wantArgs   [][]string
 	}{
 		{
-			name: "merge in place", req: RestoreRequest{Snapshot: "snap1", Confirm: "snap1", Mode: ModeMerge},
+			name: "merge in place", req: service.RestoreRequest{Snapshot: "snap1", Confirm: "snap1", Mode: service.ModeMerge},
 			wantDelete: false, wantBackup: true,
 		},
 		{
-			name: "partial restore may delete inside the included paths", req: RestoreRequest{Snapshot: "snap1", Confirm: "snap1", Includes: []string{"/a", "/b"}},
+			name: "partial restore may delete inside the included paths", req: service.RestoreRequest{Snapshot: "snap1", Confirm: "snap1", Includes: []string{"/a", "/b"}},
 			prepare: func(t *testing.T, r *rig) {
 				r.main.On(t, "ls", resticfake.Response{Stdout: lsOutput(file("/a/f", 1))})
 			},
 			wantDelete: true, wantBackup: true, wantArgs: [][]string{{"--include", "/a"}, {"--include", "/b"}},
 		},
 		{
-			name: "empty target needs no safety snapshot", req: RestoreRequest{Snapshot: "snap1", Confirm: "snap1"},
+			name: "empty target needs no safety snapshot", req: service.RestoreRequest{Snapshot: "snap1", Confirm: "snap1"},
 			prepare:    func(_ *testing.T, r *rig) { _ = os.RemoveAll(filepath.Join(r.root, "data")) },
 			wantDelete: true, wantBackup: false,
 		},
 		{
-			name: "restic arguments from the configuration", req: RestoreRequest{Snapshot: "snap1", Confirm: "snap1"},
+			name: "restic arguments from the configuration", req: service.RestoreRequest{Snapshot: "snap1", Confirm: "snap1"},
 			wantDelete: true, wantBackup: true, wantArgs: [][]string{{"--sparse"}},
 		},
 	}
@@ -261,7 +261,7 @@ func TestRestoreVariants(t *testing.T) {
 func TestRestoreToOtherTarget(t *testing.T) {
 	r := restoreRig(t)
 	target := t.TempDir()
-	res := r.e.Restore(t.Context(), RestoreRequest{Snapshot: "latest", Target: target}, r.sink())
+	res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "latest", Target: target}, r.sink())
 	if res.Result != service.ResultSuccess {
 		t.Fatalf("result = %+v: another target needs no confirmation", res)
 	}
@@ -274,7 +274,7 @@ func TestRestoreToOtherTarget(t *testing.T) {
 func TestRestoreSpaceWarning(t *testing.T) {
 	r := restoreRig(t)
 	r.main.On(t, "stats", resticfake.Response{Stdout: statsJSON(1 << 60)})
-	req := RestoreRequest{Snapshot: "snap1", Confirm: "snap1"}
+	req := service.RestoreRequest{Snapshot: "snap1", Confirm: "snap1"}
 
 	res := r.e.Restore(t.Context(), req, r.sink())
 	if res.Result != service.ResultFailure || !strings.Contains(res.Error, "not enough free space") {
@@ -297,7 +297,7 @@ func TestRestoreFailure(t *testing.T) {
 	r := restoreRig(t, "HOOKLOG="+log, "POST_RESTORE_SCRIPT="+post)
 	r.main.On(t, "restore", resticfake.Response{Stderr: "Fatal: disk full\n", Exit: 1})
 
-	res := r.e.Restore(t.Context(), RestoreRequest{Snapshot: "snap1", Confirm: "snap1"}, r.sink())
+	res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "snap1", Confirm: "snap1"}, r.sink())
 	if res.Result != service.ResultFailure || !strings.Contains(res.Error, "disk full") || res.SafetySnapshot != "safety1" {
 		t.Fatalf("result = %+v", res)
 	}
@@ -309,7 +309,7 @@ func TestRestoreFailure(t *testing.T) {
 func TestRestoreTimeout(t *testing.T) {
 	r := restoreRig(t, "RESTORE_TIMEOUT=300ms")
 	r.main.On(t, "restore", resticfake.Response{Sleep: 30 * time.Second})
-	res := r.e.Restore(t.Context(), RestoreRequest{Snapshot: "snap1", Confirm: "snap1", NoSafetySnapshot: true}, r.sink())
+	res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "snap1", Confirm: "snap1", NoSafetySnapshot: true}, r.sink())
 	if res.Result != service.ResultTimeout {
 		t.Errorf("result = %+v", res)
 	}
@@ -318,7 +318,7 @@ func TestRestoreTimeout(t *testing.T) {
 func TestRestorePreHookFails(t *testing.T) {
 	pre := script(t, `echo "cannot stop the application" >&2; exit 1`)
 	r := restoreRig(t, "PRE_RESTORE_SCRIPT="+pre)
-	res := r.e.Restore(t.Context(), RestoreRequest{Snapshot: "snap1", Confirm: "snap1"}, r.sink())
+	res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "snap1", Confirm: "snap1"}, r.sink())
 	if res.Result != service.ResultFailure || !strings.Contains(res.Error, "pre-restore hook") || len(r.main.CallsTo(t, "restore")) != 0 {
 		t.Errorf("result = %+v", res)
 	}
@@ -340,7 +340,7 @@ func TestRestorePipeMode(t *testing.T) {
 	t.Run("streams the dump to the script", func(t *testing.T) {
 		_ = os.Remove(received)
 		r := setup(t)
-		res := r.e.Restore(t.Context(), RestoreRequest{Snapshot: "latest", Confirm: "latest"}, r.sink())
+		res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "latest", Confirm: "latest"}, r.sink())
 		if res.Result != service.ResultSuccess || res.SafetySnapshot != "safety1" {
 			t.Fatalf("result = %+v", res)
 		}
@@ -357,7 +357,7 @@ func TestRestorePipeMode(t *testing.T) {
 
 	t.Run("needs confirmation", func(t *testing.T) {
 		r := setup(t)
-		res := r.e.Restore(t.Context(), RestoreRequest{Snapshot: "latest"}, r.sink())
+		res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "latest"}, r.sink())
 		if res.Result != service.ResultFailure || len(r.main.CallsTo(t, "dump")) != 0 {
 			t.Errorf("result = %+v", res)
 		}
@@ -366,7 +366,7 @@ func TestRestorePipeMode(t *testing.T) {
 	t.Run("a failing dump fails the restore", func(t *testing.T) {
 		r := setup(t)
 		r.main.On(t, "dump", resticfake.Response{Stdout: "partial", Stderr: "Fatal: pack missing\n", Exit: 1})
-		res := r.e.Restore(t.Context(), RestoreRequest{Snapshot: "latest", Confirm: "latest", NoSafetySnapshot: true}, r.sink())
+		res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "latest", Confirm: "latest", NoSafetySnapshot: true}, r.sink())
 		if res.Result != service.ResultFailure || !strings.Contains(res.Error, "pack missing") {
 			t.Errorf("a truncated dump must never count as restored: %+v", res)
 		}
@@ -375,7 +375,7 @@ func TestRestorePipeMode(t *testing.T) {
 	t.Run("a dead database blocks the restore until the safety snapshot is skipped", func(t *testing.T) {
 		r := setup(t)
 		r.main.On(t, "backup", resticfake.Response{Stderr: "Fatal: command failed\n", Exit: 1})
-		res := r.e.Restore(t.Context(), RestoreRequest{Snapshot: "latest", Confirm: "latest"}, r.sink())
+		res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "latest", Confirm: "latest"}, r.sink())
 		if res.Result != service.ResultFailure || len(r.main.CallsTo(t, "dump")) != 0 {
 			t.Errorf("result = %+v", res)
 		}
@@ -383,7 +383,7 @@ func TestRestorePipeMode(t *testing.T) {
 
 	t.Run("no target or include paths", func(t *testing.T) {
 		r := setup(t)
-		res := r.e.Restore(t.Context(), RestoreRequest{Snapshot: "latest", Confirm: "latest", Target: t.TempDir()}, r.sink())
+		res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "latest", Confirm: "latest", Target: t.TempDir()}, r.sink())
 		if res.Result != service.ResultFailure {
 			t.Errorf("result = %+v", res)
 		}

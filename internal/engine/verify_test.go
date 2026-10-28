@@ -53,7 +53,7 @@ func entries(t *testing.T, dir string) []string {
 
 func TestVerifySample(t *testing.T) {
 	r, base := verifyRig(t, false, "VERIFY_SAMPLE_FILES=5")
-	res := r.e.Verify(t.Context(), VerifyRequest{}, r.sink())
+	res := r.e.Verify(t.Context(), service.VerifyRequest{}, r.sink())
 	if res.Result != service.ResultSuccess || len(res.Repos) != 1 {
 		t.Fatalf("result = %+v", res)
 	}
@@ -79,7 +79,7 @@ func TestVerifySample(t *testing.T) {
 
 func TestVerifyFull(t *testing.T) {
 	r, base := verifyRig(t, false)
-	res := r.e.Verify(t.Context(), VerifyRequest{Mode: VerifyFull}, r.sink())
+	res := r.e.Verify(t.Context(), service.VerifyRequest{Mode: VerifyFull}, r.sink())
 	if res.Result != service.ResultSuccess {
 		t.Fatalf("result = %+v", res)
 	}
@@ -97,7 +97,7 @@ func TestVerifyFull(t *testing.T) {
 
 func TestVerifyConfiguredFullMode(t *testing.T) {
 	r, _ := verifyRig(t, false, "VERIFY_MODE=full")
-	if res := r.e.Verify(t.Context(), VerifyRequest{}, r.sink()); res.Result != service.ResultSuccess || len(r.main.CallsTo(t, "ls")) != 0 {
+	if res := r.e.Verify(t.Context(), service.VerifyRequest{}, r.sink()); res.Result != service.ResultSuccess || len(r.main.CallsTo(t, "ls")) != 0 {
 		t.Errorf("result = %+v", res)
 	}
 }
@@ -106,7 +106,7 @@ func TestVerifyFailures(t *testing.T) {
 	t.Run("restore fails and the sandbox is still removed", func(t *testing.T) {
 		r, base := verifyRig(t, false)
 		r.main.On(t, "restore", resticfake.Response{Stderr: "Fatal: There were 1 errors\n", Exit: 1})
-		res := r.e.Verify(t.Context(), VerifyRequest{}, r.sink())
+		res := r.e.Verify(t.Context(), service.VerifyRequest{}, r.sink())
 		if res.Result != service.ResultFailure || !strings.Contains(res.Error, "There were 1 errors") {
 			t.Fatalf("result = %+v", res)
 		}
@@ -118,7 +118,7 @@ func TestVerifyFailures(t *testing.T) {
 	t.Run("fewer files restored than sampled", func(t *testing.T) {
 		r, _ := verifyRig(t, false, "VERIFY_SAMPLE_FILES=5")
 		r.main.On(t, "restore", resticfake.Response{Stdout: restoreSummary(2)})
-		res := r.e.Verify(t.Context(), VerifyRequest{}, r.sink())
+		res := r.e.Verify(t.Context(), service.VerifyRequest{}, r.sink())
 		if res.Result != service.ResultFailure || !strings.Contains(res.Error, "restored 2 entries for 5 sampled files") {
 			t.Errorf("result = %+v", res)
 		}
@@ -127,7 +127,7 @@ func TestVerifyFailures(t *testing.T) {
 	t.Run("no snapshot yet", func(t *testing.T) {
 		r, _ := verifyRig(t, false)
 		r.main.On(t, "snapshots", resticfake.Response{Stdout: snapsJSON(t)})
-		res := r.e.Verify(t.Context(), VerifyRequest{}, r.sink())
+		res := r.e.Verify(t.Context(), service.VerifyRequest{}, r.sink())
 		if res.Result != service.ResultSkipped || len(r.main.CallsTo(t, "restore")) != 0 {
 			t.Errorf("result = %+v", res)
 		}
@@ -136,7 +136,7 @@ func TestVerifyFailures(t *testing.T) {
 	t.Run("only suspicious snapshots", func(t *testing.T) {
 		r, _ := verifyRig(t, false)
 		r.main.On(t, "snapshots", resticfake.Response{Stdout: snapsJSON(t, snap("bad", "me", time.Hour, 1, 1, nil, "suspicious"))})
-		if res := r.e.Verify(t.Context(), VerifyRequest{}, r.sink()); res.Result != service.ResultSkipped {
+		if res := r.e.Verify(t.Context(), service.VerifyRequest{}, r.sink()); res.Result != service.ResultSkipped {
 			t.Errorf("result = %+v: only regular snapshots are tested", res)
 		}
 	})
@@ -144,7 +144,7 @@ func TestVerifyFailures(t *testing.T) {
 	t.Run("snapshot without files", func(t *testing.T) {
 		r, _ := verifyRig(t, false)
 		r.main.On(t, "ls", resticfake.Response{Stdout: lsOutput(restic.Node{Type: "dir", Path: "/d"})})
-		if res := r.e.Verify(t.Context(), VerifyRequest{}, r.sink()); res.Result != service.ResultSkipped {
+		if res := r.e.Verify(t.Context(), service.VerifyRequest{}, r.sink()); res.Result != service.ResultSkipped {
 			t.Errorf("result = %+v", res)
 		}
 	})
@@ -152,7 +152,7 @@ func TestVerifyFailures(t *testing.T) {
 	t.Run("not enough space skips the test", func(t *testing.T) {
 		r, base := verifyRig(t, false)
 		r.main.On(t, "stats", resticfake.Response{Stdout: statsJSON(1 << 60)})
-		res := r.e.Verify(t.Context(), VerifyRequest{Mode: VerifyFull}, r.sink())
+		res := r.e.Verify(t.Context(), service.VerifyRequest{Mode: VerifyFull}, r.sink())
 		if res.Result != service.ResultSkipped || !strings.Contains(res.Message, "not enough space") || len(r.main.CallsTo(t, "restore")) != 0 {
 			t.Errorf("result = %+v", res)
 		}
@@ -164,7 +164,7 @@ func TestVerifyFailures(t *testing.T) {
 	t.Run("timeout", func(t *testing.T) {
 		r, base := verifyRig(t, false, "VERIFY_TIMEOUT=400ms")
 		r.main.On(t, "restore", resticfake.Response{Sleep: 30 * time.Second})
-		res := r.e.Verify(t.Context(), VerifyRequest{}, r.sink())
+		res := r.e.Verify(t.Context(), service.VerifyRequest{}, r.sink())
 		if res.Result != service.ResultTimeout {
 			t.Errorf("result = %+v", res)
 		}
@@ -179,7 +179,7 @@ func TestVerifyScript(t *testing.T) {
 	ok := script(t, `echo "dir=$MCS_BACKUP_VERIFY_DIR cwd=$(pwd)" > "$OUT"`)
 	r, _ := verifyRig(t, false, "VERIFY_SCRIPT="+ok, "OUT="+out)
 
-	res := r.e.Verify(t.Context(), VerifyRequest{}, r.sink())
+	res := r.e.Verify(t.Context(), service.VerifyRequest{}, r.sink())
 	if res.Result != service.ResultSuccess {
 		t.Fatalf("result = %+v", res)
 	}
@@ -193,7 +193,7 @@ func TestVerifyScript(t *testing.T) {
 
 	bad := script(t, `echo "checksum mismatch" >&2; exit 1`)
 	r, base := verifyRig(t, false, "VERIFY_SCRIPT="+bad)
-	res = r.e.Verify(t.Context(), VerifyRequest{}, r.sink())
+	res = r.e.Verify(t.Context(), service.VerifyRequest{}, r.sink())
 	if res.Result != service.ResultFailure || !strings.Contains(res.Error, "checksum mismatch") {
 		t.Fatalf("a failing script fails the test: %+v", res)
 	}
@@ -204,7 +204,7 @@ func TestVerifyScript(t *testing.T) {
 
 func TestVerifyCopy(t *testing.T) {
 	r, _ := verifyRig(t, true, "VERIFY_COPY=true")
-	res := r.e.Verify(t.Context(), VerifyRequest{}, r.sink())
+	res := r.e.Verify(t.Context(), service.VerifyRequest{}, r.sink())
 	if res.Result != service.ResultSuccess || len(res.Repos) != 2 || res.Repos[1].Repo != "copy" {
 		t.Fatalf("result = %+v", res)
 	}
@@ -213,14 +213,14 @@ func TestVerifyCopy(t *testing.T) {
 	}
 
 	r.second.On(t, "restore", resticfake.Response{Stderr: "Fatal: pack missing\n", Exit: 1})
-	res = r.e.Verify(t.Context(), VerifyRequest{}, r.sink())
+	res = r.e.Verify(t.Context(), service.VerifyRequest{}, r.sink())
 	if res.Result != service.ResultFailure || res.Repos[0].Result != service.ResultSuccess || res.Repos[1].Result != service.ResultFailure ||
 		!strings.Contains(res.Error, "copy repository") {
 		t.Errorf("result = %+v", res)
 	}
 
 	r, _ = verifyRig(t, true)
-	if res := r.e.Verify(t.Context(), VerifyRequest{}, r.sink()); len(res.Repos) != 1 || len(r.second.Calls(t)) != 0 {
+	if res := r.e.Verify(t.Context(), service.VerifyRequest{}, r.sink()); len(res.Repos) != 1 || len(r.second.Calls(t)) != 0 {
 		t.Errorf("without VERIFY_COPY only the main repository is tested: %+v", res)
 	}
 }
@@ -241,7 +241,7 @@ func TestVerifyPipeMode(t *testing.T) {
 		if r.e.VerifyConfigured() {
 			t.Error("VerifyConfigured() in pipe mode without VERIFY_SCRIPT")
 		}
-		res := r.e.Verify(t.Context(), VerifyRequest{}, r.sink())
+		res := r.e.Verify(t.Context(), service.VerifyRequest{}, r.sink())
 		if res.Result != service.ResultSkipped || !strings.Contains(res.Message, "not configured") || len(r.main.Calls(t)) != 0 {
 			t.Errorf("result = %+v", res)
 		}
@@ -250,7 +250,7 @@ func TestVerifyPipeMode(t *testing.T) {
 	t.Run("streams the dump to the script", func(t *testing.T) {
 		check := script(t, `grep -q "Dump completed" && echo ok > "$RECEIVED"`)
 		r := setup(t, "VERIFY_SCRIPT="+check, "RECEIVED="+received)
-		res := r.e.Verify(t.Context(), VerifyRequest{}, r.sink())
+		res := r.e.Verify(t.Context(), service.VerifyRequest{}, r.sink())
 		if res.Result != service.ResultSuccess {
 			t.Fatalf("result = %+v", res)
 		}
@@ -268,7 +268,7 @@ func TestVerifyPipeMode(t *testing.T) {
 	t.Run("the script rejects the dump", func(t *testing.T) {
 		check := script(t, `cat > /dev/null; echo "truncated dump" >&2; exit 1`)
 		r := setup(t, "VERIFY_SCRIPT="+check)
-		res := r.e.Verify(t.Context(), VerifyRequest{}, r.sink())
+		res := r.e.Verify(t.Context(), service.VerifyRequest{}, r.sink())
 		if res.Result != service.ResultFailure || !strings.Contains(res.Error, "truncated dump") {
 			t.Errorf("result = %+v", res)
 		}
@@ -278,7 +278,7 @@ func TestVerifyPipeMode(t *testing.T) {
 		check := script(t, `cat > /dev/null`)
 		r := setup(t, "VERIFY_SCRIPT="+check)
 		r.main.On(t, "dump", resticfake.Response{Stderr: "Fatal: pack missing\n", Exit: 1})
-		res := r.e.Verify(t.Context(), VerifyRequest{}, r.sink())
+		res := r.e.Verify(t.Context(), service.VerifyRequest{}, r.sink())
 		if res.Result != service.ResultFailure || !strings.Contains(res.Error, "pack missing") {
 			t.Errorf("result = %+v", res)
 		}

@@ -12,75 +12,23 @@ import (
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
 
-// RestoreMode says what happens to files in the target that are not in the snapshot.
-type RestoreMode string
-
-const (
-	// ModeExact removes them, so that the target equals the snapshot.
-	ModeExact RestoreMode = "exact"
-	// ModeMerge leaves them alone.
-	ModeMerge RestoreMode = "merge"
-)
-
 // spaceReserve is the extra space required on top of the restore size.
 const spaceReserve = 1.1
 
-// RestoreRequest asks for a restore.
-type RestoreRequest struct {
-	// Snapshot is "latest" (the newest regular snapshot) or an ID.
-	Snapshot string
-	// Target is the directory to restore to; empty restores in place into BACKUP_ROOT.
-	Target string
-	// Includes restricts the restore to these paths of the snapshot.
-	Includes []string
-	// Mode applies to in-place restores, other targets always merge. Exact if empty.
-	Mode RestoreMode
-	// NoSafetySnapshot skips the snapshot of the current data that is taken
-	// before an in-place restore.
-	NoSafetySnapshot bool
-	// IgnoreSpaceWarning restores although the free space looks too small.
-	IgnoreSpaceWarning bool
-	// HookArgs are passed to the pre- and post-restore hooks.
-	HookArgs []string
-	// Confirm must equal Snapshot for an in-place restore.
-	Confirm string
-}
-
-// RestorePreflight describes what a restore would do.
-type RestorePreflight struct {
-	Snapshot service.Snapshot
-	Target   string
-	// InPlace: the restore replaces the live data (BACKUP_ROOT or the database).
-	InPlace bool
-	// PipeMode: the snapshot is streamed to PIPE_OUT_SCRIPT.
-	PipeMode bool
-	Mode     RestoreMode
-	// TargetEmpty reports whether the target directory is empty (ignoring lost+found).
-	TargetEmpty bool
-	// SafetySnapshot: a snapshot of the current data is taken first.
-	SafetySnapshot bool
-	// NeedBytes is the additional space the restore needs, FreeBytes what is available.
-	NeedBytes, FreeBytes int64
-	SpaceWarning         bool
-	// Hooks lists the hooks that will run.
-	Hooks    []string
-	Warnings []string
-}
-
 type restorePlan struct {
-	RestorePreflight
+	service.RestorePreflight
 	snap     restic.Snapshot
 	includes []string
 	pipeFile string
 }
 
 // RestorePreflight checks a restore without performing it.
-func (e *Engine) RestorePreflight(ctx context.Context, req RestoreRequest) (RestorePreflight, error) {
+func (e *Engine) RestorePreflight(ctx context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {
 	plan, err := e.planRestore(ctx, req)
 	return plan.RestorePreflight, err
 }
 
-func (e *Engine) planRestore(ctx context.Context, req RestoreRequest) (restorePlan, error) {
+func (e *Engine) planRestore(ctx context.Context, req service.RestoreRequest) (restorePlan, error) {
 	var p restorePlan
 	snaps, err := e.main.Snapshots(ctx)
 	if err != nil {
@@ -103,7 +51,7 @@ func (e *Engine) planRestore(ctx context.Context, req RestoreRequest) (restorePl
 	if p.PipeMode {
 		// the data goes into the application, not into a directory
 		p.InPlace, p.Target = true, ""
-		p.Mode = ModeExact
+		p.Mode = service.ModeExact
 		if len(req.Includes) > 0 || req.Target != "" {
 			return p, errors.New("a restore in pipe mode streams the whole snapshot: no target or include paths")
 		}
@@ -119,16 +67,16 @@ func (e *Engine) planRestore(ctx context.Context, req RestoreRequest) (restorePl
 	if p.TargetEmpty, err = isEmptyDir(p.Target); err != nil {
 		return p, fmt.Errorf("check target: %w", err)
 	}
-	p.Mode = ModeMerge
+	p.Mode = service.ModeMerge
 	if p.InPlace {
-		p.Mode = ModeExact
+		p.Mode = service.ModeExact
 		if req.Mode != "" {
 			p.Mode = req.Mode
 		}
 	} else if !p.TargetEmpty {
 		p.Warnings = append(p.Warnings, fmt.Sprintf("the target %s is not empty: the snapshot is merged into it", p.Target))
 	}
-	if p.Mode != ModeExact && p.Mode != ModeMerge {
+	if p.Mode != service.ModeExact && p.Mode != service.ModeMerge {
 		return p, fmt.Errorf("unknown restore mode %q", p.Mode)
 	}
 	p.SafetySnapshot = p.InPlace && !p.TargetEmpty && !req.NoSafetySnapshot
@@ -157,7 +105,7 @@ func (e *Engine) checkSpace(ctx context.Context, p *restorePlan) {
 		return
 	}
 	need := size
-	if p.InPlace && p.Mode == ModeExact {
+	if p.InPlace && p.Mode == service.ModeExact {
 		// files that are replaced do not need extra space
 		var current int64
 		if len(p.includes) == 0 {
@@ -218,13 +166,13 @@ type RestoreResult struct {
 
 // Restore restores a snapshot. An in-place restore needs Confirm to equal
 // Snapshot and takes a safety snapshot first (unless NoSafetySnapshot is set).
-func (e *Engine) Restore(ctx context.Context, req RestoreRequest, sink Sink) RestoreResult {
+func (e *Engine) Restore(ctx context.Context, req service.RestoreRequest, sink Sink) RestoreResult {
 	return e.restore(ctx, req, sink, false)
 }
 
 // restore does the work. trusted skips the confirmation (restore-if-empty only
 // restores into an empty target).
-func (e *Engine) restore(ctx context.Context, req RestoreRequest, sink Sink, trusted bool) RestoreResult {
+func (e *Engine) restore(ctx context.Context, req service.RestoreRequest, sink Sink, trusted bool) RestoreResult {
 	start := e.now()
 	ctx, cancel := withTimeout(ctx, e.cfg.Timeouts.Restore)
 	defer cancel()
@@ -245,7 +193,7 @@ func (e *Engine) restore(ctx context.Context, req RestoreRequest, sink Sink, tru
 	return res
 }
 
-func (e *Engine) restorePhases(ctx context.Context, req RestoreRequest, sink Sink, trusted bool, res *RestoreResult) error {
+func (e *Engine) restorePhases(ctx context.Context, req service.RestoreRequest, sink Sink, trusted bool, res *RestoreResult) error {
 	sink.phase("prepare")
 	plan, err := e.planRestore(ctx, req)
 	if err != nil {
@@ -308,12 +256,12 @@ func (e *Engine) restoreFiles(ctx context.Context, plan restorePlan, sink Sink, 
 		Snapshot: plan.snap.ID,
 		Target:   plan.Target,
 		Includes: plan.includes,
-		Delete:   plan.InPlace && plan.Mode == ModeExact,
+		Delete:   plan.InPlace && plan.Mode == service.ModeExact,
 		Extra:    e.cfg.Restic.Restore,
 	}
 	return e.retryLocked(ctx, e.main, e.cfg.AppendOnly, sink, func() error {
 		sum, err := e.main.Restore(ctx, opts, func(s restic.RestoreStatus) {
-			sink.progress(Progress{Percent: s.PercentDone, FilesDone: s.FilesRestored, FilesTotal: s.TotalFiles, BytesDone: s.BytesRestored, BytesTotal: s.TotalBytes})
+			sink.progress(service.Progress{Percent: s.PercentDone, FilesDone: s.FilesRestored, FilesTotal: s.TotalFiles, BytesDone: s.BytesRestored, BytesTotal: s.TotalBytes})
 		})
 		res.Summary = sum
 		return err
@@ -369,7 +317,7 @@ func (e *Engine) RestoreIfEmpty(ctx context.Context, sink Sink) (RestoreIfEmptyA
 		return ActionNoSnapshot, nil
 	}
 
-	res := e.restore(ctx, RestoreRequest{Snapshot: "latest", Mode: ModeMerge, IgnoreSpaceWarning: true, NoSafetySnapshot: true}, sink, true)
+	res := e.restore(ctx, service.RestoreRequest{Snapshot: "latest", Mode: service.ModeMerge, IgnoreSpaceWarning: true, NoSafetySnapshot: true}, sink, true)
 	if !res.Result.OK() {
 		return "", errors.New(res.Error)
 	}

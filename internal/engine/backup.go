@@ -12,14 +12,6 @@ import (
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
 
-// BackupRequest asks for one backup run.
-type BackupRequest struct {
-	Origin service.Origin // manual if empty
-	Note   string
-	// Keep protects the snapshot from forget.
-	Keep bool
-}
-
 // BackupResult is the outcome of a backup run.
 type BackupResult struct {
 	Result  service.Result
@@ -44,7 +36,7 @@ func (r *BackupResult) warn(format string, args ...any) {
 
 // Backup runs a backup: pre-hook, backup, plausibility check, forget, copy and
 // post-hook. The post-hook runs even if an earlier phase failed.
-func (e *Engine) Backup(ctx context.Context, req BackupRequest, sink Sink) BackupResult {
+func (e *Engine) Backup(ctx context.Context, req service.BackupRequest, sink Sink) BackupResult {
 	start := e.now()
 	parent := ctx
 	ctx, cancel := withTimeout(ctx, e.cfg.Timeouts.Backup)
@@ -68,7 +60,7 @@ func (e *Engine) Backup(ctx context.Context, req BackupRequest, sink Sink) Backu
 	return res
 }
 
-func (e *Engine) backupPhases(ctx context.Context, req BackupRequest, sink Sink, res *BackupResult) error {
+func (e *Engine) backupPhases(ctx context.Context, req service.BackupRequest, sink Sink, res *BackupResult) error {
 	res.Result = service.ResultSuccess
 
 	sink.phase("prepare")
@@ -147,7 +139,7 @@ func (e *Engine) runBackup(ctx context.Context, snaps []restic.Snapshot, origin 
 	err := e.retryLocked(ctx, e.main, e.cfg.AppendOnly, sink, func() error {
 		var err error
 		sum, err = e.main.Backup(ctx, opts, func(s restic.BackupStatus) {
-			p := Progress{Percent: s.PercentDone, FilesDone: s.FilesDone, FilesTotal: s.TotalFiles, BytesDone: s.BytesDone, BytesTotal: s.TotalBytes}
+			p := service.Progress{Percent: s.PercentDone, FilesDone: s.FilesDone, FilesTotal: s.TotalFiles, BytesDone: s.BytesDone, BytesTotal: s.TotalBytes}
 			if len(s.CurrentFiles) > 0 {
 				p.Current = s.CurrentFiles[0]
 			}

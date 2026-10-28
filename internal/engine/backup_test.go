@@ -27,10 +27,10 @@ func TestBackupSuccess(t *testing.T) {
 	r.main.On(t, "backup", resticfake.Response{Stdout: summaryLine("new1", 3, 1000)})
 	r.main.On(t, "forget", resticfake.Response{Stdout: forgetJSON(t, 10, 0)})
 
-	var progress []Progress
+	var progress []service.Progress
 	sink := r.sink()
-	sink.Progress = func(p Progress) { progress = append(progress, p) }
-	res := r.e.Backup(t.Context(), BackupRequest{Origin: service.OriginScheduled, Note: "nightly, ok", Keep: true}, sink)
+	sink.Progress = func(p service.Progress) { progress = append(progress, p) }
+	res := r.e.Backup(t.Context(), service.BackupRequest{Origin: service.OriginScheduled, Note: "nightly, ok", Keep: true}, sink)
 
 	if res.Result != service.ResultSuccess || res.Error != "" || res.Snapshot != "new1" {
 		t.Fatalf("result = %+v", res)
@@ -75,7 +75,7 @@ func TestBackupForgetRemoves(t *testing.T) {
 	r.main.On(t, "backup", resticfake.Response{Stdout: summaryLine("new1", 3, 1000)})
 	r.main.On(t, "forget", resticfake.Response{Stdout: forgetJSON(t, 10, 1)}, resticfake.Response{Stdout: forgetJSON(t, 10, 1)})
 
-	res := r.e.Backup(t.Context(), BackupRequest{}, r.sink())
+	res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
 	if res.Result != service.ResultSuccess || !res.Forget.Ran || res.Forget.Removed != 1 || res.Forget.Held {
 		t.Fatalf("result = %+v", res)
 	}
@@ -101,7 +101,7 @@ func TestBackupLegacySnapshots(t *testing.T) {
 	r.main.On(t, "backup", resticfake.Response{Stdout: summaryLine("new1", 3, 1000)})
 	r.main.On(t, "forget", resticfake.Response{Stdout: forgetJSON(t, 2, 0)})
 
-	res := r.e.Backup(t.Context(), BackupRequest{}, r.sink())
+	res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
 	if res.Result != service.ResultSuccess {
 		t.Fatalf("result = %+v", res)
 	}
@@ -120,7 +120,7 @@ func TestBackupRetentionGuard(t *testing.T) {
 	// 4 of 12 would be removed: more than 2 and more than 25%
 	r.main.On(t, "forget", resticfake.Response{Stdout: forgetJSON(t, 8, 4)}, resticfake.Response{Stdout: forgetJSON(t, 8, 4)})
 
-	res := r.e.Backup(t.Context(), BackupRequest{}, r.sink())
+	res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
 	if res.Result != service.ResultWarning || !res.Forget.Held || res.Forget.Removed != 4 || res.Forget.Total != 12 || res.Forget.Ran {
 		t.Fatalf("result = %+v", res)
 	}
@@ -175,7 +175,7 @@ func TestBackupIncomplete(t *testing.T) {
 	})
 	r.main.On(t, "forget", resticfake.Response{Stdout: forgetJSON(t, 3, 0)})
 
-	res := r.e.Backup(t.Context(), BackupRequest{}, r.sink())
+	res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
 	if res.Result != service.ResultWarning || res.Snapshot != "new1" || res.Error != "" {
 		t.Fatalf("result = %+v", res)
 	}
@@ -194,7 +194,7 @@ func TestBackupFailureStillRunsPostHook(t *testing.T) {
 	r.main.On(t, "snapshots", resticfake.Response{Stdout: snapsJSON(t)})
 	r.main.On(t, "backup", resticfake.Response{Stderr: "Fatal: unable to save snapshot\n", Exit: 1})
 
-	res := r.e.Backup(t.Context(), BackupRequest{}, r.sink())
+	res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
 	if res.Result != service.ResultFailure || !strings.Contains(res.Error, "unable to save snapshot") || res.Snapshot != "" {
 		t.Fatalf("result = %+v", res)
 	}
@@ -213,7 +213,7 @@ func TestBackupPreHookFails(t *testing.T) {
 	post := script(t, `echo "post $MCS_BACKUP_RESULT" >> "$HOOKLOG"`)
 	r := newRig(t, false, "HOOKLOG="+log, "PRE_BACKUP_SCRIPT="+pre, "POST_BACKUP_SCRIPT="+post)
 
-	res := r.e.Backup(t.Context(), BackupRequest{}, r.sink())
+	res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
 	if res.Result != service.ResultFailure || !strings.Contains(res.Error, "pre-backup hook") || !strings.Contains(res.Error, "database is down") {
 		t.Fatalf("result = %+v", res)
 	}
@@ -232,7 +232,7 @@ func TestBackupPostHookFailureIsAWarning(t *testing.T) {
 	r.main.On(t, "backup", resticfake.Response{Stdout: summaryLine("new1", 3, 1000)})
 	r.main.On(t, "forget", resticfake.Response{Stdout: forgetJSON(t, 1, 0)})
 
-	res := r.e.Backup(t.Context(), BackupRequest{}, r.sink())
+	res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
 	if res.Result != service.ResultWarning || res.Snapshot != "new1" || !strings.Contains(strings.Join(res.Warnings, "\n"), "post-backup hook failed") {
 		t.Fatalf("a broken post hook must not turn a good backup into a failure: %+v", res)
 	}
@@ -328,7 +328,7 @@ func TestBackupPlausibility(t *testing.T) {
 			r.main.On(t, "tag", resticfake.Response{Stdout: `{"message_type":"changed","old_snapshot_id":"new1","new_snapshot_id":"new1-tagged"}` + "\n"})
 			r.main.On(t, "forget", resticfake.Response{Stdout: forgetJSON(t, 3, 0)})
 
-			res := r.e.Backup(t.Context(), BackupRequest{}, r.sink())
+			res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
 			if res.Result != tt.wantResult {
 				t.Fatalf("result = %s, want %s: %+v", res.Result, tt.wantResult, res)
 			}
@@ -369,7 +369,7 @@ func TestBackupPlausibilityPipeMode(t *testing.T) {
 	r.main.On(t, "backup", resticfake.Response{Stdout: summaryLine("new1", 1, 0)})
 	r.main.On(t, "tag", resticfake.Response{Stdout: `{"message_type":"changed","old_snapshot_id":"new1","new_snapshot_id":"new2"}` + "\n"})
 
-	res := r.e.Backup(t.Context(), BackupRequest{}, r.sink())
+	res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
 	if res.Result != service.ResultFailure {
 		t.Fatalf("result = %+v", res)
 	}
@@ -389,7 +389,7 @@ func TestBackupCopy(t *testing.T) {
 	r.second.On(t, "snapshots", resticfake.Response{Stdout: snapsJSON(t)})
 	r.second.On(t, "forget", resticfake.Response{Stdout: forgetJSON(t, 1, 0)})
 
-	res := r.e.Backup(t.Context(), BackupRequest{}, r.sink())
+	res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
 	if res.Result != service.ResultSuccess || res.Copy == nil || res.Copy.Result != service.ResultSuccess {
 		t.Fatalf("result = %+v", res)
 	}
@@ -415,7 +415,7 @@ func TestBackupCopyFailureIsAWarning(t *testing.T) {
 	r.main.On(t, "forget", resticfake.Response{Stdout: forgetJSON(t, 3, 0)})
 	r.second.On(t, "copy", resticfake.Response{Stderr: "Fatal: connection refused\n", Exit: 1})
 
-	res := r.e.Backup(t.Context(), BackupRequest{}, r.sink())
+	res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
 	if res.Result != service.ResultWarning || res.Snapshot != "new1" || res.Copy == nil || res.Copy.Result != service.ResultFailure ||
 		!strings.Contains(res.Copy.Error, "connection refused") {
 		t.Fatalf("result = %+v", res)
@@ -434,7 +434,7 @@ func TestBackupSuspiciousIsStillCopied(t *testing.T) {
 	r.main.On(t, "tag", resticfake.Response{Stdout: `{"message_type":"changed","old_snapshot_id":"new1","new_snapshot_id":"new2"}` + "\n"})
 	r.second.On(t, "copy", resticfake.Response{})
 
-	res := r.e.Backup(t.Context(), BackupRequest{}, r.sink())
+	res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
 	if res.Result != service.ResultSuspicious || res.Copy == nil || res.Copy.Result != service.ResultSuccess {
 		t.Fatalf("result = %+v", res)
 	}
@@ -459,7 +459,7 @@ func TestBackupCancelAndTimeout(t *testing.T) {
 		time.AfterFunc(300*time.Millisecond, cancel)
 
 		start := time.Now()
-		res := r.e.Backup(ctx, BackupRequest{}, r.sink())
+		res := r.e.Backup(ctx, service.BackupRequest{}, r.sink())
 		if res.Result != service.ResultCancelled {
 			t.Fatalf("result = %+v", res)
 		}
@@ -477,7 +477,7 @@ func TestBackupCancelAndTimeout(t *testing.T) {
 		r.main.On(t, "snapshots", resticfake.Response{Stdout: snapsJSON(t)})
 		r.main.On(t, "backup", resticfake.Response{Sleep: 30 * time.Second})
 
-		res := r.e.Backup(t.Context(), BackupRequest{}, r.sink())
+		res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
 		if res.Result != service.ResultTimeout {
 			t.Fatalf("result = %+v", res)
 		}
@@ -503,7 +503,7 @@ func TestBackupAutoUnlock(t *testing.T) {
 
 	t.Run("old locks are removed", func(t *testing.T) {
 		r := setup(t, 2*time.Hour)
-		res := r.e.Backup(t.Context(), BackupRequest{}, r.sink())
+		res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
 		if res.Result != service.ResultSuccess {
 			t.Fatalf("result = %+v", res)
 		}
@@ -517,7 +517,7 @@ func TestBackupAutoUnlock(t *testing.T) {
 
 	t.Run("young locks are left alone", func(t *testing.T) {
 		r := setup(t, 5*time.Minute)
-		res := r.e.Backup(t.Context(), BackupRequest{}, r.sink())
+		res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
 		if res.Result != service.ResultFailure || !strings.Contains(res.Error, "locked") {
 			t.Fatalf("result = %+v", res)
 		}
@@ -533,7 +533,7 @@ func TestBackupAutoUnlock(t *testing.T) {
 		r := newRig(t, false)
 		r.main.On(t, "snapshots", resticfake.Response{Stdout: snapsJSON(t)})
 		r.main.On(t, "backup", resticfake.Response{Stderr: "locked\n", Exit: 11})
-		res := r.e.Backup(t.Context(), BackupRequest{}, r.sink())
+		res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
 		if res.Result != service.ResultFailure || len(r.main.CallsTo(t, "list")) != 0 {
 			t.Errorf("result = %+v, calls = %q", res, r.main.Calls(t))
 		}
@@ -546,7 +546,7 @@ func TestBackupAppendOnly(t *testing.T) {
 		r := newRig(t, false, env...)
 		r.main.On(t, "snapshots", resticfake.Response{Stdout: snapsJSON(t)})
 		r.main.On(t, "backup", resticfake.Response{Stdout: summaryLine("new1", 3, 1000)})
-		res := r.e.Backup(t.Context(), BackupRequest{}, r.sink())
+		res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
 		if res.Result != service.ResultSuccess || len(r.main.CallsTo(t, "forget")) != 0 {
 			t.Fatalf("result = %+v, calls = %q", res, r.main.Calls(t))
 		}
@@ -556,7 +556,7 @@ func TestBackupAppendOnly(t *testing.T) {
 		existing := snap("old1", "me", time.Hour, 5, 1000, rootPaths(r))
 		r.main.On(t, "snapshots", resticfake.Response{Stdout: snapsJSON(t, existing)})
 		r.main.On(t, "backup", resticfake.Response{Stdout: summaryLine("new1", 2, 100)})
-		res := r.e.Backup(t.Context(), BackupRequest{}, r.sink())
+		res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
 		if res.Result != service.ResultSuspicious || !res.Suspicious || len(r.main.CallsTo(t, "tag")) != 0 {
 			t.Fatalf("result = %+v, calls = %q", res, r.main.Calls(t))
 		}

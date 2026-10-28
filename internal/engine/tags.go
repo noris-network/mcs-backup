@@ -75,34 +75,27 @@ func (e *Engine) addTag(ctx context.Context, id string, tags ...string) (string,
 	return e.rewriteTags(ctx, e.main, e.cfg.AppendOnly, id, tags, nil)
 }
 
-// TagResult is the outcome of a tag change.
-type TagResult struct {
-	// ID is the new ID of the snapshot (restic rewrites snapshots when tags change).
-	ID       string
-	Warnings []string
-}
-
 // Keep protects a snapshot from forget.
-func (e *Engine) Keep(ctx context.Context, ref string) (TagResult, error) {
+func (e *Engine) Keep(ctx context.Context, ref string) (service.TagResult, error) {
 	return e.setTags(ctx, ref, []string{service.TagKeep}, nil)
 }
 
 // Unkeep removes the protection.
-func (e *Engine) Unkeep(ctx context.Context, ref string) (TagResult, error) {
+func (e *Engine) Unkeep(ctx context.Context, ref string) (service.TagResult, error) {
 	return e.setTags(ctx, ref, nil, []string{service.TagKeep})
 }
 
 // Acknowledge accepts a snapshot that was tagged suspicious: it becomes a
 // regular snapshot and the baseline for later comparisons.
-func (e *Engine) Acknowledge(ctx context.Context, ref string) (TagResult, error) {
+func (e *Engine) Acknowledge(ctx context.Context, ref string) (service.TagResult, error) {
 	return e.setTags(ctx, ref, nil, []string{service.TagSuspicious})
 }
 
 // setTags changes tags on the main repository and mirrors the change to the
 // secondary one first. A change that is only made on the main repository would
 // make the next copy duplicate the snapshot there.
-func (e *Engine) setTags(ctx context.Context, ref string, add, remove []string) (TagResult, error) {
-	var res TagResult
+func (e *Engine) setTags(ctx context.Context, ref string, add, remove []string) (service.TagResult, error) {
+	var res service.TagResult
 	if e.cfg.AppendOnly {
 		return res, ErrAppendOnly
 	}

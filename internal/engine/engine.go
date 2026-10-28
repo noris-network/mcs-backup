@@ -22,9 +22,9 @@ import (
 
 // Errors returned for conditions the caller has to present to the user.
 var (
-	ErrAppendOnly = errors.New("not possible: the repository is append-only")
-	ErrNoSnapshot = errors.New("no matching snapshot")
-	ErrConfirm    = errors.New("confirmation missing or wrong")
+	ErrAppendOnly = service.ErrAppendOnly
+	ErrNoSnapshot = service.ErrNotFound
+	ErrConfirm    = service.ErrConfirm
 	ErrPipeMode   = errors.New("not supported in pipe mode")
 	ErrNoCopy     = errors.New("no secondary repository configured")
 
@@ -82,21 +82,11 @@ func New(o Options) *Engine {
 // HasSecond reports whether a secondary repository is configured.
 func (e *Engine) HasSecond() bool { return e.second != nil }
 
-// Progress is the progress of a running backup or restore.
-type Progress struct {
-	Percent    float64 // 0..1
-	FilesDone  int64
-	FilesTotal int64
-	BytesDone  int64
-	BytesTotal int64
-	Current    string
-}
-
 // Sink receives what happens during an operation. All fields may be nil.
 type Sink struct {
 	// Phase announces the start of a phase, e.g. "backup", "forget".
 	Phase    func(name string)
-	Progress func(Progress)
+	Progress func(service.Progress)
 	// Log receives lines for the run log: engine messages, hook output and the
 	// output of restic.
 	Log func(line string)
@@ -108,7 +98,7 @@ func (s Sink) phase(name string) {
 	}
 }
 
-func (s Sink) progress(p Progress) {
+func (s Sink) progress(p service.Progress) {
 	if s.Progress != nil {
 		s.Progress(p)
 	}

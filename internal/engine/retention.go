@@ -151,27 +151,9 @@ func (e *Engine) ApproveForget(ctx context.Context, sink Sink) ApproveResult {
 	return res
 }
 
-// RetentionInfo tells what the retention policy would do right now.
-type RetentionInfo struct {
-	// Policy describes the policy in plain words.
-	Policy string
-	// Hosts are the restic host names whose snapshots the policy applies to.
-	Hosts []string
-	// Foreign is the number of snapshots of other hosts, which are never touched.
-	Foreign int
-	// Total is the number of snapshots of this instance.
-	Total int
-	// Remove lists the snapshots the policy would forget.
-	Remove []service.Snapshot
-	// Held is set if the retention guard would hold back this forget.
-	Held bool
-	// AppendOnly: nothing is ever forgotten.
-	AppendOnly bool
-}
-
 // Retention previews the retention policy on the main repository.
-func (e *Engine) Retention(ctx context.Context) (RetentionInfo, error) {
-	info := RetentionInfo{Policy: e.cfg.Retention.Describe(), AppendOnly: e.cfg.AppendOnly}
+func (e *Engine) Retention(ctx context.Context) (service.RetentionInfo, error) {
+	info := service.RetentionInfo{Policy: e.cfg.Retention.Describe(), AppendOnly: e.cfg.AppendOnly}
 	snaps, err := e.main.Snapshots(ctx)
 	if err != nil {
 		return info, err

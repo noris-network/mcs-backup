@@ -21,12 +21,6 @@ const (
 	VerifyFull   = "full"
 )
 
-// VerifyRequest asks for a restore test.
-type VerifyRequest struct {
-	// Mode is VerifySample or VerifyFull; the configured mode if empty.
-	Mode string
-}
-
 // VerifyRepoResult is the outcome of the restore test on one repository.
 type VerifyRepoResult struct {
 	Repo     string
@@ -58,7 +52,7 @@ func (e *Engine) VerifyConfigured() bool {
 // sandbox and compares the result with the repository. A VERIFY_SCRIPT can
 // check the restored data further. With VERIFY_COPY the secondary repository
 // is tested too.
-func (e *Engine) Verify(ctx context.Context, req VerifyRequest, sink Sink) VerifyResult {
+func (e *Engine) Verify(ctx context.Context, req service.VerifyRequest, sink Sink) VerifyResult {
 	start := e.now()
 	ctx, cancel := withTimeout(ctx, e.cfg.Timeouts.Verify)
 	defer cancel()
@@ -225,7 +219,7 @@ func (e *Engine) verifyFiles(ctx context.Context, repo *restic.Repo, snap restic
 	err = e.retryLocked(ctx, repo, e.cfg.AppendOnly, sink, func() error {
 		var err error
 		sum, err = repo.Restore(ctx, opts, func(s restic.RestoreStatus) {
-			sink.progress(Progress{Percent: s.PercentDone, FilesDone: s.FilesRestored, FilesTotal: s.TotalFiles, BytesDone: s.BytesRestored, BytesTotal: s.TotalBytes})
+			sink.progress(service.Progress{Percent: s.PercentDone, FilesDone: s.FilesRestored, FilesTotal: s.TotalFiles, BytesDone: s.BytesRestored, BytesTotal: s.TotalBytes})
 		})
 		return err
 	})
