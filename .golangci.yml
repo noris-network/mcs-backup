@@ -33,6 +33,10 @@ linters:
         linters: [gosec, prealloc]
       - path: internal/resticfake/
         linters: [gosec]
+      # operations run on a context of their own on purpose: they must be able
+      # to finish (and run their post-hook) while the service shuts down
+      - path: internal/daemon/
+        linters: [contextcheck]
 
 formatters:
   enable:

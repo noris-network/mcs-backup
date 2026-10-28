@@ -298,7 +298,9 @@ func (e *Engine) postHook(parent context.Context, script, name string, sink Sink
 		return
 	}
 	sink.phase("wrapup")
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), e.cfg.Timeouts.PostHook)
+	ctx, cancelTimeout := context.WithTimeout(context.WithoutCancel(parent), e.cfg.Timeouts.PostHook)
+	defer cancelTimeout()
+	ctx, cancel := hardStopContext(parent, ctx)
 	defer cancel()
 	err := e.runHook(ctx, name, script, nil, sink,
 		"MCS_BACKUP_RESULT="+string(res.Result),

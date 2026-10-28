@@ -14,6 +14,11 @@ const (
 	KindCheck   Kind = "check"
 	KindVerify  Kind = "verify"
 	KindRestore Kind = "restore"
+	// KindForget is an approved forget; KindTag and KindUnlock are quick
+	// administrative operations. They use the operation slot like the others.
+	KindForget Kind = "forget"
+	KindTag    Kind = "tag"
+	KindUnlock Kind = "unlock"
 )
 
 // Result is the outcome of an operation.

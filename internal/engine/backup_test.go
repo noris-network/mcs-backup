@@ -580,3 +580,27 @@ func TestBackupAppendOnly(t *testing.T) {
 		}
 	})
 }
+
+func TestBackupPostHookEndsOnHardStop(t *testing.T) {
+	post := script(t, `sleep 30`)
+	r := newRig(t, false, "POST_BACKUP_SCRIPT="+post)
+	r.main.On(t, "snapshots", resticfake.Response{Stdout: snapsJSON(t)})
+	r.main.On(t, "backup", resticfake.Response{Sleep: 30 * time.Second})
+
+	stop := make(chan struct{})
+	ctx, cancel := context.WithCancel(WithHardStop(t.Context(), stop))
+	time.AfterFunc(300*time.Millisecond, cancel)                 // shutdown: the backup is cancelled
+	time.AfterFunc(900*time.Millisecond, func() { close(stop) }) // the budget is used up
+
+	start := time.Now()
+	res := r.e.Backup(ctx, service.BackupRequest{}, r.sink())
+	if res.Result != service.ResultCancelled {
+		t.Fatalf("result = %+v", res)
+	}
+	if d := time.Since(start); d > 10*time.Second {
+		t.Errorf("took %v: the post hook ignored the hard stop", d)
+	}
+	if !slices.ContainsFunc(res.Warnings, func(w string) bool { return strings.Contains(w, "post-backup hook failed") }) {
+		t.Errorf("warnings = %q", res.Warnings)
+	}
+}

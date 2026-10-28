@@ -92,6 +92,17 @@ func (s *Scheduler) setLocked(kind string, sched Schedule) {
 	s.jobs[kind] = &job{sched: sched, next: sched.Next(s.o.Now())}
 }
 
+// Schedule returns the schedule installed for kind.
+func (s *Scheduler) Schedule(kind string) (Schedule, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	j, ok := s.jobs[kind]
+	if !ok {
+		return nil, false
+	}
+	return j.sched, true
+}
+
 // Next returns when kind fires next.
 func (s *Scheduler) Next(kind string) (time.Time, bool) {
 	s.mu.Lock()
