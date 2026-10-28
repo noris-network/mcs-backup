@@ -1,0 +1,40 @@
+version: "3"
+
+tasks:
+  build:
+    desc: Build the binary for the current platform
+    cmds:
+      - go build -trimpath -o mcs-backup ./cmd/mcs-backup
+
+  build:all:
+    desc: Cross-build for all supported platforms
+    cmds:
+      - GOOS=linux GOARCH=amd64 go build -o /dev/null ./cmd/mcs-backup
+      - GOOS=linux GOARCH=arm64 go build -o /dev/null ./cmd/mcs-backup
+      - GOOS=darwin GOARCH=amd64 go build -o /dev/null ./cmd/mcs-backup
+      - GOOS=darwin GOARCH=arm64 go build -o /dev/null ./cmd/mcs-backup
+
+  test:
+    desc: Run unit tests
+    cmds:
+      - go test -race ./...
+
+  integration:
+    desc: Run integration tests (needs RESTIC_BIN, optionally REST_SERVER_BIN)
+    requires:
+      vars: [RESTIC_BIN]
+    cmds:
+      - go test -race -tags integration ./...
+
+  lint:
+    desc: Run go vet, go fix check and golangci-lint
+    cmds:
+      - go vet ./...
+      - go fix -diff ./...
+      - golangci-lint run ./...
+
+  install:
+    desc: Install the binary to /usr/local/bin
+    deps: [build]
+    cmds:
+      - sudo mv mcs-backup /usr/local/bin/mcs-backup

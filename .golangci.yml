@@ -1,0 +1,34 @@
+# Requires golangci-lint v2 built with Go >= 1.27.
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - contextcheck
+    - errorlint
+    - gosec
+    - misspell
+    - nilerr
+    - noctx
+    - perfsprint
+    - prealloc
+    - revive
+    - sloglint
+    - unconvert
+    - usestdlibvars
+    - wastedassign
+  settings:
+    sloglint:
+      no-mixed-args: true
+      attr-only: false
+      context: scope
+  exclusions:
+    presets:
+      - comments
+      - std-error-handling
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
