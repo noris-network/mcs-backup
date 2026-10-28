@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-28T14:02:34.206581174+01:00",
+  "exclusive": false,
+  "hostname": "testhost",
+  "username": "testuser",
+  "pid": 25548,
+  "uid": 1000,
+  "gid": 1000
+}

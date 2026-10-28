@@ -1,0 +1,2 @@
+{"message_type":"error","error":{"message":"/data/src/b/locked: open b/locked: permission denied"},"during":"archival","item":"/data/src/b/locked"}
+{"message_type":"exit_error","code":3,"message":"Warning: at least one source file could not be read"}

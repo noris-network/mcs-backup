@@ -1,0 +1,2 @@
+{"message_type":"status","seconds_elapsed":2,"seconds_remaining":6,"percent_done":0.25,"total_files":40,"files_done":10,"total_bytes":4000000,"bytes_done":1000000,"error_count":0,"current_files":["/data/a/big.bin"]}
+{"message_type":"status","percent_done":1,"total_files":40,"files_done":40,"total_bytes":4000000,"bytes_done":4000000}

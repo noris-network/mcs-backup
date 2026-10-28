@@ -1,0 +1,4 @@
+unable to create lock in backend: repository is already locked by PID 25548 on testhost by testuser (UID 1000, GID 1000)
+lock was created at 2026-10-28 14:02:34 (2.448387127s ago)
+storage ID 0d843e6a
+the `unlock` command can be used to remove stale locks
