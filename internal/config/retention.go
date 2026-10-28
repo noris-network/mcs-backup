@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"go.yaml.in/yaml/v3"
+	"github.com/goccy/go-yaml"
 )
 
 // Retention is the snapshot retention policy, mapped to restic's --keep-*
@@ -25,8 +25,7 @@ type Retention struct {
 // {"weekly":8,"daily":7,"last":10}.
 func ParseRetention(s string) (Retention, error) {
 	var r Retention
-	dec := yaml.NewDecoder(strings.NewReader(s))
-	dec.KnownFields(true)
+	dec := yaml.NewDecoder(strings.NewReader(s), yaml.Strict())
 	if err := dec.Decode(&r); err != nil {
 		if errors.Is(err, io.EOF) {
 			return r, errors.New("retention policy is empty")

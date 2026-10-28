@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/goccy/go-yaml"
 	"github.com/noris-network/mcs-backup/v2/internal/schedule"
-	"go.yaml.in/yaml/v3"
 )
 
 func parseSchedule(expr string, loc *time.Location) (schedule.Schedule, error) {

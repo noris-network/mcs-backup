@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"go.yaml.in/yaml/v3"
+	"github.com/goccy/go-yaml"
 )
 
 // parseEnviron turns KEY=VALUE pairs into a map. Later entries win.
@@ -34,7 +34,7 @@ func mergeFile(env map[string]string, path string) error {
 		return err
 	}
 	var doc map[string]any
-	dec := yaml.NewDecoder(strings.NewReader(string(data)))
+	dec := yaml.NewDecoder(strings.NewReader(string(data)), yaml.Strict())
 	if err := dec.Decode(&doc); err != nil && !errors.Is(err, io.EOF) {
 		return fmt.Errorf("%s: %w", path, err)
 	}
@@ -59,8 +59,10 @@ func yamlValue(key string, val any) (string, error) {
 		return v, nil
 	case bool:
 		return strconv.FormatBool(v), nil
-	case int:
-		return strconv.Itoa(v), nil
+	case int64:
+		return strconv.FormatInt(v, 10), nil
+	case uint64:
+		return strconv.FormatUint(v, 10), nil
 	case float64:
 		return strconv.FormatFloat(v, 'f', -1, 64), nil
 	case []any:
