@@ -36,10 +36,10 @@ minutes), so a backup that ran into `BACKUP_TIMEOUT` can still clean up.
 ### Restore hooks get arguments
 
 Everything after the snapshot on the command line is handed to both restore
-hooks:
+hooks. Put `--` before arguments that look like flags:
 
 ```console
-$ mcs-backup restore latest --maintenance on
+$ mcs-backup restore latest -- --maintenance on
 ```
 
 runs `PRE_RESTORE_SCRIPT --maintenance on` and `POST_RESTORE_SCRIPT --maintenance on`.
