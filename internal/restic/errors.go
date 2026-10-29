@@ -20,6 +20,9 @@ var (
 	ErrWrongPassword = errors.New("wrong password or no key found")
 	// ErrInterrupted: restic was interrupted by a signal (exit code 130).
 	ErrInterrupted = errors.New("interrupted")
+	// ErrEmptySnapshot: restic refuses to store a snapshot without any content.
+	// It has no exit code of its own, so this is recognized by its message.
+	ErrEmptySnapshot = errors.New("snapshot is empty")
 )
 
 // ExitError is a failed restic invocation.
@@ -50,6 +53,8 @@ func (e *ExitError) Is(target error) bool {
 		return e.Code == 12
 	case ErrInterrupted:
 		return e.Code == 130
+	case ErrEmptySnapshot:
+		return e.Code == 1 && strings.Contains(e.Message, "snapshot is empty")
 	}
 	return false
 }

@@ -81,6 +81,9 @@ func (e *Engine) backupPhases(ctx context.Context, req service.BackupRequest, si
 	switch {
 	case errors.Is(err, restic.ErrIncomplete):
 		res.warn("%s", unreadableMessage(sum))
+	case errors.Is(err, restic.ErrEmptySnapshot):
+		// restic stores nothing; the plausibility check treats it like an empty snapshot
+		sink.logf("restic did not store a snapshot: the source is empty")
 	case err != nil:
 		return err
 	}
@@ -200,6 +203,10 @@ func (e *Engine) plausibility(sum restic.BackupSummary, regular []restic.Snapsho
 	if e.cfg.PipeMode() {
 		empty = sum.TotalBytesProcessed == 0
 	}
+	if empty && e.cfg.Backup.AllowEmpty && sum.SnapshotID == "" {
+		// allowed, but restic refuses to store an empty snapshot
+		return &implausible{result: service.ResultSkipped, message: "nothing to back up: the source is empty and restic does not store empty snapshots"}
+	}
 	if empty && !e.cfg.Backup.AllowEmpty {
 		if len(regular) == 0 {
 			// first backup of an empty source: nothing to protect, nothing worth keeping
@@ -239,6 +246,8 @@ func (e *Engine) afterImplausible(ctx context.Context, v *implausible, res *Back
 	res.Message = v.message
 
 	switch {
+	case res.Snapshot == "":
+		// restic stored nothing, so there is nothing to remove or tag
 	case v.remove && !e.cfg.AppendOnly:
 		if rerr := e.main.Remove(ctx, res.Snapshot); rerr != nil {
 			res.warn("cannot remove the empty snapshot %s: %v", short(res.Snapshot), rerr)

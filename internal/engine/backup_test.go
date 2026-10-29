@@ -359,6 +359,40 @@ func TestBackupPlausibility(t *testing.T) {
 	}
 }
 
+func TestBackupWhenResticRefusesAnEmptySnapshot(t *testing.T) {
+	tests := []struct {
+		name       string
+		env        []string
+		existing   func(r *rig) []restic.Snapshot
+		wantResult service.Result
+	}{
+		{"fresh install", nil, func(*rig) []restic.Snapshot { return nil }, service.ResultSkipped},
+		{"with a previous snapshot", nil, func(r *rig) []restic.Snapshot {
+			return []restic.Snapshot{snap("old1", "me", time.Hour, 5, 1000, rootPaths(r))}
+		}, service.ResultFailure},
+		{"explicitly allowed", []string{"ALLOW_EMPTY_SNAPSHOT=true"}, func(r *rig) []restic.Snapshot {
+			return []restic.Snapshot{snap("old1", "me", time.Hour, 5, 1000, rootPaths(r))}
+		}, service.ResultSkipped},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newRig(t, false, tt.env...)
+			r.main.On(t, "snapshots", resticfake.Response{Stdout: snapsJSON(t, tt.existing(r)...)})
+			r.main.On(t, "backup", resticfake.Response{Stderr: "Fatal: unable to save snapshot: snapshot is empty\n", Exit: 1})
+
+			res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
+			if res.Result != tt.wantResult || res.Snapshot != "" {
+				t.Fatalf("result = %+v, want %s without a snapshot", res, tt.wantResult)
+			}
+			for _, c := range []string{"tag", "forget"} {
+				if calls := r.main.CallsTo(t, c); len(calls) != 0 {
+					t.Errorf("%s was called although restic stored nothing: %q", c, calls)
+				}
+			}
+		})
+	}
+}
+
 func TestBackupPlausibilityPipeMode(t *testing.T) {
 	in := script(t, "echo dump")
 	out := script(t, "cat > /dev/null")
