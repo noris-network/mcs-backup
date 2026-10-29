@@ -362,3 +362,10 @@ func (i *inst) holdLock() (freeze func()) {
 		}
 	}
 }
+
+func readFile(path string) (string, error) {
+	b, err := os.ReadFile(path) //nolint:gosec // test data
+	return string(b), err
+}
+
+func removeFile(path string) error { return os.Remove(path) }
