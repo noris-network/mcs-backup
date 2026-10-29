@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -329,4 +330,31 @@ func latestRegular(snaps []service.Snapshot) service.Snapshot {
 		}
 	}
 	return best
+}
+
+// holdLock starts a restic backup that blocks on its input and waits until it
+// holds its lock in the repository. The returned function freezes the process
+// (SIGSTOP): it stays alive, as restic's own stale check for a dead process
+// on this host would otherwise discard the lock, but it never renews the lock.
+func (i *inst) holdLock() (freeze func()) {
+	i.t.Helper()
+	cmd := exec.Command(resticBin, "backup", "--stdin-from-command", "--stdin-filename", "blocked", "--", "sleep", "300") //nolint:gosec,noctx // killed in the cleanup
+	cmd.Env = append(os.Environ(), "RESTIC_REPOSITORY="+i.repo, "RESTIC_PASSWORD=it-password", "RESTIC_CACHE_DIR="+filepath.Join(i.home, "cache"))
+	if err := cmd.Start(); err != nil {
+		i.t.Fatal(err)
+	}
+	i.t.Cleanup(func() {
+		_ = cmd.Process.Signal(syscall.SIGCONT)
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	})
+	i.waitFor("restic to take its lock", 30*time.Second, func() bool {
+		out, err := i.resticErr("list", "locks", "--no-lock")
+		return err == nil && strings.TrimSpace(out) != ""
+	})
+	return func() {
+		if err := cmd.Process.Signal(syscall.SIGSTOP); err != nil {
+			i.t.Fatal(err)
+		}
+	}
 }
