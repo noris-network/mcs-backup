@@ -39,7 +39,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	mcsBin = filepath.Join(dir, "mcs-backup")
-	build := exec.Command("go", "build", "-o", mcsBin, "github.com/noris-network/mcs-backup/v2/cmd/mcs-backup")
+	build := exec.CommandContext(context.Background(), "go", "build", "-o", mcsBin, "github.com/noris-network/mcs-backup/v2/cmd/mcs-backup")
 	build.Stdout, build.Stderr = os.Stdout, os.Stderr
 	if err := build.Run(); err != nil {
 		panic(err)
@@ -322,8 +322,6 @@ func fileContent(t *testing.T, path string) string {
 	}
 	return string(b)
 }
-
-func tags(s service.Snapshot) string { return strings.Join(s.Tags, ",") }
 
 // latestRegular returns the newest snapshot that is neither suspicious nor a safety snapshot.
 func latestRegular(snaps []service.Snapshot) service.Snapshot {

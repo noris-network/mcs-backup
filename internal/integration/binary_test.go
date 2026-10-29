@@ -181,7 +181,7 @@ func TestSIGTERMStopsTheOperationAndReleasesTheLock(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
 	select {
-	case <-done:
+	case <-done: //nolint:errcheck // the exit status after SIGTERM does not matter here
 	case <-time.After(30 * time.Second):
 		t.Fatal("the service did not stop on SIGTERM")
 	}
