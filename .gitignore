@@ -1,2 +1,4 @@
 /local
 /mcs-backup
+/cmd/mcs-backup/mcs-backup
+/dist
