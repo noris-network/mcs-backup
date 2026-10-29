@@ -302,6 +302,13 @@ func (i *inst) script(name, body string) string {
 	return path
 }
 
+func writeFile(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil { //nolint:gosec // test data
+		t.Fatal(err)
+	}
+}
+
 func fileContent(t *testing.T, path string) string {
 	t.Helper()
 	b, err := os.ReadFile(path) //nolint:gosec // test data
