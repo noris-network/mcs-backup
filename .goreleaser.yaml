@@ -1,28 +1,37 @@
-before:
-  hooks:
-    - go mod tidy
+version: 2
+
+# Binaries and archives only. The container image is built with buildx in the
+# release workflow (docker/Dockerfile), so it works the same way outside of a
+# release.
+
 builds:
-  - main: ./cmd/mcs-backup
+  - id: mcs-backup
+    main: ./cmd/mcs-backup
+    binary: mcs-backup
     env:
       - CGO_ENABLED=0
-    targets:
-      #- go_118_first_class
-      - linux_amd64_v1
-    binary: mcs-backup
-    ldflags:
-      - "-s -w -X main.build={{.Version}}"
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
     flags:
-      - "-trimpath"
+      - -trimpath
+    ldflags:
+      - -s -w -X main.build={{ .Version }}
     mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: mcs-backup
+    formats: [tar.gz]
+    name_template: "mcs-backup_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - docs/**/*
+
 checksum:
-  name_template: "checksums.txt"
+  name_template: checksums.txt
+
 changelog:
   sort: asc
   filters:
     exclude:
       - "^docs:"
       - "^test:"
-archives:
-  - files:
-      - LICENSE*
-      - README*
