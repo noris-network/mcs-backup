@@ -249,8 +249,12 @@ func (i *inst) restic(args ...string) string {
 	return out
 }
 
-func (i *inst) resticErr(args ...string) (string, error) {
+func (i *inst) resticErr(args ...string) (string, error) { return i.resticIn("", args...) }
+
+// resticIn runs restic in dir (the current directory if empty).
+func (i *inst) resticIn(dir string, args ...string) (string, error) {
 	cmd := exec.CommandContext(i.t.Context(), resticBin, args...)
+	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "RESTIC_REPOSITORY="+i.repo, "RESTIC_PASSWORD=it-password", "RESTIC_CACHE_DIR="+filepath.Join(i.home, "cache"))
 	var out bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &out
