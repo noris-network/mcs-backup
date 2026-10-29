@@ -52,7 +52,7 @@ func TestScheduledBackupIsRetried(t *testing.T) {
 		}
 
 		// the slot is free while the retry waits
-		if op, err := d.StartRestore(ctx, service.RestoreRequest{Snapshot: "latest"}); err != nil {
+		if op, err := d.StartRestore(ctx, service.RestoreRequest{Snapshot: "latest", Confirm: "latest"}); err != nil {
 			t.Errorf("restore while a retry waits: %v (%+v)", err, op)
 		}
 		synctest.Wait()
@@ -142,7 +142,7 @@ func TestRetryWaitsForTheSlot(t *testing.T) {
 			<-release
 			return engine.RestoreResult{Result: service.ResultSuccess}
 		}
-		if _, err := d.StartRestore(ctx, service.RestoreRequest{Snapshot: "latest"}); err != nil {
+		if _, err := d.StartRestore(ctx, service.RestoreRequest{Snapshot: "latest", Confirm: "latest"}); err != nil {
 			t.Fatal(err)
 		}
 		synctest.Wait()

@@ -127,6 +127,8 @@ func (f *fakeEngine) RestorePreflight(context.Context, service.RestoreRequest) (
 
 func (f *fakeEngine) VerifyConfigured() bool { return f.verifyConfigured }
 
+func (f *fakeEngine) RestoreNeedsConfirm(req service.RestoreRequest) bool { return req.Target == "" }
+
 func (f *fakeEngine) Backup(ctx context.Context, req service.BackupRequest, sink engine.Sink) engine.BackupResult {
 	f.mu.Lock()
 	f.calls = append(f.calls, "backup")

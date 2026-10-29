@@ -28,6 +28,17 @@ func (e *Engine) RestorePreflight(ctx context.Context, req service.RestoreReques
 	return plan.RestorePreflight, err
 }
 
+// RestoreNeedsConfirm reports whether req replaces the live data and therefore
+// has to be confirmed. It needs no access to the repository, so callers can
+// refuse an unconfirmed restore before anything starts.
+func (e *Engine) RestoreNeedsConfirm(req service.RestoreRequest) bool {
+	if e.cfg.PipeMode() || req.Target == "" {
+		return true
+	}
+	target, err := filepath.Abs(req.Target)
+	return err != nil || filepath.Clean(target) == filepath.Clean(e.cfg.Root)
+}
+
 func (e *Engine) planRestore(ctx context.Context, req service.RestoreRequest) (restorePlan, error) {
 	var p restorePlan
 	snaps, err := e.main.Snapshots(ctx)

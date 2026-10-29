@@ -45,7 +45,7 @@ func TestOnlyOneOperationAtATime(t *testing.T) {
 		if !errors.Is(err, service.ErrBusy) || !errors.As(err, &busy) || busy.Current.ID != op.ID {
 			t.Fatalf("second backup: %v", err)
 		}
-		if _, err := d.StartRestore(ctx, service.RestoreRequest{Snapshot: "latest"}); !errors.Is(err, service.ErrBusy) {
+		if _, err := d.StartRestore(ctx, service.RestoreRequest{Snapshot: "latest", Confirm: "latest"}); !errors.Is(err, service.ErrBusy) {
 			t.Errorf("restore while a backup runs: %v", err)
 		}
 		if _, err := d.Keep(ctx, "x"); !errors.Is(err, service.ErrBusy) {
@@ -408,5 +408,35 @@ func TestNotifyTestAndUnavailableParts(t *testing.T) {
 		if _, err := d.LoginLink(t.Context()); err == nil {
 			t.Error("LoginLink() without a web UI")
 		}
+	})
+}
+
+// An unconfirmed restore over the live data is refused at once, before an
+// operation starts, whoever asks (API, MCP, web UI).
+func TestRestoreOverLiveDataNeedsConfirmation(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		d := newTestDaemon(t, nil)
+		ctx, stop := start(t, d)
+		defer stop()
+		synctest.Wait()
+
+		for _, req := range []service.RestoreRequest{
+			{Snapshot: "latest"},
+			{Snapshot: "latest", Confirm: "yes"},
+			{Snapshot: "abc123", Confirm: "latest"},
+		} {
+			if _, err := d.StartRestore(ctx, req); !errors.Is(err, service.ErrConfirm) {
+				t.Errorf("StartRestore(%+v) = %v, want a confirmation error", req, err)
+			}
+		}
+		synctest.Wait()
+		if cur, _ := d.Operation(ctx); cur != nil {
+			t.Errorf("an operation started: %+v", cur)
+		}
+		// a restore elsewhere needs none
+		if _, err := d.StartRestore(ctx, service.RestoreRequest{Snapshot: "latest", Target: "/elsewhere"}); err != nil {
+			t.Errorf("restore to another directory: %v", err)
+		}
+		synctest.Wait()
 	})
 }

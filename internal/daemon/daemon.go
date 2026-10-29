@@ -37,6 +37,8 @@ type Engine interface {
 	Locks(ctx context.Context) ([]service.Lock, error)
 	RestorePreflight(ctx context.Context, req service.RestoreRequest) (service.RestorePreflight, error)
 	VerifyConfigured() bool
+	// RestoreNeedsConfirm: the restore replaces the live data.
+	RestoreNeedsConfirm(req service.RestoreRequest) bool
 
 	Backup(ctx context.Context, req service.BackupRequest, sink engine.Sink) engine.BackupResult
 	Restore(ctx context.Context, req service.RestoreRequest, sink engine.Sink) engine.RestoreResult

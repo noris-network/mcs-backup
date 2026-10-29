@@ -187,6 +187,9 @@ func (d *Daemon) notifyRun(res service.RunResult) {
 
 // StartRestore implements service.Service.
 func (d *Daemon) StartRestore(ctx context.Context, req service.RestoreRequest) (service.Operation, error) {
+	if d.eng.RestoreNeedsConfirm(req) && (req.Confirm == "" || req.Confirm != req.Snapshot) {
+		return service.Operation{}, fmt.Errorf("%w: restoring over the live data needs confirm equal to the snapshot %q", service.ErrConfirm, req.Snapshot)
+	}
 	return d.launch(ctx, service.KindRestore, req.Snapshot, func(ctx context.Context, sink engine.Sink) outcome {
 		res := d.eng.Restore(ctx, req, sink)
 		return outcome{result: res.Result, message: res.Message, err: res.Error, snapshot: res.Snapshot, warnings: res.Warnings, refresh: true}
