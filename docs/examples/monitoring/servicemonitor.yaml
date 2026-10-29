@@ -1,0 +1,30 @@
+# Scrapes the metrics of the application pod that has mcs-backup as a sidecar
+# (see ../kubernetes/sidecar.yaml). The port "backup-metrics" is BACKUP_HTTP_PORT.
+apiVersion: v1
+kind: Service
+metadata:
+  name: shop-backup-metrics
+  labels:
+    app: shop
+    component: backup-metrics
+spec:
+  selector:
+    app: shop
+  ports:
+    - name: backup-metrics
+      port: 9000
+      targetPort: backup-metrics
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: shop-backup
+spec:
+  selector:
+    matchLabels:
+      app: shop
+      component: backup-metrics
+  endpoints:
+    - port: backup-metrics
+      path: /metrics
+      interval: 60s

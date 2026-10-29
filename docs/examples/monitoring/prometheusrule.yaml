@@ -1,0 +1,92 @@
+# Alerts for mcs-backup (Prometheus Operator).
+#
+# Series that do not exist yet are absent, not zero: right after a restart the
+# metrics about the repository are filled within seconds, the results of runs
+# (last_run_success) appear after the first run. A comparison like "== 0" does
+# not fire for a missing series, so a pod restart does not raise an alarm.
+#
+# The age limits assume a daily backup. Adjust them to your schedule: the limit
+# must be longer than the interval plus the duration of a backup and its retries.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: mcs-backup
+spec:
+  groups:
+    - name: mcs-backup
+      rules:
+        - alert: McsBackupTooOld
+          expr: time() - mcsbackup_last_success_timestamp_seconds > 36 * 3600
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "The newest backup of {{ $labels.pod }} is older than 36 hours"
+            description: "Look at `mcs-backup status` and `mcs-backup log`."
+
+        - alert: McsBackupNoSnapshots
+          expr: mcsbackup_snapshots == 0
+          for: 24h
+          labels:
+            severity: warning
+          annotations:
+            summary: "The repository of {{ $labels.pod }} has no snapshots"
+
+        - alert: McsBackupRepositoryDown
+          expr: mcsbackup_repository_up == 0
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "The backup repository of {{ $labels.pod }} is not reachable"
+
+        - alert: McsBackupSuspicious
+          expr: mcsbackup_backup_suspicious == 1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "A backup of {{ $labels.pod }} is much smaller than the one before"
+            description: >-
+              The snapshot is kept and the retention is stopped until someone checks it.
+              If the change is expected, accept it with `mcs-backup acknowledge`.
+
+        - alert: McsBackupForgetHeld
+          expr: mcsbackup_forget_held == 1
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "The retention of {{ $labels.pod }} would delete many snapshots and waits for approval"
+            description: "Check `mcs-backup forget`, then run `mcs-backup approve-forget` or fix RETENTION_POLICY."
+
+        - alert: McsBackupRunFailed
+          expr: mcsbackup_last_run_success{kind=~"check|prune|copy|verify"} == 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "The last {{ $labels.kind }} of {{ $labels.pod }} failed"
+
+        - alert: McsBackupCopyTooOld
+          expr: time() - mcsbackup_copy_last_success_timestamp_seconds > 36 * 3600
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "The newest snapshot in the secondary repository of {{ $labels.pod }} is older than 36 hours"
+
+        - alert: McsBackupCopyRepositoryDown
+          expr: mcsbackup_copy_repository_up == 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "The secondary backup repository of {{ $labels.pod }} is not reachable"
+
+        - alert: McsBackupNotificationFailing
+          expr: increase(mcsbackup_notify_errors_total[1h]) > 0
+          labels:
+            severity: info
+          annotations:
+            summary: "NOTIFY_COMMAND of {{ $labels.pod }} fails"
