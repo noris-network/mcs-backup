@@ -1,32 +1,46 @@
 #       https://hub.docker.com/_/golang
-FROM    golang:1.26.1 AS builder
-WORKDIR /go/src/app
+FROM    --platform=$BUILDPLATFORM golang:1.27.3-alpine3.24 AS builder
+WORKDIR /src
+ARG     TARGETOS
+ARG     TARGETARCH
 ARG     VERSION
+COPY    go.mod go.sum ./
+RUN     go mod download
 COPY    . ./
-RUN     CGO_ENABLED=0 go build -trimpath -tags timetzdata -ldflags="-s -w -X 'main.build=$VERSION'" -o mcs-backup ./cmd/mcs-backup
+RUN     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+        go build -trimpath -ldflags="-s -w -X 'main.build=$VERSION'" -o /out/mcs-backup ./cmd/mcs-backup
 
 #       https://hub.docker.com/_/alpine
-FROM    library/alpine:3.23.3
+FROM    alpine:3.24.3
 
 #       https://github.com/restic/restic/releases
-ARG     RESTIC_VERSION=0.18.1
-#       https://github.com/mikefarah/yq/releases/
-ARG     YQ_VERSION=4.52.5
-RUN     set -x \
+ARG     RESTIC_VERSION=0.19.1
+ARG     RESTIC_SHA256_AMD64=f415415624dcc452f2a02b8c33641791a8c6d6d3b65bbb3543fcf9a25151585c
+ARG     RESTIC_SHA256_ARM64=a5f64aaab53d51e311fa3829124c5b703f2d14cf187d8640b6be3b2b49376465
+ARG     TARGETARCH
+
+#       curl stays for hooks and notification commands written for 1.x
+RUN     set -eux \
         && apk --no-cache add curl \
-        && curl -Lo /usr/bin/restic.bz2 \
-                https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/restic_${RESTIC_VERSION}_linux_amd64.bz2 \
-        && bunzip2 /usr/bin/restic.bz2 \
-        && chmod 755 /usr/bin/restic \
-        && curl -Lo /usr/bin/yq \
-                https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_amd64 \
-        && chmod 755 /usr/bin/yq \
+        && case "$TARGETARCH" in \
+               amd64) sum=$RESTIC_SHA256_AMD64 ;; \
+               arm64) sum=$RESTIC_SHA256_ARM64 ;; \
+               *) echo "unsupported architecture: $TARGETARCH" >&2; exit 1 ;; \
+           esac \
+        && curl -fsSLo /tmp/restic.bz2 \
+               "https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/restic_${RESTIC_VERSION}_linux_${TARGETARCH}.bz2" \
+        && echo "$sum  /tmp/restic.bz2" | sha256sum -c - \
+        && bunzip2 /tmp/restic.bz2 \
+        && install -m 755 /tmp/restic /usr/bin/restic \
+        && rm /tmp/restic \
         && chmod 777 /mnt
 
-COPY    --from=builder /go/src/app/mcs-backup /usr/bin/
-COPY    scripts/cleanup-backup-root.sh /opt/bin/
-RUN     chmod 755 /usr/bin/mcs-backup /opt/bin/cleanup-backup-root.sh
+COPY    --from=builder /out/mcs-backup /usr/bin/mcs-backup
+COPY    --chmod=755 scripts/cleanup-backup-root.sh /opt/bin/cleanup-backup-root.sh
 
+#       The container runs with any UID and a read-only root file system: HOME,
+#       the restic cache and the control socket all live in /tmp, so mount an
+#       emptyDir (or a cache volume) there.
 ENV     HOME=/tmp \
         TZ=GMT \
         BACKUP_ROOT=/mnt \
