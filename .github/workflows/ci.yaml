@@ -1,0 +1,112 @@
+name: ci
+
+on:
+  push:
+    branches: [main, v2]
+  pull_request: {}
+  workflow_call: {}
+  workflow_dispatch: {}
+  schedule:
+    # picks up new restic releases
+    - cron: "11 1 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Vet and go fix
+        run: |
+          go vet ./...
+          test -z "$(go fix -diff ./...)"
+
+      # the linter has to be built with the Go version of the module
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.15.0
+          install-mode: goinstall
+          args: --build-tags integration
+
+  cross-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Build for all platforms
+        run: |
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
+            echo "== $target"
+            GOOS=${target%/*} GOARCH=${target#*/} go build -o /dev/null ./cmd/mcs-backup
+          done
+          GOOS=darwin go vet ./...
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            restic: 0.17.3 # the minimum supported version
+          - os: ubuntu-latest
+            restic: 0.19.1
+          - os: macos-latest
+            restic: brew
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Install restic and rest-server (Linux)
+        if: runner.os == 'Linux'
+        env:
+          RESTIC_VERSION: ${{ matrix.restic }}
+          REST_SERVER_VERSION: 0.14.0
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL "https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/restic_${RESTIC_VERSION}_linux_amd64.bz2" | bunzip2 > "$RUNNER_TEMP/bin/restic"
+          curl -fsSL "https://github.com/restic/rest-server/releases/download/v${REST_SERVER_VERSION}/rest-server_${REST_SERVER_VERSION}_linux_amd64.tar.gz" \
+            | tar -xzO --wildcards '*/rest-server' > "$RUNNER_TEMP/bin/rest-server"
+          chmod +x "$RUNNER_TEMP/bin/restic" "$RUNNER_TEMP/bin/rest-server"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Install restic and rest-server (macOS)
+        if: runner.os == 'macOS'
+        run: brew install restic rest-server
+
+      - name: Unit tests
+        run: go test -race -count=1 ./...
+
+      - name: Integration tests
+        run: |
+          RESTIC_BIN=$(command -v restic) REST_SERVER_BIN=$(command -v rest-server) \
+            go test -tags integration -race -count=1 ./internal/integration/
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+
+      # builds both architectures to catch Dockerfile problems before a release
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: false
