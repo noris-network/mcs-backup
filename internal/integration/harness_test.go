@@ -74,6 +74,8 @@ type inst struct {
 	repo string // the repository (path or URL)
 	home string // scratch space of the test
 	env  []string
+	// cloud is extra environment for restic runs of the test itself (credentials of an S3 repository)
+	cloud []string
 
 	cfg *config.Config
 	eng *engine.Engine
@@ -255,7 +257,7 @@ func (i *inst) resticErr(args ...string) (string, error) { return i.resticIn("",
 func (i *inst) resticIn(dir string, args ...string) (string, error) {
 	cmd := exec.CommandContext(i.t.Context(), resticBin, args...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "RESTIC_REPOSITORY="+i.repo, "RESTIC_PASSWORD=it-password", "RESTIC_CACHE_DIR="+filepath.Join(i.home, "cache"))
+	cmd.Env = append(append(os.Environ(), "RESTIC_REPOSITORY="+i.repo, "RESTIC_PASSWORD=it-password", "RESTIC_CACHE_DIR="+filepath.Join(i.home, "cache")), i.cloud...)
 	var out bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &out
 	err := cmd.Run()
@@ -341,7 +343,7 @@ func latestRegular(snaps []service.Snapshot) service.Snapshot {
 func (i *inst) holdLock() (freeze func()) {
 	i.t.Helper()
 	cmd := exec.Command(resticBin, "backup", "--stdin-from-command", "--stdin-filename", "blocked", "--", "sleep", "300") //nolint:gosec,noctx // killed in the cleanup
-	cmd.Env = append(os.Environ(), "RESTIC_REPOSITORY="+i.repo, "RESTIC_PASSWORD=it-password", "RESTIC_CACHE_DIR="+filepath.Join(i.home, "cache"))
+	cmd.Env = append(append(os.Environ(), "RESTIC_REPOSITORY="+i.repo, "RESTIC_PASSWORD=it-password", "RESTIC_CACHE_DIR="+filepath.Join(i.home, "cache")), i.cloud...)
 	if err := cmd.Start(); err != nil {
 		i.t.Fatal(err)
 	}

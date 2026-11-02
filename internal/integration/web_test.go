@@ -15,16 +15,23 @@ import (
 	"time"
 )
 
-// webInst starts the service with the web UI on a free port and returns the base URL.
-func webInst(t *testing.T, extra ...string) (*inst, string) {
+// freeAddr returns a localhost address with a free port.
+func freeAddr(t *testing.T) string {
 	t.Helper()
-	i := newInst(t, extra...)
 	ln, err := net.Listen("tcp", "127.0.0.1:0") //nolint:noctx // only to find a free port
 	if err != nil {
 		t.Fatal(err)
 	}
 	addr := "127.0.0.1:" + strconv.Itoa(ln.Addr().(*net.TCPAddr).Port)
 	_ = ln.Close()
+	return addr
+}
+
+// webInst starts the service with the web UI on a free port and returns the base URL.
+func webInst(t *testing.T, extra ...string) (*inst, string) {
+	t.Helper()
+	i := newInst(t, extra...)
+	addr := freeAddr(t)
 	i.set("MCS_BACKUP_WEB_ADDR=" + addr)
 	i.serve()
 	return i, "http://" + addr
