@@ -1,0 +1,30 @@
+# User service: backs up a workstation.
+#
+#   install -m 0755 mcs-backup ~/.local/bin/
+#   install -d -m 0700 ~/.config/mcs-backup
+#   $EDITOR ~/.config/mcs-backup/env   # KEY=value lines
+#   cp mcs-backup.user.service ~/.config/systemd/user/mcs-backup.service
+#   systemctl --user enable --now mcs-backup
+#   loginctl enable-linger "$USER"     # optional: run without a login session
+#
+# The socket is $XDG_RUNTIME_DIR/mcs-backup.sock:
+#   export MCS_BACKUP_SOCKET=$XDG_RUNTIME_DIR/mcs-backup.sock
+#
+# As a user service, NOTIFY_COMMAND can reach the desktop, see ../notify/notify-send.sh.
+[Unit]
+Description=mcs-backup
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/mcs-backup/env
+Environment=MCS_BACKUP_SOCKET=%t/mcs-backup.sock
+Environment=MCS_BACKUP_STATE_DIR=%S/mcs-backup
+Environment=RESTIC_CACHE_DIR=%C/mcs-backup
+Environment=SHUTDOWN_TIMEOUT=50s
+ExecStart=%h/.local/bin/mcs-backup serve
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=60
+
+[Install]
+WantedBy=default.target

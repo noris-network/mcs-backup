@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  LaunchDaemon: backs up a Mac from boot on, without anybody logged in, as
+  root. Desktop notifications are not possible from a daemon: use a webhook,
+  see ../notify/notify-webhook.sh.
+
+    sudo install -m 0755 mcs-backup /usr/local/bin/
+    sudo install -d -m 0700 /usr/local/etc/mcs-backup
+    sudo cp de.example.mcs-backup.daemon.plist /Library/LaunchDaemons/de.example.mcs-backup.plist
+    sudo chown root:wheel /Library/LaunchDaemons/de.example.mcs-backup.plist
+    sudo launchctl bootstrap system /Library/LaunchDaemons/de.example.mcs-backup.plist
+    sudo launchctl kickstart -k system/de.example.mcs-backup      # restart
+    sudo launchctl bootout system/de.example.mcs-backup           # stop
+
+  The CLI needs the socket: sudo MCS_BACKUP_SOCKET=/var/run/mcs-backup.sock mcs-backup status
+
+  Give restic Full Disk Access (System Settings > Privacy & Security), or
+  protected folders end with "Operation not permitted". Binaries downloaded
+  with a browser carry a quarantine flag and are not notarized: remove it once
+  with  xattr -d com.apple.quarantine /usr/local/bin/mcs-backup
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>de.example.mcs-backup</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/mcs-backup</string>
+    <string>serve</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>RESTIC_REPOSITORY</key>
+    <string>rest:https://backup:secret@restic.example.com/macserver</string>
+    <key>RESTIC_PASSWORD_FILE</key>
+    <string>/usr/local/etc/mcs-backup/password</string>
+    <key>BACKUP_ROOT</key>
+    <string>/Users/Shared/data</string>
+    <key>CRON_SCHEDULE</key>
+    <string>30 2 * * *</string>
+    <key>RETENTION_POLICY</key>
+    <string>{"daily":14,"weekly":8,"monthly":12}</string>
+    <key>MCS_BACKUP_HOST</key>
+    <string>macserver</string>
+    <key>MCS_BACKUP_SOCKET</key>
+    <string>/var/run/mcs-backup.sock</string>
+    <key>MCS_BACKUP_STATE_DIR</key>
+    <string>/var/db/mcs-backup</string>
+    <key>RESTIC_CACHE_DIR</key>
+    <string>/var/cache/mcs-backup</string>
+    <key>NOTIFY_COMMAND</key>
+    <string>/usr/local/share/mcs-backup/notify-webhook.sh</string>
+    <key>NOTIFY_WEBHOOK_URL</key>
+    <string>https://ntfy.example.com/backups</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>StandardOutPath</key>
+  <string>/var/log/mcs-backup.log</string>
+  <key>StandardErrorPath</key>
+  <string>/var/log/mcs-backup.log</string>
+</dict>
+</plist>

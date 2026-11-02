@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  LaunchAgent: backs up a Mac while a user is logged in. Notifications through
+  osascript work, see ../notify/notify-osascript.sh.
+
+    install -m 0755 mcs-backup /usr/local/bin/
+    cp de.example.mcs-backup.agent.plist ~/Library/LaunchAgents/de.example.mcs-backup.plist
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/de.example.mcs-backup.plist
+    launchctl kickstart -k gui/$(id -u)/de.example.mcs-backup     # restart
+    launchctl bootout gui/$(id -u)/de.example.mcs-backup          # stop
+
+  Replace "alice" and the repository settings. Keep secrets out of the plist
+  where possible: use RESTIC_PASSWORD_FILE and a file with mode 0600.
+
+  Before the first backup, give restic access to protected folders (Desktop,
+  Documents, Mail, ...): System Settings > Privacy & Security > Full Disk
+  Access > add /opt/homebrew/bin/restic (or the output of `command -v restic`).
+  Without it backups end with "Operation not permitted" for those folders.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>de.example.mcs-backup</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/mcs-backup</string>
+    <string>serve</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>RESTIC_REPOSITORY</key>
+    <string>sftp:backup@nas.example.com:/backups/alice-mac</string>
+    <key>RESTIC_PASSWORD_FILE</key>
+    <string>/Users/alice/.config/mcs-backup/password</string>
+    <key>BACKUP_ROOT</key>
+    <string>/Users/alice</string>
+    <key>BACKUP_PATHS</key>
+    <string>Documents:Pictures:Projects</string>
+    <key>EXCLUDE_PATHS</key>
+    <string>*/node_modules:*/.cache</string>
+    <key>CRON_SCHEDULE</key>
+    <string>0 12 * * *</string>
+    <key>RETENTION_POLICY</key>
+    <string>{"daily":7,"weekly":8,"monthly":12}</string>
+    <key>MCS_BACKUP_HOST</key>
+    <string>alice-mac</string>
+    <key>MCS_BACKUP_SOCKET</key>
+    <string>/tmp/mcs-backup-alice.sock</string>
+    <key>MCS_BACKUP_STATE_DIR</key>
+    <string>/Users/alice/Library/Application Support/mcs-backup</string>
+    <key>RESTIC_CACHE_DIR</key>
+    <string>/Users/alice/Library/Caches/mcs-backup</string>
+    <key>NOTIFY_COMMAND</key>
+    <string>/usr/local/share/mcs-backup/notify-osascript.sh</string>
+    <key>MCS_BACKUP_LOG_FORMAT</key>
+    <string>text</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>StandardOutPath</key>
+  <string>/Users/alice/Library/Logs/mcs-backup.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/alice/Library/Logs/mcs-backup.log</string>
+</dict>
+</plist>

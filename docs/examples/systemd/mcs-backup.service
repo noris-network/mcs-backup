@@ -1,0 +1,46 @@
+# System service: backs up a server.
+#
+#   install -m 0755 mcs-backup /usr/local/bin/
+#   install -d -m 0750 /etc/mcs-backup
+#   $EDITOR /etc/mcs-backup/env        # KEY=value lines, see docs/configuration.md
+#   systemctl enable --now mcs-backup
+#
+# The control socket is /run/mcs-backup/mcs-backup.sock (mode 0660). Tell the
+# CLI where it is: export MCS_BACKUP_SOCKET=/run/mcs-backup/mcs-backup.sock
+#
+# To restore a lost data directory before the application starts, add to the
+# unit of the application:
+#   ExecStartPre=/usr/local/bin/mcs-backup restore-if-empty
+# with the same EnvironmentFile (exit code 1 stops the start; it is retried).
+[Unit]
+Description=mcs-backup
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/mcs-backup/env
+Environment=MCS_BACKUP_SOCKET=/run/mcs-backup/mcs-backup.sock
+Environment=MCS_BACKUP_STATE_DIR=/var/lib/mcs-backup
+Environment=RESTIC_CACHE_DIR=/var/cache/mcs-backup
+Environment=SHUTDOWN_TIMEOUT=50s
+ExecStart=/usr/local/bin/mcs-backup serve
+Restart=on-failure
+RestartSec=10
+# SIGTERM stops a running backup cleanly so that restic releases its lock
+TimeoutStopSec=60
+
+RuntimeDirectory=mcs-backup
+StateDirectory=mcs-backup
+CacheDirectory=mcs-backup
+
+# Hardening. Add the directories the backup root and the restores need to
+# ReadWritePaths; remove ProtectHome if home directories are backed up.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/srv/data
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
