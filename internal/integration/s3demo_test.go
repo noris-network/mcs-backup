@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestS3Demo fills a repository in the S3 bucket with a realistic history and
@@ -41,7 +42,7 @@ func TestS3Demo(t *testing.T) {
 	}
 	// replace an earlier demo, but never a directory that is something else
 	if _, err := os.Stat(dir); err == nil {
-		if _, err := os.Stat(filepath.Join(dir, "serve.env")); err != nil {
+		if _, err := os.Stat(filepath.Join(dir, ".s3-demo")); err != nil {
 			t.Fatalf("%s exists and is not a demo directory; remove it or choose another MCS_TEST_S3_DEMO_DIR", dir)
 		}
 		if err := os.RemoveAll(dir); err != nil {
@@ -54,29 +55,35 @@ func TestS3Demo(t *testing.T) {
 		}
 	}
 
-	prefix := path.Join("mcs-backup-demo", s3Run)
-	demo := []string{
-		"TZ=Europe/Berlin",
-		"RESTIC_REPOSITORY=" + s.repo(prefix),
-		"RESTIC_PASSWORD=demo-password",
-		"COPY_REPOSITORY=" + s.repo(prefix+"-copy"),
-		"COPY_PASSWORD=demo-copy-password",
-		"BACKUP_ROOT=" + filepath.Join(dir, "data"),
-		"RESTIC_CACHE_DIR=" + filepath.Join(dir, "cache"),
-		"MCS_BACKUP_STATE_DIR=" + filepath.Join(dir, "state"),
-		"MCS_BACKUP_SOCKET=" + filepath.Join(dir, "s.sock"),
-		"MCS_BACKUP_RESTIC=" + resticBin,
-		`RETENTION_POLICY={"last":10,"daily":7}`,
-		"CRON_SCHEDULE=15 2 * * *",
-		"BACKUP_HTTP_PORT=9100", // 9000 is the S3 server
-		"MCS_BACKUP_WEB_ADDR=127.0.0.1:8484",
-	}
-	demo = append(demo, s.credentials()...)
+	writeFileMode(t, filepath.Join(dir, ".s3-demo"), "marks a directory made by TestS3Demo\n", 0o644)
 
-	i := newInst(t, demo...)
+	prefix := path.Join("mcs-backup-demo", s3Run)
+	demoEnv := func(policy string) []string {
+		return append([]string{
+			"TZ=Europe/Berlin",
+			"RESTIC_REPOSITORY=" + s.repo(prefix),
+			"RESTIC_PASSWORD=demo-password",
+			"COPY_REPOSITORY=" + s.repo(prefix+"-copy"),
+			"COPY_PASSWORD=demo-copy-password",
+			"BACKUP_ROOT=" + filepath.Join(dir, "data"),
+			"RESTIC_CACHE_DIR=" + filepath.Join(dir, "cache"),
+			"MCS_BACKUP_STATE_DIR=" + filepath.Join(dir, "state"),
+			"MCS_BACKUP_SOCKET=" + filepath.Join(dir, "s.sock"),
+			"MCS_BACKUP_RESTIC=" + resticBin,
+			"RETENTION_POLICY=" + policy,
+			"CRON_SCHEDULE=15 2 * * *",
+			"BACKUP_HTTP_PORT=9100", // 9000 is the S3 server
+			"MCS_BACKUP_WEB_ADDR=127.0.0.1:8484",
+		}, s.credentials()...)
+	}
+
+	// While the history is built nothing may be forgotten; the policy of the
+	// demo service applies from its first backup on.
+	i := newInst(t, demoEnv(`{"last":500}`)...)
 	i.root = filepath.Join(dir, "data")
 	i.repo = s.repo(prefix)
-	i.cloud = s.credentials()
+	i.cloud = append(s.credentials(), "RESTIC_PASSWORD=demo-password") // for the restic runs of the test itself
+	i.bulkHistory(30)
 	i.serve()
 	i.history()
 
@@ -86,11 +93,60 @@ func TestS3Demo(t *testing.T) {
 	if err := copyFile(mcsBin, filepath.Join(dir, "bin", "mcs-backup"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	writeFileMode(t, filepath.Join(dir, "serve.env"), envFile(demo), 0o600)
+	writeFileMode(t, filepath.Join(dir, "serve.env"), envFile(demoEnv(demoPolicy)), 0o600)
 	writeFileMode(t, filepath.Join(dir, "mcs-backup"), wrapper, 0o755)
 
 	t.Logf("demo repository: %s", s.repo(prefix))
 	t.Logf("run it:\n  %s/mcs-backup serve      # in one terminal\n  %s/mcs-backup tui        # in another one\n  %s/mcs-backup web        # the web UI", dir, dir, dir)
+}
+
+// demoPolicy is the retention of the demo service: it would remove the oldest
+// snapshots, so that the preview in the TUI has something to show.
+const demoPolicy = `{"last":10,"daily":21,"weekly":8}`
+
+// backdated stores a snapshot of the root as if it was made at the given time.
+func (i *inst) backdated(at time.Time, host, tags string) {
+	i.t.Helper()
+	// like the service: from inside the root, so that the snapshot is relative to it
+	out, err := i.resticIn(i.root, "backup", "--time", at.Format("2006-01-02 15:04:05"), "--host", host, "--tag", tags, ".")
+	if err != nil {
+		i.t.Fatalf("restic backup: %v\n%s", err, out)
+	}
+}
+
+// bulkHistory creates the repository and gives it a daily backup for the last
+// days days, a few manual ones among them, and some snapshots of another host
+// that shares the repository.
+func (i *inst) bulkHistory(days int) {
+	i.t.Helper()
+	i.restic("init")
+	i.fillData(1)
+	today := time.Now()
+	for d := days; d >= 1; d-- {
+		at := time.Date(today.Year(), today.Month(), today.Day()-d, 2, 15, 7, 0, time.Local)
+		if d%4 == 0 {
+			i.blob("db/main.dat", 300<<10, uint64(100+d))
+		}
+		if d == 20 {
+			i.blob("media/photo-2.jpg", 150<<10, 101)
+		}
+		i.write("reports/"+at.Format("2006-01-02")+".csv", strings.Repeat(at.Format("2006-01-02")+";orders;1234\n", 100+d))
+		tags := "mcs-backup,scheduled"
+		switch d {
+		case days:
+			tags = "mcs-backup,manual,keep,note:first full backup"
+		case 17:
+			tags = "mcs-backup,manual,note:after the hotfix"
+		case 11:
+			tags = "mcs-backup,catch-up"
+		case 6:
+			tags = "mcs-backup,manual,keep,note:before the schema migration"
+		}
+		i.backdated(at, "mcs-backup", tags)
+		if d%10 == 0 { // another application in the same repository
+			i.backdated(at.Add(time.Hour), "other-app", "mcs-backup,scheduled")
+		}
+	}
 }
 
 // wrapper runs the binary with the environment of the demo.
