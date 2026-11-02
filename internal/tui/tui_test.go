@@ -504,6 +504,17 @@ func TestPanelAndLegendStayAtTheBottom(t *testing.T) {
 		panel = append(panel, lastLine(s, "╰"))
 		height = append(height, len(strings.Split(s, "\n")))
 	}
+	// a blank line separates the panel from the content above it
+	lines := strings.Split(r.screen(), "\n")
+	top := -1
+	for i, l := range lines {
+		if strings.HasPrefix(l, "╭") {
+			top = i
+		}
+	}
+	if top < 1 || strings.TrimSpace(lines[top-1]) != "" {
+		t.Errorf("no blank line above the panel:\n%s", r.screen())
+	}
 	for i := 1; i < len(legend); i++ {
 		if legend[i] != legend[0] || panel[i] != panel[0] || height[i] != r.m.height {
 			t.Fatalf("the bottom moves between tabs: legend %v, panel %v, height %v (terminal %d)", legend, panel, height, r.m.height)

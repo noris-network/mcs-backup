@@ -27,17 +27,17 @@ func (m *Model) View() tea.View {
 	// The header sits at the top, the operation panel and the legend at the
 	// bottom, so that they do not move when the tab or the content changes.
 	top := strings.Split(m.header()+"\n", "\n")
-	var bottom []string
+	bottom := []string{""}
 	if m.dlg == nil && !m.help && !m.quitting {
 		if panel := m.operationPanel(); panel != "" {
-			bottom = append(strings.Split(panel, "\n"), "")
+			bottom = append(bottom, strings.Split(panel, "\n")...)
+			bottom = append(bottom, "")
 		}
 	}
 	foot := strings.Split(m.footer(), "\n")
 	for len(foot) < m.footerHeight() { // the last line of the legend is the last line of the screen
 		foot = append([]string{""}, foot...)
 	}
-	bottom = append(bottom, "")
 	bottom = append(bottom, foot...)
 	avail := max(m.height-len(top)-len(bottom), 3)
 
