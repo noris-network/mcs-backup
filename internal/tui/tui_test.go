@@ -532,3 +532,31 @@ func TestSnapshotColumnsStayAlignedWithLongAges(t *testing.T) {
 		t.Fatalf("no snapshot rows:\n%s", r.screen())
 	}
 }
+
+func TestOverviewNeverCutsAFrame(t *testing.T) {
+	r := healthy(newRig(t))
+	status := r.fake.StatusFn
+	op := &service.Operation{ID: "1", Kind: service.KindBackup, Source: "manual", Started: t0.Add(-time.Minute), Phase: "backup", Progress: &service.Progress{Percent: 0.5}}
+	r.fake.StatusFn = func(ctx context.Context) (service.Status, error) {
+		st, _ := status(ctx)
+		st.Operation = op
+		st.Copy = &service.RepoStatus{Up: true, Snapshots: 2}
+		st.Warnings = []service.Warning{{Code: "backup_suspicious", Severity: service.SeverityError, Message: "a snapshot is tagged suspicious: check it and acknowledge it"}}
+		return st, nil
+	}
+	r.load()
+	r.send(eventMsg{service.Event{Type: service.EventStarted, Operation: op}})
+	for h := 24; h <= 50; h++ {
+		r.m.height = h
+		s := r.screen()
+		if opens, closes := strings.Count(s, "╭"), strings.Count(s, "╰"); opens != closes {
+			t.Fatalf("height %d: %d frames opened and %d closed:\n%s", h, opens, closes, s)
+		}
+		if !strings.Contains(s, "Needs attention") {
+			t.Fatalf("height %d: the attention frame is gone:\n%s", h, s)
+		}
+		if !strings.Contains(s, "q quit") || !strings.Contains(s, "Running:") {
+			t.Fatalf("height %d: the panel or the legend is gone:\n%s", h, s)
+		}
+	}
+}

@@ -17,22 +17,11 @@ import (
 
 // View implements tea.Model.
 func (m *Model) View() tea.View {
-	var body string
-	switch {
-	case m.quitting:
-		body = ""
-	case m.help:
-		body = box("Keys", helpText, "any key closes this help", m.width)
-	case m.dlg != nil:
-		body = m.dlg.view(m.width)
-	default:
-		body = m.page()
-	}
 	// The header sits at the top, the operation panel and the legend at the
 	// bottom, so that they do not move when the tab or the content changes.
 	top := strings.Split(m.header()+"\n", "\n")
 	var bottom []string
-	if m.dlg == nil && !m.help {
+	if m.dlg == nil && !m.help && !m.quitting {
 		if panel := m.operationPanel(); panel != "" {
 			bottom = append(strings.Split(panel, "\n"), "")
 		}
@@ -44,6 +33,18 @@ func (m *Model) View() tea.View {
 	bottom = append(bottom, "")
 	bottom = append(bottom, foot...)
 	avail := max(m.height-len(top)-len(bottom), 3)
+
+	var body string
+	switch {
+	case m.quitting:
+		body = ""
+	case m.help:
+		body = box("Keys", helpText, "any key closes this help", m.width)
+	case m.dlg != nil:
+		body = m.dlg.view(m.width)
+	default:
+		body = m.page(avail)
+	}
 	mid := strings.Split(body, "\n")
 	mid = mid[:min(len(mid), avail)]
 	for len(mid) < avail {
@@ -163,19 +164,19 @@ func (m *Model) legend(t tab, cancel bool) string {
 	return strings.Join(append(lines, strings.Join(cur, styleDim.Render(" · "))), "\n")
 }
 
-func (m *Model) page() string {
+func (m *Model) page(avail int) string {
 	if m.status == nil && m.connErr == "" {
 		return styleDim.Render("loading …")
 	}
 	switch m.tab {
 	case tabSnapshots:
-		return m.snapshotsPage()
+		return m.snapshotsPage(avail)
 	case tabLocks:
 		return m.locksPage()
 	case tabAccess:
 		return m.accessPage()
 	}
-	return m.overviewPage()
+	return m.overviewPage(avail)
 }
 
 // ---- overview ----
@@ -248,7 +249,9 @@ func interleave(parts []string) []string {
 
 func truncate(s string, width int) string { return ansi.Truncate(s, max(width, 4), "…") }
 
-func (m *Model) overviewPage() string {
+// overviewPage shows as much of the overview as fits into avail lines. What
+// is left out is the least important part, and a frame is never cut.
+func (m *Model) overviewPage(avail int) string {
 	if m.status == nil {
 		return ""
 	}
@@ -270,25 +273,59 @@ func (m *Model) overviewPage() string {
 			plain = append(plain, r)
 		}
 	}
-	var b strings.Builder
-	if cards {
-		b.WriteString(m.cards(st) + "\n\n")
+	// the rows that can go when the room is short: the next runs of the
+	// maintenance jobs, and the operation while the panel shows it
+	var compact []present.Row
+	for _, r := range plain {
+		if !strings.HasPrefix(r.Label, "  ") && (r.Label != "Operation" || m.op == nil) {
+			compact = append(compact, r)
+		}
 	}
-	b.WriteString(rows(plain, m.width))
-	b.WriteString("\n" + webLine(st.WebUI, labelWidth(plain)))
+	extras := webLine(st.WebUI, labelWidth(plain))
 	if !st.VerifyConfigured {
-		b.WriteString("\n" + styleDim.Render("Restore test is not set up (see VERIFY_MODE and VERIFY_SCRIPT)."))
+		extras += "\n" + styleDim.Render("Restore test is not set up (see VERIFY_MODE and VERIFY_SCRIPT).")
 	}
-	if runs := m.lastRuns(st); runs != "" {
-		b.WriteString("\n\n" + styleTitle.Render("Last runs") + "\n" + runs)
-	}
+	runs := m.lastRuns(st)
+	attention := ""
 	if len(notes) > 0 {
-		b.WriteString("\n\n" + m.attention(notes))
+		attention = m.attention(notes)
 	}
 	if st.ForgetHeld && !st.AppendOnly {
-		b.WriteString("\n" + styleWarn.Render("F  approve the held forget (review it in Snapshots, f)"))
+		attention += "\n" + styleWarn.Render("F  approve the held forget (review it in Snapshots, f)")
 	}
-	return strings.TrimRight(b.String(), "\n")
+	build := func(withExtras, withRuns bool, detail int) string {
+		var parts []string
+		if cards {
+			parts = append(parts, m.cards(st))
+		}
+		switch detail {
+		case 2:
+			parts = append(parts, rows(plain, m.width))
+		case 1:
+			parts = append(parts, rows(compact, m.width))
+		}
+		if withExtras && detail > 0 {
+			parts[len(parts)-1] += "\n" + extras
+		}
+		if withRuns && runs != "" {
+			parts = append(parts, styleTitle.Render("Last runs")+"\n"+runs)
+		}
+		if attention != "" {
+			parts = append(parts, strings.TrimLeft(attention, "\n"))
+		}
+		return strings.Join(parts, "\n\n")
+	}
+	var out string
+	for _, v := range []struct {
+		extras, runs bool
+		detail       int
+	}{{true, true, 2}, {false, true, 2}, {false, false, 2}, {false, false, 1}, {false, false, 0}} {
+		out = build(v.extras, v.runs, v.detail)
+		if strings.Count(out, "\n")+1 <= avail {
+			break
+		}
+	}
+	return out
 }
 
 // attention frames the notes, in the color of the worst one.
@@ -354,7 +391,7 @@ func webLine(w service.WebUIStatus, width int) string {
 
 // ---- snapshots ----
 
-func (m *Model) snapshotsPage() string {
+func (m *Model) snapshotsPage(avail int) string {
 	if m.showForget {
 		return m.forgetPage()
 	}
@@ -364,7 +401,7 @@ func (m *Model) snapshotsPage() string {
 	var b strings.Builder
 	b.WriteString(styleDim.Render(fmt.Sprintf("  %-9s %-19s %*s  %-11s %7s %10s  %-*s %s", "ID", "TIME", ageWidth, "AGE", "ORIGIN", "FILES", "SIZE", flagWidth, "FLAGS", "NOTE")) + "\n")
 	now := m.o.Now()
-	first, last := window(m.cursor[tabSnapshots], len(m.snapshots), m.height-14)
+	first, last := window(m.cursor[tabSnapshots], len(m.snapshots), avail-2) // the column header and the summary take two lines
 	for i := first; i < last; i++ {
 		s := m.snapshots[i]
 		files, size := "-", "-"
