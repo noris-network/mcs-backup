@@ -24,7 +24,6 @@ type Snapshot struct {
 	Files      int64     `json:"files,omitzero"`
 	Bytes      int64     `json:"bytes,omitzero"`
 	AddedBytes int64     `json:"added_bytes,omitzero"`
-	CopiedFrom string    `json:"copied_from,omitempty"`
 }
 
 // FromRestic converts a restic snapshot.
@@ -41,7 +40,6 @@ func FromRestic(s restic.Snapshot) Snapshot {
 		Suspicious: s.HasTag(TagSuspicious),
 		PreRestore: s.HasTag(TagPreRestore),
 		Tags:       s.Tags,
-		CopiedFrom: s.Original,
 	}
 	if out.ShortID == "" && len(s.ID) >= 8 {
 		out.ShortID = s.ID[:8]

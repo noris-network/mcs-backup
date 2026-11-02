@@ -226,9 +226,6 @@ func SnapshotFlags(s service.Snapshot) []string {
 	if s.PreRestore {
 		f = append(f, "pre-restore")
 	}
-	if s.CopiedFrom != "" {
-		f = append(f, "copy")
-	}
 	return f
 }
 

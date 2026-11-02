@@ -146,13 +146,13 @@ func TestSnapshots(t *testing.T) {
 	c.fake.SnapshotsFn = func(context.Context) ([]service.Snapshot, error) {
 		return []service.Snapshot{
 			{ID: "aaaaaaaaaaaa", ShortID: "aaaaaaaa", Time: cliNow.Add(-time.Hour), Origin: service.OriginScheduled, HasSummary: true, Files: 1200, Bytes: 5 << 20, Keep: true, Note: "before upgrade"},
-			{ID: "bbbbbbbbbbbb", ShortID: "bbbbbbbb", Time: cliNow.Add(-48 * time.Hour), Suspicious: true, CopiedFrom: "x"},
+			{ID: "bbbbbbbbbbbb", ShortID: "bbbbbbbb", Time: cliNow.Add(-48 * time.Hour), Suspicious: true},
 		}, nil
 	}
 	if code := c.run("snapshots"); code != 0 {
 		t.Fatal(code, c.err())
 	}
-	for _, want := range []string{"aaaaaaaa", "scheduled", "1200", "5.0 MiB", "keep", "before upgrade", "SUSPICIOUS,copy", "1h", "2d"} {
+	for _, want := range []string{"aaaaaaaa", "scheduled", "1200", "5.0 MiB", "keep", "before upgrade", "SUSPICIOUS", "1h", "2d"} {
 		if !strings.Contains(c.out(), want) {
 			t.Errorf("output lacks %q:\n%s", want, c.out())
 		}

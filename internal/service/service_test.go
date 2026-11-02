@@ -121,7 +121,7 @@ func TestFromRestic(t *testing.T) {
 		Summary: &restic.SnapshotSummary{TotalFilesProcessed: 3, TotalBytesProcessed: 14, DataAdded: 5},
 	})
 	if s.ShortID != "01234567" || s.Origin != OriginManual || s.Note != "x" || !s.Keep || s.Suspicious || s.PreRestore ||
-		!s.HasSummary || s.Files != 3 || s.Bytes != 14 || s.AddedBytes != 5 || s.CopiedFrom != "orig" {
+		!s.HasSummary || s.Files != 3 || s.Bytes != 14 || s.AddedBytes != 5 {
 		t.Errorf("FromRestic = %+v", s)
 	}
 	if FromRestic(restic.Snapshot{ID: "x"}).HasSummary {
