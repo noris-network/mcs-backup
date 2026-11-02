@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json/v2"
+	"errors"
 	"fmt"
 	"io"
 	"iter"
@@ -76,7 +77,7 @@ func (r *Repo) Stats(ctx context.Context, mode string, snapshots ...string) (Sta
 
 // query runs a command that prints one JSON document and decodes it into v.
 func (r *Repo) query(ctx context.Context, args []string, v any) error {
-	out, err := r.run(ctx, args, runOpts{})
+	out, err := r.runQuery(ctx, args)
 	if err != nil {
 		return err
 	}
@@ -84,6 +85,24 @@ func (r *Repo) query(ctx context.Context, args []string, v any) error {
 		return fmt.Errorf("restic %s: unexpected output: %w", args[0], err)
 	}
 	return nil
+}
+
+// runQuery is run for a command that reads the repository. A bucket or container
+// that does not exist ends it at once with ErrStorageMissing, which is an
+// ErrRepoMissing: restic itself would retry for minutes, as it does for a network
+// error. Creating the repository with init creates the bucket as well.
+func (r *Repo) runQuery(ctx context.Context, args []string) ([]byte, error) {
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	out, err := r.run(ctx, args, runOpts{stderrLine: func(line []byte) {
+		if storageMissing(line) {
+			cancel(ErrStorageMissing)
+		}
+	}})
+	if errors.Is(context.Cause(ctx), ErrStorageMissing) {
+		return nil, ErrStorageMissing
+	}
+	return out, err
 }
 
 // Locks lists the locks in the repository. Locks that vanish while being read

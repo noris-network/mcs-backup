@@ -432,6 +432,24 @@ func TestRestoreIfEmpty(t *testing.T) {
 		}
 	})
 
+	t.Run("a missing bucket is a fresh installation, found at once", func(t *testing.T) {
+		r := restoreRig(t)
+		_ = os.RemoveAll(filepath.Join(r.root, "data"))
+		// restic retries for minutes on this
+		r.main.On(t, "snapshots", resticfake.Response{
+			Early: "List(snapshot) returned error, retrying after 1s: The specified bucket does not exist\n",
+			Sleep: 30 * time.Second, Exit: 1,
+		})
+		start := time.Now()
+		action, err := r.e.RestoreIfEmpty(t.Context(), r.sink())
+		if err != nil || action != ActionNoRepository {
+			t.Fatalf("RestoreIfEmpty() = %q, %v", action, err)
+		}
+		if took := time.Since(start); took > 10*time.Second {
+			t.Errorf("it took %v: restore-if-empty waited for the retries of restic", took)
+		}
+	})
+
 	t.Run("a missing repository is a fresh installation", func(t *testing.T) {
 		r := restoreRig(t)
 		_ = os.RemoveAll(filepath.Join(r.root, "data"))

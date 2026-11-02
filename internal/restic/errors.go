@@ -4,6 +4,7 @@ import (
 	"encoding/json/v2"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -14,6 +15,9 @@ var (
 	ErrIncomplete = errors.New("some source files could not be read")
 	// ErrRepoMissing: the repository does not exist (exit code 10).
 	ErrRepoMissing = errors.New("repository does not exist")
+	// ErrStorageMissing: the bucket or container of the repository does not
+	// exist. It counts as a missing repository, because init creates the bucket.
+	ErrStorageMissing = fmt.Errorf("the bucket or container of the repository does not exist: %w", ErrRepoMissing)
 	// ErrLocked: the repository is locked by another process (exit code 11).
 	ErrLocked = errors.New("repository is locked")
 	// ErrWrongPassword: the password is wrong or no key was found (exit code 12).
@@ -74,3 +78,13 @@ func errorMessage(stderr string) string {
 	}
 	return stderr
 }
+
+// storageMissingRe matches what restic says while it retries for a bucket or a
+// container that does not exist: S3 (and compatible servers), Azure and Google
+// Cloud Storage.
+var storageMissingRe = regexp.MustCompile(`(?i)specified bucket does not exist|nosuchbucket|containernotfound|specified container does not exist|bucket doesn't exist`)
+
+// storageMissing reports whether a line of restic's output says that the
+// bucket or container of the repository does not exist. restic keeps retrying
+// on that for minutes, as it would for a network error, before it gives up.
+func storageMissing(line []byte) bool { return storageMissingRe.Match(line) }

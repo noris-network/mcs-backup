@@ -20,6 +20,9 @@ type Response struct {
 	// Sleep delays the response. The delay is interrupted by SIGINT or
 	// SIGTERM, in which case the fake exits with 130 like restic does.
 	Sleep time.Duration
+	// Early is written to stderr before the delay, like the messages restic
+	// prints while it retries.
+	Early string
 }
 
 // Fake is a fake restic executable in a temporary directory.
@@ -63,8 +66,12 @@ last=$(cat "$d/$key.last")
 p="$d/$key.$n"
 if [ -f "$p.sleep" ]; then
   trap 'kill $! 2>/dev/null; exit 130' INT TERM
-  sleep "$(cat "$p.sleep")" &
+  [ -f "$p.early" ] && cat "$p.early" >&2
+  # no pipes for the sleeper: if it outlives an interrupted fake, nobody waits for it
+  sleep "$(cat "$p.sleep")" >/dev/null 2>&1 &
   wait $!
+else
+  [ -f "$p.early" ] && cat "$p.early" >&2
 fi
 cat "$p.stdout"
 cat "$p.stderr" >&2
@@ -93,6 +100,9 @@ func (f *Fake) On(t testing.TB, command string, responses ...Response) {
 			p + ".stdout": r.Stdout,
 			p + ".stderr": r.Stderr,
 			p + ".exit":   strconv.Itoa(r.Exit),
+		}
+		if r.Early != "" {
+			files[p+".early"] = r.Early
 		}
 		if r.Sleep > 0 {
 			files[p+".sleep"] = strconv.FormatFloat(r.Sleep.Seconds(), 'f', 3, 64)

@@ -50,6 +50,9 @@ environment, not into a file that is checked into a repository.
 | `MCS_BACKUP_RESTIC` | `restic` | The restic executable. |
 
 A missing repository is created by the service on its first start (`restic init`).
+That includes the bucket (S3 and compatible servers) or container (Azure, Google Cloud
+Storage), as in 1.x, if the credentials may create it; without that right the service logs
+`Access Denied` and tries again.
 `restore-if-empty` and the client commands never create one.
 
 ## What is backed up

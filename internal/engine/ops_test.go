@@ -235,6 +235,26 @@ func TestOpen(t *testing.T) {
 			t.Error("an existing repository must not be initialized")
 		}
 	})
+	t.Run("missing bucket is created with the repository", func(t *testing.T) {
+		r := newRig(t, false)
+		// restic would retry for minutes on this; the service must not wait for it
+		r.main.On(t, "cat config", resticfake.Response{
+			Early: "Stat(<config/>) returned error, retrying after 1.2s: Stat: The specified bucket does not exist\n",
+			Sleep: 30 * time.Second, Exit: 1,
+		})
+		r.main.On(t, "init", resticfake.Response{Stdout: `{"message_type":"initialized","id":"bucket-id","repository":"/main"}`})
+		start := time.Now()
+		info, err := r.e.OpenMain(t.Context())
+		if err != nil || info.ID != "bucket-id" || !info.Created {
+			t.Fatalf("OpenMain() = %+v, %v", info, err)
+		}
+		if took := time.Since(start); took > 10*time.Second {
+			t.Errorf("it took %v: the service waited for the retries of restic", took)
+		}
+		if len(r.main.CallsTo(t, "init")) != 1 {
+			t.Error("the repository was not created")
+		}
+	})
 	t.Run("missing repository is created", func(t *testing.T) {
 		r := newRig(t, true)
 		r.main.On(t, "cat config", resticfake.Response{Stderr: "Fatal: repository does not exist\n", Exit: 10})

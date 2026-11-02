@@ -612,3 +612,39 @@ func TestRemove(t *testing.T) {
 		t.Errorf("args = %q", got)
 	}
 }
+
+func TestConfigReportsAMissingBucketAtOnce(t *testing.T) {
+	for name, line := range map[string]string{
+		"s3":    "Stat(<config/>) returned error, retrying after 1.07s: Stat: The specified bucket does not exist",
+		"azure": "Stat(<config/>) returned error, retrying after 1s: -> ContainerNotFound: The specified container does not exist.",
+		"gcs":   "Stat(<config/>) returned error, retrying after 1s: storage: bucket doesn't exist",
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := resticfake.New(t)
+			// restic keeps retrying for minutes: the fake sleeps, the answer must not wait for it
+			f.On(t, "cat config", resticfake.Response{Early: line + "\n", Sleep: 30 * time.Second, Exit: 1})
+			start := time.Now()
+			_, err := newRepo(t, f).Config(t.Context())
+			if !errors.Is(err, ErrStorageMissing) || !errors.Is(err, ErrRepoMissing) {
+				t.Fatalf("Config() error = %v, want a missing bucket that counts as a missing repository", err)
+			}
+			if took := time.Since(start); took > 10*time.Second {
+				t.Errorf("Config() took %v", took)
+			}
+			// every query is protected the same way
+			f.On(t, "snapshots", resticfake.Response{Early: line + "\n", Sleep: 30 * time.Second, Exit: 1})
+			if _, err := newRepo(t, f).Snapshots(t.Context()); !errors.Is(err, ErrStorageMissing) {
+				t.Errorf("Snapshots() error = %v", err)
+			}
+		})
+	}
+}
+
+func TestConfigDoesNotMistakeOtherErrorsForAMissingBucket(t *testing.T) {
+	f := resticfake.New(t)
+	f.On(t, "cat config", resticfake.Response{Stderr: "Fatal: unable to open config file: connection refused\n", Exit: 1})
+	_, err := newRepo(t, f).Config(t.Context())
+	if err == nil || errors.Is(err, ErrRepoMissing) {
+		t.Errorf("Config() error = %v", err)
+	}
+}
