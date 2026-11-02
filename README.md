@@ -1,101 +1,200 @@
-# MCS-Backup
+# mcs-backup
 
-This backup solution has been created to backup data to S3 buckets using
-[restic][restic]. As a wrapper it takes care of scheduling backups and
-collecting backup and S3 metrics in order to make backup status more visible.
+A simple backup service around [restic][restic], made for Kubernetes
+(as a sidecar or stand-alone) but just as happy on a Linux or macOS host.
 
-Features:
+mcs-backup schedules the backups, keeps the retention, checks that the backups
+are sane and restorable, and makes the state visible: through metrics, a
+terminal UI, an optional web UI and, for AI agents, an MCP server. It adds as
+little as possible to restic and takes care of the things that go wrong quietly.
 
-  * Backups are encrypted (restic)
-  * Backups are stored in S3 buckets (restic)
-  * Backups are incremental (restic)
-  * Data is deduplicated (restic)
-  * Backups are versioned (restic)
-  * Data retention can be defined (restic)
-  * Backups are performed regularly (mcs-backup)
-  * Backup metrics are provided (mcs-backup)
-  * Stale locks can be automatically removed (mcs-backup)
-  * Hooks (pre, post, pipe-in/out) (mcs-backup)
+* **Any restic backend**: S3, rest-server, SFTP, B2, Azure, GCS, local paths.
+  Encrypted, deduplicated, incremental (restic).
+* **Files or a stream**: back up a directory, or pipe a database dump straight
+  into the repository with hooks.
+* **Safe by default**: no empty snapshots, a much smaller backup is flagged
+  instead of replacing good ones, a retention that would delete too much waits
+  for approval, restores take a safety snapshot first, and a weekly restore test
+  proves that the backups can be read back.
+* **No false alarms after a restart**: the metrics are filled from the repository
+  within seconds of a start.
+* **Optional second copy** to another repository, and append-only repositories.
+* **Operable by people who do not know it**: plain-language status, a TUI,
+  confirmation for everything that destroys data.
 
-## Usage
-As MCS-Backup is scheduling backups and provides prometheus metrics, it should
-be started as a service. In a kubernetes context it can run as sidecar container
-or stand-alone deployment, depending on the usage scenario.
+## Quick start
 
-### File Backup
-In order to backup plain files, `mcs-backup` needs to be able to access the file
-system to be backed up. In a Kubernetes context, it is therefore best used as a
-sidecar container to the main application, as this provides easy access to all
-volumes mounted in the application container ([example][sidecar]).
+With the container image (restic is included):
 
-### Database Backup
-For example, if a mariadb is to be backed up, `mcs-backup` calls a [hook][hooks]
-script which then calls mysqldump. The dump can either be written to the file
-system (pre-backup-hook) and then be backed up as a regular file, or directly to
-stdout (pipe-in-hook), in that case piping the data directly into restic (-->
-see [hooks][hooks]). Since in this case no direct access to the database volume
-is necessary, `mcs-backup` should be deployed separately from the database, i.e.
-in the Kubernetes context it should run as an independant deployment.
+```console
+docker run -d --name backup \
+  -v /srv/data:/mnt \
+  -e RESTIC_REPOSITORY=s3:https://s3.example.com/backups/data \
+  -e RESTIC_PASSWORD=change-me \
+  -e AWS_ACCESS_KEY_ID=… -e AWS_SECRET_ACCESS_KEY=… \
+  -e CRON_SCHEDULE='15 2 * * *' \
+  <image>
 
-### Restore
-Since restoring data is the most important part of backup, and usually has to be
-done at the most inconvenient times, possibly under time pressure, this process
-should be as easy to perform as possible. With a properly configured mcs-backup
-a simple `mcs-backup restore latest` command is sufficient.
+docker exec backup mcs-backup status
+docker exec backup mcs-backup backup --note "first backup"
+docker exec -it backup mcs-backup tui
+```
 
-## Scheduling of Backups
-Backups are scheduled with cron-like expressions (e.g. `0 */2 * * *`)
+On a host, install restic (0.17 or newer) and the `mcs-backup` binary, see
+[platforms](docs/platforms.md). In Kubernetes see the
+[sidecar example](docs/examples/kubernetes/sidecar.yaml).
 
-### Maintenance Windows
-In case you want to disable automatically scheduled backups for a maintenance
-window, you can do this manually. For example, `mcs-backup backup --maintenance
-1h` disables the backup for 1 hour. After the specified time, backup is
-automatically reactivated.
+At least a repository, a password and a retention policy are needed (the image
+sets a default policy). `mcs-backup config check` tells what is missing or wrong
+before the service starts; every setting is described in
+[configuration](docs/configuration.md).
+
+## How it works
+
+`mcs-backup serve` is the service. It runs one operation at a time (backup,
+restore, prune, check, restore test, forget), serves `/metrics`, `/healthz` and
+`/readyz` on port 9000, and listens on a Unix socket. Everything else is a
+client of that socket: the command line, the TUI, the web UI and the MCP server.
+A second request while an operation runs is refused with the name of the running
+one.
+
+```
+                       ┌──────────────────────────────┐
+ mcs-backup status ───▶│                              │──▶ restic ──▶ repository
+ mcs-backup tui    ───▶│ mcs-backup serve             │
+ mcs-backup mcp    ───▶│  (schedule, one operation    │──▶ /metrics /healthz /readyz
+ web UI (optional) ───▶│   at a time, state, logs)    │
+                       └──────────────────────────────┘
+```
+
+## Day-to-day commands
+
+| Command | Does |
+| --- | --- |
+| `status [--follow]` | What is going on, what needs attention, in words. |
+| `backup [--note …] [--keep]` | Start a backup now. `--keep` protects the snapshot from the retention. |
+| `backup --maintenance 1h` / `--disable` / `--enable` | Pause or resume the schedule. A maintenance window survives restarts; a plain `--disable` ends with a restart. |
+| `snapshots` | The snapshots, newest first, with flags. |
+| `restore [<snapshot>] [--target dir] [--include path] [--merge]` | Restore. Without `--target` it replaces the data in place, asks for confirmation and takes a safety snapshot first. |
+| `restore-if-empty` | Disaster recovery for init containers: restores only into an empty `BACKUP_ROOT`, and does not contact the repository otherwise. |
+| `verify [--full]` | The restore test. Runs weekly by default. |
+| `keep` / `unkeep <snapshot>` | Protect a snapshot from the retention or release it. |
+| `acknowledge <snapshot>` | Accept a backup that was flagged as suspiciously small. |
+| `forget` / `approve-forget` | Show what the retention would delete; release a held forget. |
+| `locks`, `unlock [--all]` | Look at and remove repository locks. |
+| `log [kind]` | The log of the latest run. |
+| `env` | The variables to run restic against this repository by hand. |
+| `restic …` | restic with the environment of this instance. |
+| `info`, `config check` | Check the configuration and the access to the repositories. |
+| `tui`, `web`, `mcp` | The other user interfaces, see below. |
+
+All commands accept `--json`. Exit codes: 0 ok, 1 failed, 2 usage or
+configuration error (including a missing confirmation), 3 the service is not
+reachable, 4 another operation is running.
+
+## What it protects you from
+
+* **Empty backups.** An empty source never becomes a snapshot: it fails when
+  there are earlier snapshots (a volume that came up empty), and is skipped on a
+  fresh installation.
+* **Broken backups replacing good ones.** A backup far smaller than the last one
+  (`BACKUP_MAX_SHRINK`) is stored but tagged `suspicious`, and the retention
+  stops until a person accepts it.
+* **Typos in the retention.** A forget that would delete a quarter of the
+  snapshots waits for `approve-forget`. The retention touches only the snapshots
+  of its own instance, so repositories can be shared safely.
+* **Unwanted restores.** In-place restores need a typed confirmation and a safety
+  snapshot (tag `pre-restore`) of the current data first.
+* **Silent failures.** The post-hook always runs and learns the outcome; missing
+  hook scripts stop the start; failed runs are retried; notifications and
+  metrics report what happened.
+* **Backups nobody can restore.** The restore test restores a sample of the
+  latest snapshot every week and can run your own check on it.
+
+## Terminal UI
+
+`mcs-backup tui` shows overview, snapshots, locks and restic access, with the
+running operation and its progress, and everything the command line can do:
+start and cancel operations, restore with a dialog that shows the target, the
+free space and the hooks, keep snapshots, handle locks and the schedule. Press
+`?` for the keys.
+
+## Web UI
+
+Optional and off by default. The web UI shows the same as the TUI and is meant
+for people who do not work in a terminal.
+
+```console
+mcs-backup web                    # switches it on if needed, opens the browser
+mcs-backup web enable --for 2h    # on for two hours
+mcs-backup web disable
+```
+
+`MCS_BACKUP_WEB_ADDR=127.0.0.1:8484` has it on from the start. The login is
+always required, also on localhost: `mcs-backup web` fetches a **one-time link**
+that is valid for two minutes and logs the browser in with a session cookie, so
+no permanent secret ends up in a URL or a history. In a pod or over SSH the
+link is printed together with the `kubectl port-forward` command that makes the
+port reachable. Behind an ingress you can set `MCS_BACKUP_WEB_TOKEN` for
+HTTP Basic Auth instead.
+
+The web UI speaks plain HTTP. Outside of localhost put it behind a proxy that
+terminates TLS. Cross-origin requests are refused, pages are served with a strict
+Content-Security-Policy, and nothing is loaded from the internet.
+
+## For AI agents
+
+`mcs-backup mcp` serves the [Model Context Protocol][mcp] on stdin/stdout so
+that an agent can look at the backups and, if you allow it, operate them:
+
+```console
+kubectl exec -i <pod> -c mcs-backup -- mcs-backup mcp                      # look only
+kubectl exec -i <pod> -c mcs-backup -- mcs-backup mcp --allow-write        # also start, tag, schedule
+kubectl exec -i <pod> -c mcs-backup -- mcs-backup mcp --allow-destructive  # also restore over live data
+```
+
+Tools above the chosen level do not exist for the agent; secrets are never
+returned. See [agents](docs/agents.md).
+
+## Monitoring
+
+Prometheus metrics with the prefix `mcsbackup_` are on `:9000/metrics`.
+[Ready-made alerts, a ServiceMonitor and a Grafana dashboard](docs/examples/monitoring/)
+are included. Logs are JSON on stdout (`MCS_BACKUP_LOG_FORMAT=text` for people).
+For chat, desktop or e-mail notifications, `NOTIFY_COMMAND` runs a command of
+yours for the events you select, see [hooks](docs/hooks.md#notifications).
 
 ## Documentation
-Detailed configuration documentation and integration examples are available in
-the [docs directory](docs).
 
-## Changelog
+* [Configuration](docs/configuration.md): every setting with its default
+* [Hooks, pipes and notifications](docs/hooks.md)
+* [Linux and macOS hosts](docs/platforms.md)
+* [Append-only repositories](docs/append-only.md)
+* [AI agents and scripting](docs/agents.md)
+* [Migrating from 1.x](docs/migration-1x.md)
+* [Examples](docs/examples/): Kubernetes, monitoring, systemd, launchd, notifications, restore tests
 
-  * `v1.5.0` Initial public release
-  * `v1.5.1` Cleanup Paths in Dockerfile
-  * `v1.5.2` Make https the default
-  * `v1.5.3` Fix 'restore' for split repo-url (base/path)
-  * `v1.5.4` Fix uncaught error when pipe cmd fails in restore
-  * `v1.6.0` Allow to configure prune interval, update deps
-  * `v1.6.1` routine update of deps
-  * `v1.6.2` routine update of deps
-  * `v1.6.3` routine update of deps
-  * `v1.6.4` routine update of deps
-  * `v1.6.5` routine update of Dockerfile
-  * `v1.7.0` correct cron execution even when host was suspended between runs
-  * `v1.7.1` skip backup when next run is in the past
-  * `v1.7.2` update restic in Docker image
-  * `v1.7.3` update base Docker image
-  * `v1.7.4` update base Docker image
-  * `v1.7.5` update base Docker image
-  * `v1.7.6` update base Docker image
-  * `v1.7.7` update base Docker image & deps
-  * `v1.7.8` update base Docker image
-  * `v1.7.9` update base Docker image & deps & go
-  * `v1.7.10` update base Docker image & deps & go
-  * `v1.7.11` update deps
-  * `v1.7.12` update base Docker image
-  * `v1.7.13` update base Docker image
-  * `v1.7.14` update base Docker image & deps & go
-  * `v1.7.15` update base Docker image & deps
-  * `v1.7.16` update base Docker image & deps & go
-  * `v1.7.17` update base Docker image & deps & go
-  * `v1.7.18` update base Docker image & deps & go
-  * `v1.7.19` update base Docker image & deps & go
-  * `v1.7.20` update base Docker image & deps & go
-  * `v1.7.21` update base Docker image & deps & go
-  * `v1.7.22` update base Docker image & deps & go
-  * `v1.7.23` update base Docker image & deps & go
-  * `v1.7.24` update base Docker image & deps & go fix
-  * `v1.7.25` update base Docker image & deps & go
+## Requirements and limits
 
-[restic]:    https://github.com/restic/restic
-[sidecar]:   test/deploy/demo/base/_common/deployment.yaml#L26-L48
-[hooks]:     docs/hooks.md
+* restic 0.17 or newer (the image has 0.19.1).
+* Linux and macOS, amd64 and arm64. The container image is Linux only. Windows is
+  not supported.
+* restic cannot store an empty snapshot; `ALLOW_EMPTY_SNAPSHOT` only keeps such a
+  run from failing.
+* The macOS binaries are neither signed nor notarized, see [platforms](docs/platforms.md#macos).
+
+## Development
+
+```console
+task build            # or: go build ./cmd/mcs-backup
+task test             # unit tests
+task lint             # vet, go fix check, golangci-lint v2
+RESTIC_BIN=$(command -v restic) REST_SERVER_BIN=$(command -v rest-server) task integration
+```
+
+The integration tests run the real binary against real restic repositories
+(local and, with `REST_SERVER_BIN`, an append-only rest-server). Go 1.27 or newer
+is required.
+
+[restic]: https://github.com/restic/restic
+[mcp]: https://modelcontextprotocol.io
