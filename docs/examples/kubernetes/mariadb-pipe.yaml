@@ -1,0 +1,109 @@
+# A stand-alone mcs-backup deployment that backs up a MariaDB through a pipe:
+# mysqldump writes to stdout, restic stores it as a single file, nothing
+# is written to a disk in between. No access to the database volume is needed.
+#
+# The image needs the MariaDB client: build it from mariadb-client.Dockerfile.
+#
+# Restore: `mcs-backup restore latest` streams the dump into load.sh, after a
+# safety snapshot of the current database (which is taken by running dump.sh).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-backup
+stringData:
+  RESTIC_REPOSITORY: s3:https://s3.example.com/backups/db
+  RESTIC_PASSWORD: change-me
+  AWS_ACCESS_KEY_ID: change-me
+  AWS_SECRET_ACCESS_KEY: change-me
+  MARIADB_HOST: db
+  MARIADB_USER: backup
+  MARIADB_PWD: change-me
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-backup-scripts
+data:
+  dump.sh: |
+    #!/bin/sh
+    set -eu
+    export MYSQL_PWD=$MARIADB_PWD
+    exec mariadb-dump -h "$MARIADB_HOST" -u "$MARIADB_USER" \
+      --single-transaction --routines --events --all-databases
+  load.sh: |
+    #!/bin/sh
+    set -eu
+    export MYSQL_PWD=$MARIADB_PWD
+    exec mariadb -h "$MARIADB_HOST" -u "$MARIADB_USER"
+  # Restore test: the dump has to be complete. mysqldump ends with this line.
+  verify.sh: |
+    #!/bin/sh
+    tail -n 1 | grep -q -- '-- Dump completed'
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-backup
+data:
+  # BACKUP_ROOT stays /mnt (image default): in pipe mode it is only the working directory of the scripts
+  CRON_SCHEDULE: "30 1 * * *"
+  TZ: Europe/Berlin
+  RETENTION_POLICY: '{"daily":14,"weekly":8,"monthly":12}'
+  PIPE_IN_SCRIPT: /scripts/dump.sh
+  PIPE_OUT_SCRIPT: /scripts/load.sh
+  PIPE_IN_FILENAME: all-databases.sql
+  VERIFY_SCRIPT: /scripts/verify.sh
+  RESTIC_CACHE_DIR: /tmp/restic-cache
+  MCS_BACKUP_HOST: db
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db-backup
+  labels:
+    app: db-backup
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db-backup
+  template:
+    metadata:
+      labels:
+        app: db-backup
+    spec:
+      terminationGracePeriodSeconds: 120 # big dumps need time to stop cleanly
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: scripts
+          configMap:
+            name: db-backup-scripts
+            defaultMode: 0555
+      containers:
+        - name: mcs-backup
+          image: registry.example.com/mcs-backup-mariadb:2.0.0
+          envFrom:
+            - configMapRef: {name: db-backup}
+            - secretRef: {name: db-backup}
+          env:
+            - {name: SHUTDOWN_TIMEOUT, value: 100s}
+          ports:
+            - {name: backup-metrics, containerPort: 9000}
+          livenessProbe:
+            httpGet: {path: /healthz, port: backup-metrics}
+          readinessProbe:
+            httpGet: {path: /readyz, port: backup-metrics}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+            - {name: scripts, mountPath: /scripts}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]

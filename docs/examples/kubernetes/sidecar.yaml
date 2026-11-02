@@ -1,0 +1,111 @@
+# An application with mcs-backup as a sidecar.
+#
+# * The initContainer restores the latest snapshot if the volume is empty
+#   (a new volume, a lost volume). It does not touch the repository when the
+#   volume has data, so the application starts even when the storage is down.
+#   On errors it exits with 1 and Kubernetes runs it again.
+# * The sidecar backs up the same volume on a schedule.
+# * Everything runs with any UID and a read-only root file system. mcs-backup
+#   and restic write only to /tmp (HOME, restic cache, control socket).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: shop-backup
+stringData:
+  RESTIC_REPOSITORY: s3:https://s3.example.com/backups/shop
+  RESTIC_PASSWORD: change-me
+  AWS_ACCESS_KEY_ID: change-me
+  AWS_SECRET_ACCESS_KEY: change-me
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shop-backup
+data:
+  BACKUP_ROOT: /data
+  CRON_SCHEDULE: "15 2 * * *"
+  TZ: Europe/Berlin
+  RETENTION_POLICY: '{"daily":7,"weekly":8,"monthly":6}'
+  RESTIC_CACHE_DIR: /tmp/restic-cache
+  # Kubernetes sends SIGTERM and waits terminationGracePeriodSeconds. Let the
+  # backup stop and the post hook run within that time.
+  SHUTDOWN_TIMEOUT: 50s
+  MCS_BACKUP_HOST: shop
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shop
+  labels:
+    app: shop
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # a ReadWriteOnce volume: never two pods at once
+  selector:
+    matchLabels:
+      app: shop
+  template:
+    metadata:
+      labels:
+        app: shop
+    spec:
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: shop-data
+        - name: backup-tmp
+          emptyDir:
+            sizeLimit: 2Gi # restic cache and restore sandbox
+      initContainers:
+        - name: restore-if-empty
+          image: registry.example.com/mcs-backup:2.0.0
+          command: ["mcs-backup", "restore-if-empty"]
+          envFrom:
+            - configMapRef: {name: shop-backup}
+            - secretRef: {name: shop-backup}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: backup-tmp, mountPath: /tmp}
+          securityContext: &container-security
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+      containers:
+        - name: shop
+          image: registry.example.com/shop:1.0.0
+          volumeMounts:
+            - {name: data, mountPath: /data}
+          securityContext: *container-security
+        - name: mcs-backup
+          image: registry.example.com/mcs-backup:2.0.0
+          envFrom:
+            - configMapRef: {name: shop-backup}
+            - secretRef: {name: shop-backup}
+          env:
+            - name: GOMEMLIMIT # a bit below the memory limit
+              value: 400MiB
+          ports:
+            - {name: backup-metrics, containerPort: 9000}
+          # /healthz: the process lives. /readyz: configured and ready. Neither
+          # depends on the repository, so a storage outage does not take the
+          # application out of its Service.
+          livenessProbe:
+            httpGet: {path: /healthz, port: backup-metrics}
+          readinessProbe:
+            httpGet: {path: /readyz, port: backup-metrics}
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {memory: 512Mi}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: backup-tmp, mountPath: /tmp}
+          securityContext: *container-security
