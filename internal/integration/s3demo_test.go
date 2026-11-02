@@ -71,7 +71,7 @@ func TestS3Demo(t *testing.T) {
 			"MCS_BACKUP_SOCKET=" + filepath.Join(dir, "s.sock"),
 			"MCS_BACKUP_RESTIC=" + resticBin,
 			"RETENTION_POLICY=" + policy,
-			"CRON_SCHEDULE=15 2 * * *",
+			"CRON_SCHEDULE=" + demoSchedule,
 			"BACKUP_HTTP_PORT=9100", // 9000 is the S3 server
 			"MCS_BACKUP_WEB_ADDR=127.0.0.1:8484",
 		}, s.credentials()...)
@@ -80,6 +80,7 @@ func TestS3Demo(t *testing.T) {
 	// While the history is built nothing may be forgotten; the policy of the
 	// demo service applies from its first backup on.
 	i := newInst(t, demoEnv(`{"last":500}`)...)
+	i.set("CRON_SCHEDULE=") // the seed makes its backups itself
 	i.root = filepath.Join(dir, "data")
 	i.repo = s.repo(prefix)
 	i.cloud = append(s.credentials(), "RESTIC_PASSWORD=demo-password") // for the restic runs of the test itself
@@ -99,6 +100,10 @@ func TestS3Demo(t *testing.T) {
 	t.Logf("demo repository: %s", s.repo(prefix))
 	t.Logf("run it:\n  %s/mcs-backup serve      # in one terminal\n  %s/mcs-backup tui        # in another one\n  %s/mcs-backup web        # the web UI", dir, dir, dir)
 }
+
+// demoSchedule makes the demo service back up every five minutes, so that
+// something happens while the TUI or the web UI is open.
+const demoSchedule = "*/5 * * * *"
 
 // demoPolicy is the retention of the demo service: it would remove the oldest
 // snapshots, so that the preview in the TUI has something to show.
