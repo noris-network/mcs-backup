@@ -510,3 +510,25 @@ func TestPanelAndLegendStayAtTheBottom(t *testing.T) {
 		}
 	}
 }
+
+func TestSnapshotColumnsStayAlignedWithLongAges(t *testing.T) {
+	r := healthy(newRig(t))
+	r.fake.SnapshotsFn = func(context.Context) ([]service.Snapshot, error) {
+		return []service.Snapshot{snap("aaaaaaaa", time.Hour), snap("bbbbbbbb", 15*time.Hour+11*time.Minute), snap("cccccccc", 100*24*time.Hour+23*time.Hour)}, nil
+	}
+	r.load().press("2")
+	col := -1
+	for l := range strings.SplitSeq(r.screen(), "\n") {
+		if !strings.Contains(l, "scheduled") {
+			continue
+		}
+		if i := len([]rune(l[:strings.Index(l, "scheduled")])); col >= 0 && i != col {
+			t.Errorf("the origin column moves: %q", l)
+		} else {
+			col = i
+		}
+	}
+	if col < 0 {
+		t.Fatalf("no snapshot rows:\n%s", r.screen())
+	}
+}

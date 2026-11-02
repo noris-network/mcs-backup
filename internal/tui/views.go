@@ -362,7 +362,7 @@ func (m *Model) snapshotsPage() string {
 		return "There are no snapshots yet. " + styleKey.Render("b") + " starts a backup."
 	}
 	var b strings.Builder
-	b.WriteString(styleDim.Render(fmt.Sprintf("  %-9s %-19s %6s  %-11s %7s %10s  %-*s %s", "ID", "TIME", "AGE", "ORIGIN", "FILES", "SIZE", flagWidth, "FLAGS", "NOTE")) + "\n")
+	b.WriteString(styleDim.Render(fmt.Sprintf("  %-9s %-19s %*s  %-11s %7s %10s  %-*s %s", "ID", "TIME", ageWidth, "AGE", "ORIGIN", "FILES", "SIZE", flagWidth, "FLAGS", "NOTE")) + "\n")
 	now := m.o.Now()
 	first, last := window(m.cursor[tabSnapshots], len(m.snapshots), m.height-14)
 	for i := first; i < last; i++ {
@@ -371,7 +371,7 @@ func (m *Model) snapshotsPage() string {
 		if s.HasSummary {
 			files, size = strconv.FormatInt(s.Files, 10), present.Bytes(s.Bytes)
 		}
-		cols := fmt.Sprintf("%-9s %-19s %6s  %-11s %7s %10s  ", s.ShortID, present.Stamp(s.Time), present.Duration(now.Sub(s.Time)), s.Origin, files, size)
+		cols := fmt.Sprintf("%-9s %-19s %*s  %-11s %7s %10s  ", s.ShortID, present.Stamp(s.Time), ageWidth, present.Duration(now.Sub(s.Time)), s.Origin, files, size)
 		flags := present.SnapshotFlags(s)
 		var line string
 		if i == m.cursor[tabSnapshots] {
@@ -399,6 +399,9 @@ func (m *Model) snapshotsPage() string {
 	}
 	return b.String() + styleDim.Render(more)
 }
+
+// ageWidth fits "100d 23h".
+const ageWidth = 8
 
 // flagWidth fits "pre-restore" and "keep" plus a bit of room.
 const flagWidth = 12
