@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/noris-network/mcs-backup/v2/internal/mcpserver"
+	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
 
 func (a *app) newMCPCmd() *cobra.Command {
@@ -33,7 +34,7 @@ levels are guard rails for well-meaning agents, not a security boundary: whoever
 run this command can do everything the command line can.`,
 		Args: usageArgs(cobra.NoArgs),
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			svc, closeSvc := a.service(cmd)
+			svc, closeSvc := a.serviceAs(cmd, service.SourceMCP)
 			defer closeSvc()
 			// stdout belongs to the protocol: the log goes to stderr
 			log := newLogger(a.stderr, a.getenv)

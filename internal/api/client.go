@@ -44,6 +44,14 @@ func NewClient(socket, source string) *Client {
 	return c
 }
 
+// As returns a client for the same service that reports source with its
+// requests. It shares the connection with c.
+func (c *Client) As(source string) service.Service {
+	cp := *c
+	cp.source = source
+	return &cp
+}
+
 func newClient(base string, hc *http.Client, source string) *Client {
 	return &Client{base: base, hc: hc, source: source}
 }

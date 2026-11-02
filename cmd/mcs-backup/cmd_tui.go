@@ -12,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/noris-network/mcs-backup/v2/internal/service"
 	"github.com/noris-network/mcs-backup/v2/internal/tui"
 )
 
@@ -28,7 +29,7 @@ the keys.`,
 			if !a.interactive {
 				return usageError(errors.New("the TUI needs a terminal; use the other commands in scripts (--json)"))
 			}
-			svc, closeSvc := a.service(cmd)
+			svc, closeSvc := a.serviceAs(cmd, service.SourceTUI)
 			defer closeSvc()
 			return tui.Run(cmd.Context(), svc, a.stdin, a.stdout, tui.Options{
 				Now: a.now, Open: a.browser(cmd.Context()), Hint: a.webHint,

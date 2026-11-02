@@ -325,6 +325,19 @@ func TestSourceHeader(t *testing.T) {
 	}
 }
 
+func TestClientReportsItsSource(t *testing.T) {
+	fake, c, _ := newPair(t)
+	for _, source := range []string{service.SourceTUI, service.SourceMCP, service.SourceCLI} {
+		if _, err := c.As(source).Status(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+		calls := fake.CallsTo("Status")
+		if got := calls[len(calls)-1].Source; got != source {
+			t.Errorf("As(%q): the service saw %q", source, got)
+		}
+	}
+}
+
 func TestEvents(t *testing.T) {
 	fake, c, _ := newPair(t)
 	fake.EventsFn = func(context.Context) iter.Seq2[service.Event, error] {

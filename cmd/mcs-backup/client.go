@@ -16,8 +16,15 @@ import (
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
 
-// service connects to the running service. The returned function releases the connection.
+// service connects to the running service as the command line. The returned
+// function releases the connection.
 func (a *app) service(cmd *cobra.Command) (service.Service, func()) {
+	return a.serviceAs(cmd, service.SourceCLI)
+}
+
+// serviceAs connects to the running service and reports source with every
+// request, so that the service logs where an action comes from.
+func (a *app) serviceAs(cmd *cobra.Command, source string) (service.Service, func()) {
 	socket, _ := cmd.Flags().GetString("socket")
 	if socket == "" {
 		socket = a.getenv("MCS_BACKUP_SOCKET")
@@ -27,6 +34,9 @@ func (a *app) service(cmd *cobra.Command) (service.Service, func()) {
 	}
 	svc := a.dial(socket)
 	closer, ok := svc.(interface{ Close() })
+	if c, isClient := svc.(interface{ As(string) service.Service }); isClient {
+		svc = c.As(source)
+	}
 	return svc, func() {
 		if ok {
 			closer.Close()
