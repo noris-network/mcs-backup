@@ -98,7 +98,11 @@ func (e *Engine) forgetPhase(ctx context.Context, repo *restic.Repo, name string
 	if appendOnly {
 		return
 	}
-	sink.phase("forget")
+	if name == "copy" {
+		sink.phase("forget copy")
+	} else {
+		sink.phase("forget")
+	}
 	o, err := e.forget(ctx, repo, appendOnly, false)
 	*out = o
 	switch {
@@ -110,7 +114,7 @@ func (e *Engine) forgetPhase(ctx context.Context, repo *restic.Repo, name string
 			name, o.Removed, o.Total)
 		sink.logf("retention guard: holding back forget on the %s repository (%d of %d snapshots)", name, o.Removed, o.Total)
 	case o.Ran:
-		sink.logf("forget on the %s repository removed %d snapshots", name, o.Removed)
+		sink.logf("forget on the %s repository removed %d %s", name, o.Removed, plural(o.Removed, "snapshot"))
 	}
 }
 
@@ -181,4 +185,12 @@ func (e *Engine) Retention(ctx context.Context) (service.RetentionInfo, error) {
 	slices.SortFunc(info.Remove, func(a, b service.Snapshot) int { return a.Time.Compare(b.Time) })
 	info.Held = guardTrips(info.Total, remove, e.cfg.Backup.ForgetMaxDelete)
 	return info, nil
+}
+
+// plural returns noun in the plural unless n is 1.
+func plural(n int, noun string) string {
+	if n == 1 {
+		return noun
+	}
+	return noun + "s"
 }
