@@ -44,7 +44,7 @@ func TestTabsAndSnapshotsNewestFirst(t *testing.T) {
 	if i, j := strings.Index(s, "cccccccc"), strings.Index(s, "aaaaaaaa"); i < 0 || j < 0 || i > j {
 		t.Errorf("the newest snapshot should come first:\n%s", s)
 	}
-	r.wantScreen("keep before upgrade")
+	r.wantScreen("keep", "before upgrade")
 	r.press("tab")
 	r.wantScreen("The repository has no locks.")
 	r.press("shift+tab")

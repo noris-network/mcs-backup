@@ -57,7 +57,7 @@ type (
 	tickMsg   time.Time
 )
 
-const tickEvery = time.Second
+const tickEvery = 150 * time.Millisecond
 
 func tick() tea.Cmd {
 	return tea.Tick(tickEvery, func(t time.Time) tea.Msg { return tickMsg(t) })

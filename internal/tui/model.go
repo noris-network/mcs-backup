@@ -58,6 +58,8 @@ type Model struct {
 	lastRestore *service.RestoreRequest
 
 	dlg dialog
+	// frame counts the ticks, for the spinner
+	frame int
 }
 
 // New creates the model. ctx should carry service.SourceTUI.
@@ -89,6 +91,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		return m, m.key(msg)
 	case tickMsg:
+		m.frame++
 		if m.flash != "" && m.o.Now().Sub(m.flashAt) > 10*time.Second {
 			m.flash = ""
 		}

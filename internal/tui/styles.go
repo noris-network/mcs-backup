@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"image/color"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -10,24 +11,56 @@ import (
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
 
+// The palette uses mid-tone colors that read well on dark and light terminals.
 var (
-	styleTitle = lipgloss.NewStyle().Bold(true)
-	styleDim   = lipgloss.NewStyle().Faint(true)
-	styleBad   = lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Bold(true)
-	styleWarn  = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
-	styleGood  = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
-	styleSel   = lipgloss.NewStyle().Reverse(true)
-	styleTab   = lipgloss.NewStyle().Padding(0, 1)
-	styleTabOn = lipgloss.NewStyle().Padding(0, 1).Bold(true).Reverse(true)
-	styleLink  = lipgloss.NewStyle().Underline(true)
-	styleBox   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1)
+	colAccent = lipgloss.Color("#7C6CF0")
+	colGood   = lipgloss.Color("#2FAE7B")
+	colWarn   = lipgloss.Color("#D29922")
+	colBad    = lipgloss.Color("#E5484D")
+	colMuted  = lipgloss.Color("#8A8F98")
+	colLine   = lipgloss.Color("#5A5F69")
+	colOnDark = lipgloss.Color("#FFFFFF")
 )
+
+var (
+	styleTitle  = lipgloss.NewStyle().Bold(true)
+	styleDim    = lipgloss.NewStyle().Foreground(colMuted)
+	styleBad    = lipgloss.NewStyle().Foreground(colBad).Bold(true)
+	styleWarn   = lipgloss.NewStyle().Foreground(colWarn)
+	styleGood   = lipgloss.NewStyle().Foreground(colGood)
+	styleAccent = lipgloss.NewStyle().Foreground(colAccent)
+	styleLabel  = lipgloss.NewStyle().Foreground(colAccent)
+	styleKey    = lipgloss.NewStyle().Foreground(colAccent).Bold(true)
+	styleSel    = lipgloss.NewStyle().Background(colAccent).Foreground(colOnDark).Bold(true)
+	styleBadge  = lipgloss.NewStyle().Background(colAccent).Foreground(colOnDark).Bold(true).Padding(0, 1)
+	styleTab    = lipgloss.NewStyle().Foreground(colMuted).Padding(0, 1)
+	styleTabOn  = lipgloss.NewStyle().Foreground(colAccent).Bold(true).Underline(true).Padding(0, 1)
+	styleLink   = lipgloss.NewStyle().Underline(true).Foreground(colAccent)
+	styleRule   = lipgloss.NewStyle().Foreground(colLine)
+	styleCardT  = lipgloss.NewStyle().Foreground(colMuted)
+)
+
+// framed draws text in a rounded frame of the given total width.
+func framed(c color.Color, width int, content string) string {
+	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(c).Padding(0, 1).Width(width).Render(content)
+}
 
 // box frames the body of a dialog.
 func box(title, body, hint string, width int) string {
-	inner := min(max(width-4, 20), 90)
-	content := styleTitle.Render(title) + "\n\n" + strings.TrimRight(body, "\n") + "\n\n" + styleDim.Render(hint)
-	return styleBox.Width(inner).Render(content)
+	inner := min(max(width, 24), 92)
+	content := styleAccent.Bold(true).Render(title) + "\n\n" + strings.TrimRight(body, "\n") + "\n\n" + styleDim.Render(hint)
+	return framed(colAccent, inner, content)
+}
+
+// dot is a colored status dot.
+func dot(c color.Color) string { return lipgloss.NewStyle().Foreground(c).Render("●") }
+
+// rule is a thin horizontal line.
+func rule(width int) string { return styleRule.Render(strings.Repeat("─", max(width, 0))) }
+
+// fill pads a line with spaces to the width, so that a background covers it.
+func fill(line string, width int) string {
+	return line + strings.Repeat(" ", max(0, width-lipgloss.Width(line)))
 }
 
 // wrap breaks text into lines of at most width cells.

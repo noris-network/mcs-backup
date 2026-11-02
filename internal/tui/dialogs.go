@@ -455,17 +455,23 @@ func (d *restoreDialog) view(width int) string {
 
 // rows renders labeled rows as aligned text.
 func rows(rs []present.Row) string {
-	w := 0
-	for _, r := range rs {
-		w = max(w, len(r.Label))
-	}
+	w := labelWidth(rs)
 	var b strings.Builder
 	for _, r := range rs {
 		text := r.Text
 		if r.Severity == service.SeverityWarning || r.Severity == service.SeverityError {
 			text = styleBad.Render(text)
 		}
-		fmt.Fprintf(&b, "%-*s  %s\n", w, r.Label, text)
+		fmt.Fprintf(&b, "%s  %s\n", styleLabel.Render(fmt.Sprintf("%-*s", w, r.Label)), text)
 	}
 	return strings.TrimRight(b.String(), "\n")
+}
+
+// labelWidth is the width of the widest label.
+func labelWidth(rs []present.Row) int {
+	w := 0
+	for _, r := range rs {
+		w = max(w, len(r.Label))
+	}
+	return w
 }
