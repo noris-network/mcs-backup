@@ -196,13 +196,44 @@ func TestBackupWaitsAndReportsTheResult(t *testing.T) {
 	if req := c.fake.CallsTo("StartBackup")[0].Args[0].(service.BackupRequest); req.Note != "before upgrade" || !req.Keep {
 		t.Errorf("request = %+v", req)
 	}
-	if !strings.Contains(c.err(), "-- backup") || !strings.Contains(c.err(), "using snapshot 1234 as parent") || strings.Contains(c.err(), "ignored") {
+	if !strings.Contains(c.err(), "▸ Backing up") || !strings.Contains(c.err(), "    incremental to snapshot 1234") || strings.Contains(c.err(), "ignored") {
 		t.Errorf("stderr should carry the log of this operation only:\n%s", c.err())
 	}
-	for _, want := range []string{"backup: success (1m)", "snapshot abcdef01", "snapshot abcdef01 created"} {
+	for _, want := range []string{"✓ backup: success (1m)", "snapshot abcdef01 created"} {
 		if !strings.Contains(c.out(), want) {
 			t.Errorf("stdout lacks %q:\n%s", want, c.out())
 		}
+	}
+}
+
+func TestFollowShowsThePhaseTheStreamStartsIn(t *testing.T) {
+	c := newCLI(t)
+	c.fake.StartBackupFn = func(context.Context, service.BackupRequest) (service.Operation, error) {
+		return service.Operation{ID: "op1", Kind: service.KindBackup}, nil
+	}
+	c.fake.EventsFn = func(context.Context) iter.Seq2[service.Event, error] {
+		return func(yield func(service.Event, error) bool) {
+			op := &service.Operation{ID: "op1", Kind: service.KindBackup, Phase: "copy"}
+			for _, ev := range []service.Event{
+				{Type: service.EventStarted, Operation: op},
+				{Type: service.EventLog, Line: "snapshot 63565d3f saved"},
+				{Type: service.EventLog, Line: "[0:00]          0 packs copied"},
+				{Type: service.EventFinished, Result: &service.RunResult{ID: "op1", Kind: service.KindBackup, Result: service.ResultWarning, Warnings: []string{"copy was slow"}}},
+			} {
+				if !yield(ev, nil) {
+					return
+				}
+			}
+		}
+	}
+	if code := c.run("backup"); code != 0 {
+		t.Fatalf("exit %d: %s", code, c.err())
+	}
+	if want := "▸ Copying to the secondary repository\n    saved as snapshot 63565d3f\n"; c.err() != want {
+		t.Errorf("stderr = %q, want %q", c.err(), want)
+	}
+	if !strings.Contains(c.out(), "! backup: warning") || !strings.Contains(c.out(), "warning: copy was slow") {
+		t.Errorf("stdout = %q", c.out())
 	}
 }
 

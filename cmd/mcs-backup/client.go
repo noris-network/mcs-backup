@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/noris-network/mcs-backup/v2/internal/config"
+	"github.com/noris-network/mcs-backup/v2/internal/present"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
 
@@ -144,7 +145,9 @@ func (a *app) follow(ctx context.Context, svc service.Service, op service.Operat
 		if show && !sawLog {
 			// the operation ended before the stream started: show what it logged
 			if l, err := svc.Log(ctx, op.Kind); err == nil {
-				writeLines(a.stderr, l.Lines)
+				for _, line := range l.Lines {
+					a.showLog(line)
+				}
 			}
 		}
 		return r, nil
@@ -182,13 +185,22 @@ func (a *app) follow(ctx context.Context, svc service.Service, op service.Operat
 			switch {
 			case ev.Type == service.EventLog && show:
 				sawLog = true
-				fmt.Fprintln(a.stderr, ev.Line)
-			case ev.Type == service.EventPhase && show && ev.Operation != nil && ev.Operation.ID == op.ID:
-				fmt.Fprintf(a.stderr, "-- %s\n", ev.Operation.Phase)
+				a.showLog(ev.Line)
+			case (ev.Type == service.EventPhase || ev.Type == service.EventStarted) && show && ev.Operation != nil && ev.Operation.ID == op.ID && ev.Operation.Phase != "":
+				// the stream begins with the running operation, which already is in a phase
+				fmt.Fprintf(a.stderr, "▸ %s\n", present.PhaseTitle(ev.Operation.Phase))
 			case ev.Type == service.EventFinished && ev.Result != nil && ev.Result.ID == op.ID:
 				return finish(*ev.Result)
 			}
 		}
+	}
+}
+
+// showLog prints a line of the log of a running operation, indented below its
+// phase, in plain words and without the noise.
+func (a *app) showLog(line string) {
+	if text, ok := present.LogLine(line); ok {
+		fmt.Fprintln(a.stderr, "    "+text)
 	}
 }
 

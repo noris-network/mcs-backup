@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/noris-network/mcs-backup/v2/internal/present"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
 
@@ -211,7 +212,9 @@ func (m *Model) event(ev service.Event) tea.Cmd {
 			m.op = ev.Operation
 		}
 	case service.EventLog:
-		m.log = append(m.log, ev.Line)
+		if text, ok := present.LogLine(ev.Line); ok { // the panel shows the readable form, the log dialog the original
+			m.log = append(m.log, text)
+		}
 		if len(m.log) > maxLog {
 			m.log = m.log[len(m.log)-maxLog:]
 		}

@@ -64,7 +64,9 @@ func (a *app) followEvents(cmd *cobra.Command, svc service.Service) error {
 			}
 			continue
 		}
-		fmt.Fprintln(a.stdout, a.eventLine(ev))
+		if line := a.eventLine(ev); line != "" {
+			fmt.Fprintln(a.stdout, line)
+		}
 	}
 	return nil
 }
@@ -75,12 +77,16 @@ func (a *app) eventLine(ev service.Event) string {
 	case service.EventStarted:
 		return fmt.Sprintf("%s %s started (%s)", ts, ev.Operation.Kind, ev.Operation.Source)
 	case service.EventPhase:
-		return fmt.Sprintf("%s %s: %s", ts, ev.Operation.Kind, ev.Operation.Phase)
+		return fmt.Sprintf("%s %s: %s", ts, ev.Operation.Kind, present.PhaseTitle(ev.Operation.Phase))
 	case service.EventProgress:
 		p := ev.Operation.Progress
 		return fmt.Sprintf("%s %s: %.0f%%", ts, ev.Operation.Kind, p.Percent*100)
 	case service.EventLog:
-		return fmt.Sprintf("%s   %s", ts, ev.Line)
+		text, ok := present.LogLine(ev.Line)
+		if !ok {
+			return ""
+		}
+		return fmt.Sprintf("%s   %s", ts, text)
 	case service.EventFinished:
 		return fmt.Sprintf("%s %s %s", ts, ev.Result.Kind, ev.Result.Result)
 	}

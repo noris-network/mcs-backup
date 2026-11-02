@@ -85,7 +85,9 @@ func (a *app) renderPreflight(p service.RestorePreflight) {
 
 // renderResult prints the outcome of an operation.
 func (a *app) renderResult(r service.RunResult) {
-	writeLines(a.stdout, present.ResultLines(r))
+	lines := present.ResultLines(r)
+	lines[0] = present.ResultMark(r.Result) + " " + lines[0]
+	writeLines(a.stdout, lines)
 }
 
 func writeLines(w io.Writer, lines []string) {

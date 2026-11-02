@@ -280,7 +280,7 @@ func ResultLines(r service.RunResult) []string {
 		head += fmt.Sprintf(" (%s)", Duration(r.Duration.Std()))
 	}
 	lines := []string{head}
-	if r.Snapshot != "" {
+	if r.Snapshot != "" && !strings.Contains(r.Message, Short(r.Snapshot)) {
 		lines = append(lines, "  snapshot "+Short(r.Snapshot))
 	}
 	if r.Message != "" {
