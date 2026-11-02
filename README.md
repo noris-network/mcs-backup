@@ -196,5 +196,10 @@ The integration tests run the real binary against real restic repositories
 (local and, with `REST_SERVER_BIN`, an append-only rest-server). Go 1.27 or newer
 is required.
 
+Tests against an S3 server (`MCS_TEST_S3_ENDPOINT`, `MCS_TEST_S3_ACCESS_KEY`,
+`MCS_TEST_S3_SECRET_KEY`, optional `MCS_TEST_S3_BUCKET`) exercise the TUI and the web UI
+with real data. `MCS_TEST_S3_DEMO=1 go test -tags integration -run TestS3Demo ./internal/integration/`
+prepares a repository and a `local/s3-demo/mcs-backup` wrapper to try both by hand.
+
 [restic]: https://github.com/restic/restic
 [mcp]: https://modelcontextprotocol.io
