@@ -2,6 +2,7 @@ package present
 
 import (
 	"testing"
+	"time"
 
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
@@ -52,5 +53,67 @@ func TestResultLinesDoNotRepeatTheSnapshot(t *testing.T) {
 	r.Message = "5 files"
 	if got := ResultLines(r); len(got) != 3 || got[1] != "  snapshot abcdef01" {
 		t.Errorf("lines = %q", got)
+	}
+}
+
+func TestCards(t *testing.T) {
+	now := time.Date(2026, 10, 29, 12, 0, 0, 0, time.Local)
+	st := service.Status{
+		Repository: service.RepoStatus{Up: true, ID: "0123456789abcdef", Snapshots: 3, SizeBytes: 1 << 20, LastSuccess: now.Add(-3 * time.Hour)},
+		Schedule:   service.ScheduleStatus{Enabled: true, Next: map[service.Kind]time.Time{service.KindBackup: now.Add(14 * time.Hour)}},
+		Copy:       &service.RepoStatus{Up: false, Error: "connection refused", Snapshots: -1, SizeBytes: -1},
+	}
+	cards := Cards(st, now)
+	if len(cards) != 4 {
+		t.Fatalf("%d cards", len(cards))
+	}
+	want := []Card{
+		{Title: "Repository", Value: "reachable", Sub: "3 snapshots · 1.0 MiB", Level: LevelOK, Dot: true},
+		{Title: "Last backup", Value: "3h ago", Sub: Stamp(now.Add(-3 * time.Hour))},
+		{Title: "Next backup", Value: "in 14h", Sub: Stamp(now.Add(14 * time.Hour))},
+		{Title: "Secondary copy", Value: "unreachable", Sub: "connection refused", Level: LevelBad, Dot: true},
+	}
+	for i := range want {
+		if cards[i] != want[i] {
+			t.Errorf("card %d = %+v, want %+v", i, cards[i], want[i])
+		}
+	}
+	st.Schedule.MaintenanceUntil = now.Add(time.Hour)
+	if c := Cards(st, now)[2]; c.Value != "paused" || c.Level != LevelWarn {
+		t.Errorf("maintenance: %+v", c)
+	}
+	st.Schedule = service.ScheduleStatus{}
+	if c := Cards(st, now)[2]; c.Value != "disabled" || c.Level != LevelWarn {
+		t.Errorf("disabled: %+v", c)
+	}
+	st.Schedule.Enabled = true
+	if c := Cards(st, now)[2]; c.Value != "manual" {
+		t.Errorf("no schedule: %+v", c)
+	}
+	st.Repository.LastSuccess = time.Time{}
+	if c := Cards(st, now)[1]; c.Value != "never" || c.Level != LevelWarn {
+		t.Errorf("no backup yet: %+v", c)
+	}
+}
+
+func TestHealth(t *testing.T) {
+	up := service.RepoStatus{Up: true}
+	for name, tc := range map[string]struct {
+		st    service.Status
+		label string
+		level Level
+	}{
+		"healthy":       {service.Status{Repository: up}, "healthy", LevelOK},
+		"working":       {service.Status{Repository: up, Operation: &service.Operation{}}, "working", LevelNone},
+		"warning":       {service.Status{Repository: up, Warnings: []service.Warning{{Severity: service.SeverityWarning}}}, "warnings", LevelWarn},
+		"error":         {service.Status{Repository: up, Warnings: []service.Warning{{Severity: service.SeverityWarning}, {Severity: service.SeverityError}}}, "needs attention", LevelBad},
+		"error first":   {service.Status{Repository: up, Warnings: []service.Warning{{Severity: service.SeverityError}, {Severity: service.SeverityWarning}}}, "needs attention", LevelBad},
+		"repo down":     {service.Status{Repository: service.RepoStatus{Up: false}}, "repository down", LevelBad},
+		"info only":     {service.Status{Repository: up, Warnings: []service.Warning{{Severity: service.SeverityInfo}}}, "healthy", LevelOK},
+		"warning works": {service.Status{Repository: up, Operation: &service.Operation{}, Warnings: []service.Warning{{Severity: service.SeverityWarning}}}, "warnings", LevelWarn},
+	} {
+		if label, level := Health(tc.st); label != tc.label || level != tc.level {
+			t.Errorf("%s: Health = %q, %q; want %q, %q", name, label, level, tc.label, tc.level)
+		}
 	}
 }

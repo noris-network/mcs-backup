@@ -74,24 +74,12 @@ func (m *Model) health() (string, color.Color) {
 		return "unreachable", colBad
 	case m.status == nil:
 		return "loading", colMuted
-	case !m.status.Repository.Up:
-		return "repository down", colBad
 	}
-	worst := service.SeverityInfo
-	for _, w := range m.status.Warnings {
-		if w.Severity == service.SeverityError || w.Severity == service.SeverityWarning && worst != service.SeverityError {
-			worst = w.Severity
-		}
+	text, level := present.Health(*m.status)
+	if level == present.LevelNone && m.op != nil {
+		return text, colAccent
 	}
-	switch {
-	case worst == service.SeverityError:
-		return "needs attention", colBad
-	case worst == service.SeverityWarning:
-		return "warnings", colWarn
-	case m.op != nil:
-		return "working", colAccent
-	}
-	return "healthy", colGood
+	return text, levelColor(level)
 }
 
 func (m *Model) header() string {
@@ -196,48 +184,32 @@ func card(title, value, sub string, width int) string {
 	return framed(colLine, width, styleCardT.Render(strings.ToUpper(title))+"\n"+value+"\n"+styleDim.Render(sub))
 }
 
+// levelColor and levelStyle give the color of a level.
+func levelColor(l present.Level) color.Color {
+	switch l {
+	case present.LevelOK:
+		return colGood
+	case present.LevelWarn:
+		return colWarn
+	case present.LevelBad:
+		return colBad
+	}
+	return colMuted
+}
+
 func (m *Model) cards(st service.Status) string {
-	now := m.o.Now()
-	repoCard := func(title string, r service.RepoStatus, w int) string {
-		if !r.Up {
-			return card(title, dot(colBad)+" "+styleBad.Render("unreachable"), truncate(r.Error, w-4), w)
+	cards := present.Cards(st, m.o.Now())
+	cw := (m.width - (len(cards) - 1)) / len(cards)
+	parts := make([]string, len(cards))
+	for i, c := range cards {
+		value, sub := styleTitle.Render(c.Value), c.Sub
+		if c.Level != present.LevelNone {
+			value = lipgloss.NewStyle().Foreground(levelColor(c.Level)).Bold(true).Render(c.Value)
 		}
-		sub := "id " + present.Short(r.ID)
-		if r.Snapshots >= 0 {
-			sub = fmt.Sprintf("%d snapshots", r.Snapshots)
-			if r.SizeBytes >= 0 {
-				sub += " · " + present.Bytes(r.SizeBytes)
-			}
+		if c.Dot {
+			value = dot(levelColor(c.Level)) + " " + value
 		}
-		return card(title, dot(colGood)+" "+styleGood.Bold(true).Render("reachable"), sub, w)
-	}
-	last := func(w int) string {
-		if st.Repository.LastSuccess.IsZero() {
-			return card("Last backup", styleWarn.Bold(true).Render("never"), "no backup yet", w)
-		}
-		return card("Last backup", styleTitle.Render(present.Ago(now, st.Repository.LastSuccess)), present.Stamp(st.Repository.LastSuccess), w)
-	}
-	next := func(w int) string {
-		sc := st.Schedule
-		switch n, ok := sc.Next[service.KindBackup]; {
-		case sc.MaintenanceUntil.After(now):
-			return card("Next backup", styleWarn.Bold(true).Render("paused"), "until "+present.Stamp(sc.MaintenanceUntil), w)
-		case !sc.Enabled:
-			return card("Next backup", styleWarn.Bold(true).Render("disabled"), "enable with s", w)
-		case !ok:
-			return card("Next backup", styleTitle.Render("manual"), "no schedule", w)
-		default:
-			return card("Next backup", styleTitle.Render("in "+present.Duration(n.Sub(now))), present.Stamp(n), w)
-		}
-	}
-	n := 3
-	if st.Copy != nil {
-		n = 4
-	}
-	cw := (m.width - (n - 1)) / n
-	parts := []string{repoCard("Repository", st.Repository, cw), last(cw), next(cw)}
-	if st.Copy != nil {
-		parts = append(parts, repoCard("Secondary copy", *st.Copy, cw))
+		parts[i] = card(c.Title, value, truncate(sub, cw-4), cw)
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, interleave(parts)...)
 }
