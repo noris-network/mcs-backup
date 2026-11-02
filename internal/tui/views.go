@@ -28,15 +28,28 @@ func (m *Model) View() tea.View {
 	default:
 		body = m.page()
 	}
-	parts := []string{m.header(), "", body}
+	// The header sits at the top, the operation panel and the legend at the
+	// bottom, so that they do not move when the tab or the content changes.
+	top := strings.Split(m.header()+"\n", "\n")
+	var bottom []string
 	if m.dlg == nil && !m.help {
 		if panel := m.operationPanel(); panel != "" {
-			parts = append(parts, "", panel)
+			bottom = append(strings.Split(panel, "\n"), "")
 		}
 	}
-	parts = append(parts, "", m.footer())
-	lines := strings.Split(strings.Join(parts, "\n"), "\n")
-	lines = lines[:min(len(lines), max(m.height, 10))]
+	foot := strings.Split(m.footer(), "\n")
+	for len(foot) < m.footerHeight() { // the last line of the legend is the last line of the screen
+		foot = append([]string{""}, foot...)
+	}
+	bottom = append(bottom, "")
+	bottom = append(bottom, foot...)
+	avail := max(m.height-len(top)-len(bottom), 3)
+	mid := strings.Split(body, "\n")
+	mid = mid[:min(len(mid), avail)]
+	for len(mid) < avail {
+		mid = append(mid, "")
+	}
+	lines := slices.Concat(top, mid, bottom)
 	for i, l := range lines {
 		lines[i] = ansi.Truncate(l, m.width, "…")
 	}
@@ -107,9 +120,24 @@ func (m *Model) footer() string {
 	if m.flash != "" {
 		return styleTitle.Render(m.flash)
 	}
+	return m.legend(m.tab, m.op != nil)
+}
+
+// footerHeight is the number of lines the legend needs on the tab that needs
+// the most, so that it takes the same room on every tab.
+func (m *Model) footerHeight() int {
+	h := 1
+	for t := range numTabs {
+		h = max(h, strings.Count(m.legend(t, true), "\n")+1)
+	}
+	return h
+}
+
+// legend lists the keys that work on a tab.
+func (m *Model) legend(t tab, cancel bool) string {
 	common := []hint{{"b", "backup"}, {"v", "restore test"}, {"s", "schedule"}, {"l", "log"}, {"w", "web UI"}, {"r", "refresh"}, {"?", "help"}, {"q", "quit"}}
 	var keys []hint
-	switch m.tab {
+	switch t {
 	case tabSnapshots:
 		keys = []hint{{"enter", "restore"}, {"t", "restore latest"}, {"K", "keep/unkeep"}, {"a", "acknowledge"}, {"f", "forget preview"}}
 	case tabLocks:
@@ -117,11 +145,12 @@ func (m *Model) footer() string {
 	case tabAccess:
 		keys = []hint{{"p", "show/hide secrets"}, {"y", "copy"}}
 	}
-	if m.op != nil {
+	if cancel {
 		keys = append([]hint{{"c", "cancel"}}, keys...)
 	}
 	keys = append(keys, common...)
-	var lines, cur []string
+	var lines []string
+	cur := make([]string, 0, len(keys))
 	n := 0
 	for _, h := range keys {
 		item := styleKey.Render(h.key) + " " + styleDim.Render(h.text)

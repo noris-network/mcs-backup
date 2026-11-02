@@ -481,3 +481,32 @@ func TestLongValuesWrapUnderTheirColumn(t *testing.T) {
 		}
 	}
 }
+
+func TestPanelAndLegendStayAtTheBottom(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	r.send(eventMsg{service.Event{Type: service.EventFinished, Result: &service.RunResult{Kind: service.KindRestore, Result: service.ResultSuccess, Snapshot: "dddddddd00", Duration: service.Duration(4 * time.Second)}}})
+	lastLine := func(screen, text string) int {
+		t.Helper()
+		lines := strings.Split(screen, "\n")
+		for i := len(lines) - 1; i >= 0; i-- {
+			if strings.Contains(lines[i], text) {
+				return i
+			}
+		}
+		t.Fatalf("the screen lacks %q:\n%s", text, screen)
+		return -1
+	}
+	legend, panel, height := make([]int, 0, 4), make([]int, 0, 4), make([]int, 0, 4)
+	for _, tab := range []string{"1", "2", "3", "4"} {
+		r.press(tab)
+		s := r.screen()
+		legend = append(legend, lastLine(s, "q quit"))
+		panel = append(panel, lastLine(s, "╰"))
+		height = append(height, len(strings.Split(s, "\n")))
+	}
+	for i := 1; i < len(legend); i++ {
+		if legend[i] != legend[0] || panel[i] != panel[0] || height[i] != r.m.height {
+			t.Fatalf("the bottom moves between tabs: legend %v, panel %v, height %v (terminal %d)", legend, panel, height, r.m.height)
+		}
+	}
+}
