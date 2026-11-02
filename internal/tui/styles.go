@@ -4,7 +4,6 @@ import (
 	"image/color"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"github.com/noris-network/mcs-backup/v2/internal/envexport"
@@ -35,7 +34,6 @@ var (
 	styleBadge  = lipgloss.NewStyle().Background(colAccent).Foreground(colOnDark).Bold(true).Padding(0, 1)
 	styleTab    = lipgloss.NewStyle().Foreground(colMuted).Padding(0, 1)
 	styleTabOn  = lipgloss.NewStyle().Foreground(colAccent).Bold(true).Underline(true).Padding(0, 1)
-	styleLink   = lipgloss.NewStyle().Underline(true).Foreground(colAccent)
 	styleRule   = lipgloss.NewStyle().Foreground(colLine)
 	styleCardT  = lipgloss.NewStyle().Foreground(colMuted)
 )
@@ -113,16 +111,58 @@ func exportText(info service.EnvInfo) string {
 	return b.String()
 }
 
-// copyText puts text on the clipboard, with OSC 52 and, if configured, a
-// helper for terminals that cannot do it.
-func copyText(o Options, text, note string) tea.Cmd {
-	done := func() tea.Msg {
-		if o.Copy != nil {
-			if err := o.Copy(text); err != nil {
-				return doneMsg{what: "copy", err: err}
+// shellLines splits shell text into lines of at most width cells. A command
+// that is too long continues in a way the shell still reads as one: inside
+// single quotes the line ends with '\ and goes on with ', elsewhere with a
+// backslash. Comments continue as comments.
+func shellLines(text string, width int) []string {
+	var out []string
+	for line := range strings.SplitSeq(strings.TrimRight(text, "\n"), "\n") {
+		if rest, ok := strings.CutPrefix(line, "# "); ok {
+			for l := range strings.SplitSeq(wrap(rest, width-2), "\n") {
+				out = append(out, "# "+l)
 			}
+			continue
 		}
-		return doneMsg{what: "copy", note: note}
+		out = append(out, splitShell([]rune(line), width)...)
 	}
-	return tea.Batch(tea.SetClipboard(text), done)
+	return out
+}
+
+func splitShell(r []rune, width int) []string {
+	var out []string
+	for len(r) > width && width >= 10 {
+		cut, quoted := shellCut(r, width-2) // room for the continuation marker
+		if cut == 0 {
+			break
+		}
+		if quoted {
+			out = append(out, string(r[:cut])+`'\`)
+			r = append([]rune{'\''}, r[cut:]...)
+		} else {
+			out = append(out, string(r[:cut])+`\`)
+			r = r[cut:]
+		}
+	}
+	return append(out, string(r))
+}
+
+// shellCut finds the last place up to max where a shell line can be split, and
+// tells whether that place is inside single quotes. It returns 0 if there is none.
+func shellCut(r []rune, limit int) (cut int, quoted bool) {
+	in, escaped := false, false
+	for i := 0; i < len(r) && i <= limit; i++ {
+		if i > 0 && (in || !escaped) {
+			cut, quoted = i, in
+		}
+		switch c := r[i]; {
+		case escaped:
+			escaped = false
+		case !in && c == '\\':
+			escaped = true
+		case c == '\'':
+			in = !in
+		}
+	}
+	return cut, quoted
 }

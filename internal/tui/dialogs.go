@@ -242,21 +242,54 @@ func (d *textDialog) view(width int) string {
 	return box(d.title, body, "↑↓ pgup pgdn scroll · G end · esc close", width)
 }
 
+// ---- screens for selecting and pasting ----
+
+// plainDialog is a dialog that fills the whole screen with plain text, with
+// no frame, colors or padding in the way of selecting the text in a terminal
+// (the console of a browser, for example, which has no clipboard access).
+type plainDialog interface {
+	dialog
+	plain()
+}
+
+// pasteDialog shows text that is meant to be copied by selecting it.
+type pasteDialog struct {
+	title, intro, text string
+}
+
+func (d *pasteDialog) plain() {}
+
+func (d *pasteDialog) key(_ *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
+	switch k.String() {
+	case "esc", "q", "enter", "ctrl+c":
+		return nil, true
+	}
+	return nil, false
+}
+
+func (d *pasteDialog) view(width int) string {
+	var b strings.Builder
+	b.WriteString(styleTitle.Render(d.title) + "\n" + styleDim.Render(wrap(d.intro, width)) + "\n\n")
+	b.WriteString(strings.Join(shellLines(d.text, width), "\n") + "\n\n")
+	b.WriteString(styleDim.Render("esc closes"))
+	return b.String()
+}
+
 // ---- web UI login link ----
 
 type linkDialog struct {
 	url, hint string
 }
 
+func (d *linkDialog) plain() {}
+
 func (d *linkDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch k.String() {
 	case "esc", "q", "enter", "ctrl+c":
 		return nil, true
-	case "c":
-		return copyText(m.o, d.url, "login link copied"), false
 	case "o":
 		if m.o.Open == nil {
-			m.say("this machine cannot open a browser; copy the link instead")
+			m.say("this machine cannot open a browser; open the link by hand")
 			return nil, false
 		}
 		return act("open browser", func() error { return m.o.Open(d.url) }), false
@@ -269,12 +302,14 @@ func (d *linkDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-func (d *linkDialog) view(width int) string {
-	text := "Open this link in a browser. It works once and for two minutes:\n\n" + styleLink.Render(d.url) + "\n"
+// view puts the link on a line of its own, so that a triple click selects
+// exactly the link.
+func (d *linkDialog) view(_ int) string {
+	text := styleTitle.Render("Web UI") + "\n" + styleDim.Render("Open this link in a browser. It works once and for two minutes:") + "\n\n" + d.url + "\n"
 	if d.hint != "" {
-		text += "\nFrom another machine:\n" + d.hint + "\n"
+		text += "\n" + styleDim.Render("From another machine:") + "\n" + d.hint + "\n"
 	}
-	return box("Web UI", text, "c copy · o open here · d switch the web UI off · esc close", width)
+	return text + "\n" + styleDim.Render("o open here · d switch the web UI off · esc close")
 }
 
 // ---- restore ----

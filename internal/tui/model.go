@@ -124,6 +124,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case preflightMsg:
 		return m, m.gotPreflight(msg)
+	case pasteMsg:
+		m.dlg = &pasteDialog{title: "restic environment", intro: "These lines set up restic for this repository and contain the secrets. Select them with the mouse, copy them and paste them into a shell.", text: msg.text}
 	case linkMsg:
 		if !m.fail("web UI", msg.err) {
 			m.webLink = msg.url
@@ -425,20 +427,21 @@ func (m *Model) accessKey(s string) tea.Cmd {
 	case "p":
 		return fetchEnv(m.ctx, m.svc, !m.revealed)
 	case "y":
-		return m.copyEnv()
+		return m.showEnv()
 	}
 	return nil
 }
 
-// copyEnv copies the environment in export format, with the secrets.
-func (m *Model) copyEnv() tea.Cmd {
+// showEnv shows the environment in export format, with the secrets, as plain
+// text that can be selected and pasted into a shell.
+func (m *Model) showEnv() tea.Cmd {
 	ctx := m.ctx
 	return func() tea.Msg {
 		info, err := m.svc.Env(ctx, true)
 		if err != nil {
-			return doneMsg{what: "copy", err: err}
+			return doneMsg{what: "access", err: err}
 		}
-		return copyText(m.o, exportText(info), "restic environment copied to the clipboard (with the secrets)")()
+		return pasteMsg{text: exportText(info)}
 	}
 }
 

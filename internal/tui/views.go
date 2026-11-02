@@ -17,6 +17,13 @@ import (
 
 // View implements tea.Model.
 func (m *Model) View() tea.View {
+	if d, ok := m.dlg.(plainDialog); ok && !m.help && !m.quitting {
+		lines := strings.Split(d.view(m.width), "\n")
+		v := tea.NewView(strings.Join(lines[:min(len(lines), max(m.height, 1))], "\n"))
+		v.AltScreen = true
+		v.WindowTitle = "mcs-backup"
+		return v
+	}
 	// The header sits at the top, the operation panel and the legend at the
 	// bottom, so that they do not move when the tab or the content changes.
 	top := strings.Split(m.header()+"\n", "\n")
@@ -144,7 +151,7 @@ func (m *Model) legend(t tab, cancel bool) string {
 	case tabLocks:
 		keys = []hint{{"u", "remove stale"}, {"U", "remove all"}}
 	case tabAccess:
-		keys = []hint{{"p", "show/hide secrets"}, {"y", "copy"}}
+		keys = []hint{{"p", "show/hide secrets"}, {"y", "paste view"}}
 	}
 	if cancel {
 		keys = append([]hint{{"c", "cancel"}}, keys...)
@@ -619,5 +626,5 @@ Locks       in Locks: u  remove stale locks, U  remove all
 Schedule    s  enable, disable or pause scheduled backups
 Log         l  log of the last run
 Web UI      w  switch it on and show a one-time login link
-Access      in Access: p  show or hide the secrets, y  copy them as shell exports
+Access      in Access: p  show or hide the secrets, y  show them as shell exports to paste
 Other       n  test notification · r  refresh · q  quit`

@@ -116,3 +116,6 @@ func fetchPreflight(ctx context.Context, svc service.Service, req service.Restor
 func act(what string, fn func() error) tea.Cmd {
 	return func() tea.Msg { return doneMsg{what: what, err: fn()} }
 }
+
+// pasteMsg carries text that is shown for selecting and pasting.
+type pasteMsg struct{ text string }

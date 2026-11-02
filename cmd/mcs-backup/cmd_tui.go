@@ -31,7 +31,7 @@ the keys.`,
 			svc, closeSvc := a.service(cmd)
 			defer closeSvc()
 			return tui.Run(cmd.Context(), svc, a.stdin, a.stdout, tui.Options{
-				Now: a.now, Open: a.browser(cmd.Context()), Copy: a.clipboard(cmd.Context()), Hint: a.webHint,
+				Now: a.now, Open: a.browser(cmd.Context()), Hint: a.webHint,
 			})
 		},
 	}
@@ -60,19 +60,6 @@ func (a *app) browser(ctx context.Context) func(string) error {
 		return nil
 	}
 	return func(link string) error { return exec.CommandContext(ctx, opener, link).Run() } //nolint:gosec // the opener is fixed, the link is made by the service
-}
-
-// clipboard returns a function that fills the clipboard of this machine on
-// macOS, whose Terminal.app ignores the OSC 52 sequence; nil elsewhere.
-func (a *app) clipboard(ctx context.Context) func(string) error {
-	if runtime.GOOS != "darwin" || !a.local() {
-		return nil
-	}
-	return func(text string) error {
-		c := exec.CommandContext(ctx, "pbcopy")
-		c.Stdin = strings.NewReader(text)
-		return c.Run()
-	}
 }
 
 // webHint says how to reach a web UI link from another machine.

@@ -21,9 +21,6 @@ type Options struct {
 	// Open opens a URL in the browser of this machine; nil if that is not
 	// possible (for example in a pod).
 	Open func(url string) error
-	// Copy puts text on the clipboard in addition to the terminal's OSC 52
-	// sequence, for terminals that do not support it.
-	Copy func(text string) error
 	// Hint tells how to reach a web UI link from another machine, for
 	// example with a kubectl port-forward command; nil or empty for none.
 	Hint func(link string) string

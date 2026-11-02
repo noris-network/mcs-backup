@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"errors"
+	"os/exec"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -62,10 +64,11 @@ func TestAccessMasksSecrets(t *testing.T) {
 	r.wantNoScreen("hunter2")
 
 	r.press("y")
-	if !strings.Contains(r.copied, "export RESTIC_PASSWORD='hunter2'") {
-		t.Errorf("copied = %q", r.copied)
-	}
-	r.wantScreen("copied to the clipboard")
+	// the environment comes as plain text, for selecting it with the mouse
+	r.wantScreen("export RESTIC_PASSWORD='hunter2'", "paste them into a shell")
+	r.wantNoScreen("│", "╭")
+	r.press("esc")
+	r.wantScreen("Access")
 	for _, c := range r.fake.CallsTo("Env") {
 		if c.Source != service.SourceTUI {
 			t.Errorf("Env called with source %q", c.Source)
@@ -403,12 +406,9 @@ func TestWebUILoginLink(t *testing.T) {
 		t.Errorf("the web UI should be switched on: %v", r.fake)
 	}
 	r.wantScreen("http://127.0.0.1:8080/login?code=abc", "once and for two minutes", "kubectl port-forward")
-	r.press("c")
-	if r.copied != "http://127.0.0.1:8080/login?code=abc" {
-		t.Errorf("copied = %q", r.copied)
-	}
+	r.wantNoScreen("│", "╭") // no frame around the link: a triple click selects it alone
 	r.press("o")
-	if r.opened != r.copied {
+	if r.opened != "http://127.0.0.1:8080/login?code=abc" {
 		t.Errorf("opened = %q", r.opened)
 	}
 	r.press("d")
@@ -488,8 +488,8 @@ func TestPanelAndLegendStayAtTheBottom(t *testing.T) {
 	lastLine := func(screen, text string) int {
 		t.Helper()
 		lines := strings.Split(screen, "\n")
-		for i := len(lines) - 1; i >= 0; i-- {
-			if strings.Contains(lines[i], text) {
+		for i, line := range slices.Backward(lines) {
+			if strings.Contains(line, text) {
 				return i
 			}
 		}
@@ -560,3 +560,33 @@ func TestOverviewNeverCutsAFrame(t *testing.T) {
 		}
 	}
 }
+
+func TestShellLinesStayReadableForAShell(t *testing.T) {
+	values := []string{
+		"s3:http://127.0.0.1:9000/backuptest/mcs-backup-demo/20261028-162121",
+		"it's a 'quoted' secret with spaces and a backslash \\ at the end of a long enough value to wrap around",
+		strings.Repeat("0123456789", 12),
+	}
+	for _, width := range []int{20, 33, 40, 61, 80} {
+		for _, v := range values {
+			script := "export NAME=" + shellQuoteForTest(v) + "\n"
+			lines := shellLines(script, width)
+			for _, l := range lines {
+				if n := len([]rune(l)); n > width {
+					t.Errorf("width %d: a line is %d cells wide: %q", width, n, l)
+				}
+			}
+			cmd := exec.CommandContext(t.Context(), "sh", "-c", strings.Join(lines, "\n")+"\nprintf %s \"$NAME\"")
+			out, err := cmd.Output()
+			if err != nil || string(out) != v {
+				t.Errorf("width %d: the shell reads %q (%v), want %q\n%s", width, out, err, v, strings.Join(lines, "\n"))
+			}
+		}
+	}
+	if got := shellLines("# a note that is longer than the line", 20); len(got) < 2 || !strings.HasPrefix(got[1], "# ") {
+		t.Errorf("a comment does not continue as a comment: %q", got)
+	}
+}
+
+// shellQuoteForTest quotes like envexport: in single quotes, with ' as '\”.
+func shellQuoteForTest(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }

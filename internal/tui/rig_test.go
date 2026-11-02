@@ -22,8 +22,7 @@ type rig struct {
 	m    *Model
 	fake *servicetest.Fake
 	quit bool
-	// copied and opened record what the model asked the machine to do
-	copied string
+	// opened records what the model asked the machine to open
 	opened string
 }
 
@@ -34,7 +33,6 @@ func newRig(t *testing.T) *rig {
 	r.m = New(service.WithSource(t.Context(), service.SourceTUI), fake, Options{
 		Now:  func() time.Time { return t0 },
 		Open: func(url string) error { r.opened = url; return nil },
-		Copy: func(text string) error { r.copied = text; return nil },
 		Hint: func(string) string { return "kubectl port-forward pod/app 8080" },
 	})
 	r.m.width, r.m.height = 110, 40

@@ -52,8 +52,10 @@ Things that are specific to macOS:
   than the last scheduled time.
 * **The socket path** is limited to about 100 characters, and `$TMPDIR` differs
   between users and daemons. The examples set `MCS_BACKUP_SOCKET` explicitly.
-* **TUI.** `mcs-backup tui` copies with OSC 52 where the terminal supports it
-  and with `pbcopy` otherwise (Terminal.app cannot do OSC 52).
+* **TUI.** `mcs-backup tui` never writes to a clipboard, which many terminals (the
+  console of a browser, for example) do not allow. Where something is meant to be
+  copied, the restic environment on the Access tab (`y`) and the web UI link,
+  it is shown as plain text without a frame, to be selected with the mouse.
 
 ## Notifications on a host
 
