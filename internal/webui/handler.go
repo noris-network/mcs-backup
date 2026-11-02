@@ -63,6 +63,17 @@ func NewHandler(svc service.Service, auth *Auth, o Options) http.Handler {
 		"duration": func(d service.Duration) string { return present.Duration(d.Std()) },
 		"join":     strings.Join,
 		"percent":  func(f float64) int { return int(f * 100) },
+		"flagclass": func(flag string) string {
+			switch flag {
+			case "keep":
+				return "ok"
+			case "SUSPICIOUS":
+				return "bad"
+			case "pre-restore":
+				return "warn"
+			}
+			return ""
+		},
 	}
 	for _, name := range []string{"overview", "snapshots", "locks", "access", "log", "restore", "restore_check", "login_failed", "off"} {
 		h.pages[name] = template.Must(template.New("").Funcs(funcs).ParseFS(assets, "templates/layout.html", "templates/live.html", "templates/"+name+".html"))
@@ -189,6 +200,8 @@ type page struct {
 	Status     *service.Status
 	AppendOnly bool
 	CanOff     bool
+	// Health is the word and the color of the indicator in the header.
+	Health, HealthLevel string
 }
 
 type flash struct {
@@ -210,6 +223,8 @@ func (h *Handler) render(w http.ResponseWriter, r *http.Request, name, nav strin
 	if nav != "" {
 		if st, err := h.svc.Status(r.Context()); err == nil {
 			p.Status, p.AppendOnly = &st, st.AppendOnly
+			label, level := present.Health(st)
+			p.Health, p.HealthLevel = label, string(level)
 		}
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="htmx-config" content='{"allowEval":false,"includeIndicatorStyles":false}'>
-<title>mcs-backup</title>
+<title>mcs-backup{{with .Status}} · {{.Host}}{{end}}</title>
 <link rel="stylesheet" href="/static/app.css">
 <script src="/static/htmx.min.js" defer></script>
 </head>
 <body>
-<header>
-  <strong>mcs-backup</strong>{{with .Status}} <span class="dim">{{.Host}}</span>{{end}}
+<header class="top">
+  <span class="brand">mcs-backup</span>{{with .Status}}<span class="host">{{.Host}}</span>{{end}}
   {{if .Nav}}
   <nav>
     <a href="/"{{if eq .Nav "overview"}} aria-current="page"{{end}}>Overview</a>
@@ -18,6 +18,7 @@
     <a href="/locks"{{if eq .Nav "locks"}} aria-current="page"{{end}}>Locks</a>
     <a href="/access"{{if eq .Nav "access"}} aria-current="page"{{end}}>Access</a>
   </nav>
+  {{if .Health}}<span class="pill {{.HealthLevel}}">{{.Health}}</span>{{end}}
   <form method="post" action="/logout" class="inline"><button class="link">Log out</button></form>
   {{end}}
 </header>

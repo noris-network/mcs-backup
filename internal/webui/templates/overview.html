@@ -1,29 +1,47 @@
 {{define "content"}}
-<div id="live" hx-get="/ui/live" hx-trigger="every 3s" hx-swap="innerHTML">
+<div class="layout">
+  <div id="live" hx-get="/ui/live" hx-trigger="every 3s" hx-swap="innerHTML">
 {{template "live" .Data}}
-</div>
+  </div>
 
-<h2>Actions</h2>
-<div class="actions">
-  <form method="post" action="/backup" class="stack">
-    <label>Note <input name="note" placeholder="optional, e.g. before the upgrade" maxlength="200"></label>
-    <label><input type="checkbox" name="keep" value="1"> keep: the retention never deletes this snapshot</label>
-    <button>Start a backup</button>
-  </form>
+  <aside class="actions">
+    <section class="panel">
+      <h2>Back up now</h2>
+      <form method="post" action="/backup" class="stack">
+        <label>Note <input name="note" placeholder="optional, e.g. before the upgrade" maxlength="200"></label>
+        <label class="check"><input type="checkbox" name="keep" value="1"> keep: the retention never deletes this snapshot</label>
+        <button class="primary">Start a backup</button>
+      </form>
+    </section>
 
-  <form method="post" action="/verify"><button>Run the restore test</button></form>
-  <form method="post" action="/notify-test"><button>Send a test notification</button></form>
+    <section class="panel">
+      <h2>Schedule</h2>
+      <form method="post" action="/schedule" class="stack">
+        <label>Scheduled backups
+          <select name="action">
+            <option value="enable">enable</option>
+            <option value="disable">disable until enabled again or restarted</option>
+            <option value="maintenance">pause for maintenance …</option>
+          </select></label>
+        <label>Pause for <input name="for" placeholder="2h, only for maintenance"></label>
+        <button>Apply</button>
+      </form>
+    </section>
 
-  <form method="post" action="/schedule" class="stack">
-    <label>Scheduled backups
-      <select name="action">
-        <option value="enable">enable</option>
-        <option value="disable">disable until enabled again or restarted</option>
-        <option value="maintenance">pause for maintenance …</option>
-      </select></label>
-    <label>for <input name="for" placeholder="2h" size="6"></label>
-    <button>Apply</button>
-  </form>
-  {{if .CanOff}}<form method="post" action="/web/off"><button>Switch the web UI off</button></form>{{end}}
+    <section class="panel">
+      <h2>Checks</h2>
+      <div class="btnrow">
+        <form method="post" action="/verify"><button>Run the restore test</button></form>
+        <form method="post" action="/notify-test"><button>Send a test notification</button></form>
+      </div>
+    </section>
+
+    {{if .CanOff}}
+    <section class="panel">
+      <h2>Web UI</h2>
+      <form method="post" action="/web/off"><button>Switch the web UI off</button></form>
+    </section>
+    {{end}}
+  </aside>
 </div>
 {{end}}

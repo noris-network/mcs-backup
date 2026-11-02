@@ -1,6 +1,8 @@
 {{define "content"}}
 <h1>Log of the last {{.Data.Kind}} run</h1>
+<section class="panel">
 {{if .Data.Lines}}<pre class="log">{{range .Data.Lines}}{{.}}
 {{end}}</pre>{{else}}<p>The log is empty.</p>{{end}}
-<p><a href="/">Back</a></p>
+</section>
+<p class="back"><a href="/" class="btn">Back</a></p>
 {{end}}

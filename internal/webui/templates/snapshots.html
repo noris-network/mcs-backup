@@ -1,21 +1,24 @@
 {{define "content"}}
-<h1>Snapshots</h1>
-{{if not .Data.Snapshots}}<p>There are no snapshots yet.</p>{{else}}
+<h1>Snapshots <span class="dim">{{len .Data.Snapshots}}</span></h1>
+{{if not .Data.Snapshots}}<section class="panel"><p>There are no snapshots yet.</p></section>{{else}}
+<section class="panel table">
 <table>
-<thead><tr><th>ID</th><th>Time</th><th>Age</th><th>Origin</th><th class="num">Files</th><th class="num">Size</th><th>Flags</th><th>Note</th><th></th></tr></thead>
+<thead><tr><th>ID</th><th>Time</th><th>Origin</th><th class="num">Files</th><th class="num">Size</th><th>Flags and note</th><th></th></tr></thead>
 <tbody>
 {{range .Data.Snapshots}}
 <tr{{if .Suspicious}} class="bad"{{end}}>
-  <td><code>{{.ShortID}}</code></td><td>{{stamp .Time}}</td><td>{{ago .Time}}</td><td>{{.Origin}}</td>
+  <td><code>{{.ShortID}}</code></td>
+  <td class="when">{{stamp .Time}}<br><span class="dim">{{ago .Time}}</span></td>
+  <td class="origin">{{.Origin}}</td>
   <td class="num">{{if .HasSummary}}{{.Files}}{{else}}-{{end}}</td><td class="num">{{if .HasSummary}}{{bytes .Bytes}}{{else}}-{{end}}</td>
-  <td>{{join (flags .) ", "}}</td><td>{{.Note}}</td>
+  <td>{{range flags .}}<span class="badge {{flagclass .}}">{{.}}</span>{{end}}{{if .Note}} {{.Note}}{{end}}</td>
   <td class="row-actions">
-    <a href="/restore?snapshot={{.ShortID}}">restore</a>
+    <a href="/restore?snapshot={{.ShortID}}" class="btn small">restore</a>
     {{if not $.AppendOnly}}
-    <form method="post" action="/snapshots/{{.ID}}/{{if .Keep}}unkeep{{else}}keep{{end}}" class="inline"><button class="link">{{if .Keep}}unkeep{{else}}keep{{end}}</button></form>
+    <form method="post" action="/snapshots/{{.ID}}/{{if .Keep}}unkeep{{else}}keep{{end}}" class="inline"><button class="small">{{if .Keep}}unkeep{{else}}keep{{end}}</button></form>
     {{if .Suspicious}}
     <form method="post" action="/snapshots/{{.ID}}/acknowledge" class="inline">
-      <input name="confirm" placeholder="type acknowledge" size="14" autocomplete="off"><button class="link">acknowledge</button>
+      <input name="confirm" placeholder="type acknowledge" size="14" autocomplete="off"> <button class="small danger">acknowledge</button>
     </form>
     {{end}}
     {{end}}
@@ -24,10 +27,12 @@
 {{end}}
 </tbody>
 </table>
+</section>
 {{end}}
-<p><a href="/restore">Restore a snapshot …</a></p>
+<p class="back"><a href="/restore" class="btn">Restore a snapshot …</a></p>
 
 {{with .Data.Retention}}
+<section class="panel">
 <h2>Retention</h2>
 {{if .AppendOnly}}<p>The repository is append-only: nothing is ever forgotten.</p>{{else}}
 <p>Policy: keep {{.Policy}}, and every snapshot marked keep. Applies to host {{join .Hosts ", "}}: {{.Total}} snapshots{{if .Foreign}} ({{.Foreign}} snapshots of other hosts are never touched){{end}}.</p>
@@ -36,12 +41,13 @@
 <ul>{{range .Remove}}<li><code>{{.ShortID}}</code> {{stamp .Time}}{{if .Note}}, {{.Note}}{{end}}</li>{{end}}</ul>
 {{if .Held}}
 <form method="post" action="/forget/approve" class="stack">
-  <p class="bad">That is more than the retention guard allows: forget is held back until it is approved.</p>
-  <label>Type <code>forget</code> to run it now <input name="confirm" autocomplete="off"></label>
+  <p class="dot bad">That is more than the retention guard allows: forget is held back until it is approved.</p>
+  <label><span>Type <code>forget</code> to run it now</span> <input name="confirm" autocomplete="off"></label>
   <button class="danger">Approve the forget</button>
 </form>
 {{end}}
 {{else}}<p>The next forget would remove nothing.</p>{{end}}
 {{end}}
+</section>
 {{end}}
 {{end}}

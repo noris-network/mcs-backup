@@ -1,21 +1,29 @@
 {{define "content"}}
 <h1>Locks</h1>
-{{if not .Data}}<p>The repository has no locks.</p>{{else}}
+{{if not .Data}}<section class="panel"><p class="dot ok">The repository has no locks.</p></section>{{else}}
+<section class="panel table">
 <table>
 <thead><tr><th>ID</th><th>Age</th><th>Exclusive</th><th>Host</th><th>User</th><th class="num">PID</th><th></th></tr></thead>
 <tbody>
-{{range .Data}}<tr><td><code>{{short .ID}}</code></td><td>{{duration .Age}}</td><td>{{.Exclusive}}</td><td>{{.Hostname}}</td><td>{{.Username}}</td><td class="num">{{.PID}}</td><td>{{if .Stale}}stale{{end}}</td></tr>
+{{range .Data}}<tr><td><code>{{short .ID}}</code></td><td>{{duration .Age}}</td><td>{{.Exclusive}}</td><td>{{.Hostname}}</td><td>{{.Username}}</td><td class="num">{{.PID}}</td><td>{{if .Stale}}<span class="badge warn">stale</span>{{end}}</td></tr>
 {{end}}
 </tbody>
 </table>
+</section>
 {{end}}
-<form method="post" action="/locks/unlock"><button>Remove stale locks</button> <span class="dim">Locks of running processes are renewed and stay.</span></form>
+<section class="panel">
+  <h2>Remove stale locks</h2>
+  <form method="post" action="/locks/unlock" class="btnrow"><button class="primary">Remove stale locks</button> <span class="dim">Locks of running processes are renewed and stay.</span></form>
+</section>
 {{if not .AppendOnly}}
-<form method="post" action="/locks/unlock" class="stack">
-  <input type="hidden" name="all" value="1">
-  <p class="bad">Removing all locks also removes those of running processes, which can corrupt a running backup.</p>
-  <label>Type <code>remove-all</code> <input name="confirm" autocomplete="off"></label>
-  <button class="danger">Remove all locks</button>
-</form>
+<section class="panel danger-zone">
+  <h2>Remove all locks</h2>
+  <form method="post" action="/locks/unlock" class="stack">
+    <input type="hidden" name="all" value="1">
+    <p class="dot bad">Removing all locks also removes those of running processes, which can corrupt a running backup.</p>
+    <label><span>Type <code>remove-all</code></span> <input name="confirm" autocomplete="off"></label>
+    <button class="danger">Remove all locks</button>
+  </form>
+</section>
 {{end}}
 {{end}}

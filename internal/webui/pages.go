@@ -13,13 +13,21 @@ import (
 
 // liveData is the part of the overview that refreshes by itself.
 type liveData struct {
-	Rows, Notes []present.Row
+	// Cards are the headline figures, Rows the details below them.
+	Cards []present.Card
+	Rows  []present.Row
+	// Notes need attention; NotesLevel is the color of the worst one.
+	Notes      []note
+	NotesLevel string
+	// Runs are the latest results of the kinds of operations.
+	Runs        []runRow
 	Op          *service.Operation
 	OpLine      string
 	Log         []string
 	Result      *service.RunResult
 	ResultLines []string
 	ResultOK    bool
+	ResultClass string
 	Retry       *service.RetryInfo
 	// CanRepeat: the last restore failed and can be repeated without the safety snapshot.
 	CanRepeat   bool
@@ -30,19 +38,68 @@ type liveData struct {
 	VerifyReady bool
 }
 
+// note is one thing that needs attention.
+type note struct {
+	Text     string
+	Severity service.Severity
+}
+
+// runRow is the latest result of one kind of operation.
+type runRow struct {
+	Kind              service.Kind
+	Result            service.Result
+	Class             string
+	Started, Duration string
+	Snapshot          string
+}
+
+func resultClass(r service.Result) string {
+	switch r {
+	case service.ResultSuccess:
+		return "ok"
+	case service.ResultWarning:
+		return "warn"
+	case service.ResultSkipped:
+		return "skip"
+	}
+	return "bad"
+}
+
 func (h *Handler) liveData(r *http.Request) (liveData, error) {
 	st, err := h.svc.Status(r.Context())
 	if err != nil {
 		return liveData{}, err
 	}
 	d := liveData{Op: st.Operation, Retry: st.Retry, Web: st.WebUI, ForgetHeld: st.ForgetHeld, AppendOnly: st.AppendOnly, VerifyReady: st.VerifyConfigured}
+	d.Cards = present.Cards(st, h.o.Now())
+	// the cards, the notes and the runs are shown on their own
+	inRuns := false
 	for _, row := range present.StatusRows(st, h.o.Now()) {
-		if row.Severity != "" || row.Label == "Notes" {
-			d.Notes = append(d.Notes, row)
-		} else {
-			d.Rows = append(d.Rows, row)
+		switch {
+		case row.Label == "Last runs":
+			inRuns = true
+		case inRuns && row.Label == "" && row.Severity == "":
+		case row.Severity != "" || row.Label == "Notes":
+			d.Notes = append(d.Notes, note{strings.TrimPrefix(row.Text, present.SeverityMark(row.Severity)+" "), row.Severity})
+			switch {
+			case row.Severity == service.SeverityError:
+				d.NotesLevel = "bad"
+			case d.NotesLevel == "":
+				d.NotesLevel = "warn"
+			}
+		case row.Label == "Repository" || row.Label == "Last backup" || row.Label == "Secondary" || row.Label == "  next backup":
+		default:
+			inRuns = false
+			d.Rows = append(d.Rows, present.Row{Label: strings.TrimSpace(row.Label), Text: row.Text})
 		}
 	}
+	for _, res := range st.LastRuns {
+		d.Runs = append(d.Runs, runRow{
+			Kind: res.Kind, Result: res.Result, Class: resultClass(res.Result), Started: present.Stamp(res.Started),
+			Duration: present.Duration(res.Duration.Std()), Snapshot: present.Short(res.Snapshot),
+		})
+	}
+	slices.SortFunc(d.Runs, func(a, b runRow) int { return strings.Compare(b.Started, a.Started) })
 	switch {
 	case st.Operation != nil:
 		d.OpLine = present.OperationLine(h.o.Now(), *st.Operation)
@@ -58,7 +115,7 @@ func (h *Handler) liveData(r *http.Request) (liveData, error) {
 			}
 		}
 		if last != nil {
-			d.Result, d.ResultLines, d.ResultOK = last, present.ResultLines(*last), last.Result.OK()
+			d.Result, d.ResultLines, d.ResultOK, d.ResultClass = last, present.ResultLines(*last), last.Result.OK(), resultClass(last.Result)
 			h.mu.Lock()
 			rr := h.lastRestore
 			h.mu.Unlock()

@@ -487,3 +487,45 @@ func TestWebOffNeedsTheManager(t *testing.T) {
 }
 
 func base64(s string) string { return b64.StdEncoding.EncodeToString([]byte(s)) }
+
+func TestOverviewShowsCardsHealthAndRuns(t *testing.T) {
+	s := newSite(t, "")
+	st := s.fake.StatusFn
+	s.fake.StatusFn = func(ctx context.Context) (service.Status, error) {
+		v, _ := st(ctx)
+		v.Warnings = []service.Warning{{Code: "backup_suspicious", Severity: service.SeverityError, Message: "a snapshot is tagged suspicious"}}
+		v.LastRuns = map[service.Kind]service.RunResult{
+			service.KindBackup: {Kind: service.KindBackup, Result: service.ResultSuccess, Snapshot: "aaaaaaaa11", Started: time.Now().Add(-time.Hour)},
+			service.KindVerify: {Kind: service.KindVerify, Result: service.ResultFailure, Started: time.Now().Add(-2 * time.Hour)},
+		}
+		return v, nil
+	}
+	s.login()
+	page := s.do("GET", "/", nil)
+	page.want(t, http.StatusOK,
+		`class="pill bad"`, "needs attention", // the state in the header
+		`<div class="card ok">`, `class="dot ok">reachable`, "Last backup", "Next backup", // the headline figures
+		`class="attention bad"`, "a snapshot is tagged suspicious", // the worst severity colors the frame
+		"Last runs", `class="dot ok">success`, `class="dot bad">failure`, "<code>aaaaaaaa</code>")
+	if strings.Contains(page.body, "!! a snapshot") {
+		t.Error("the severity mark of the text is still there")
+	}
+	// the repository is not listed twice: it is a card, not a row of the details
+	if strings.Contains(page.body, "<dt>Repository</dt>") || strings.Contains(page.body, "<dt>Last backup</dt>") {
+		t.Errorf("the details repeat the cards:\n%s", page.body)
+	}
+}
+
+func TestSnapshotFlagsAreBadges(t *testing.T) {
+	s := newSite(t, "")
+	s.fake.SnapshotsFn = func(context.Context) ([]service.Snapshot, error) {
+		return []service.Snapshot{
+			{ID: "aaaaaaaa00", ShortID: "aaaaaaaa", Time: time.Now(), Suspicious: true},
+			{ID: "bbbbbbbb00", ShortID: "bbbbbbbb", Time: time.Now().Add(-time.Hour), Keep: true},
+			{ID: "cccccccc00", ShortID: "cccccccc", Time: time.Now().Add(-2 * time.Hour), PreRestore: true},
+		}, nil
+	}
+	s.login()
+	s.do("GET", "/snapshots", nil).want(t, http.StatusOK,
+		`<span class="badge bad">SUSPICIOUS</span>`, `<span class="badge ok">keep</span>`, `<span class="badge warn">pre-restore</span>`)
+}

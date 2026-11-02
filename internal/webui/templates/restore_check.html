@@ -1,24 +1,27 @@
 {{define "content"}}
 <h1>Restore</h1>
-<table class="rows">
-{{range .Data.Rows}}<tr><th>{{.Label}}</th><td{{if .Severity}} class="bad"{{end}}>{{.Text}}</td></tr>
+<section class="panel">
+<dl class="rows">
+{{range .Data.Rows}}<dt>{{.Label}}</dt><dd{{if .Severity}} class="dot bad"{{end}}>{{.Text}}</dd>
 {{end}}
-</table>
+</dl>
+</section>
+<section class="panel {{if .Data.Pre.InPlace}}danger-zone{{end}}">
 <form method="post" action="/restore" class="stack">
   <input type="hidden" name="snapshot" value="{{.Data.Request.Snapshot}}">
   <input type="hidden" name="target" value="{{.Data.Request.Target}}">
   <input type="hidden" name="include" value="{{.Data.Include}}">
   <input type="hidden" name="mode" value="{{.Data.Request.Mode}}">
   {{if .Data.Pre.SpaceWarning}}
-  <label><input type="checkbox" name="ignore_space" value="1"> restore although the space looks too small</label>
+  <label class="check"><input type="checkbox" name="ignore_space" value="1"> restore although the space looks too small</label>
   {{end}}
   {{if .Data.Pre.InPlace}}
-  <p class="bad">This replaces the current data.</p>
-  <label>Type <code>{{.Data.Request.Snapshot}}</code> to confirm <input name="confirm" autocomplete="off"></label>
-  <button class="danger">Restore</button>
+  <p class="dot bad">This replaces the current data.</p>
+  <label><span>Type <code>{{.Data.Request.Snapshot}}</code> to confirm</span> <input name="confirm" autocomplete="off"></label>
+  <div class="btnrow"><button class="danger">Restore</button> <a href="/restore?snapshot={{.Data.Request.Snapshot}}" class="btn">Back</a></div>
   {{else}}
-  <button>Restore</button>
+  <div class="btnrow"><button class="primary">Restore</button> <a href="/restore?snapshot={{.Data.Request.Snapshot}}" class="btn">Back</a></div>
   {{end}}
-  <a href="/restore?snapshot={{.Data.Request.Snapshot}}">Back</a>
 </form>
+</section>
 {{end}}
