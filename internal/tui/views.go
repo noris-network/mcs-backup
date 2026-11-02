@@ -245,7 +245,7 @@ func (m *Model) overviewPage() string {
 	if cards {
 		b.WriteString(m.cards(st) + "\n\n")
 	}
-	b.WriteString(rows(plain))
+	b.WriteString(rows(plain, m.width))
 	b.WriteString("\n" + webLine(st.WebUI, labelWidth(plain)))
 	if !st.VerifyConfigured {
 		b.WriteString("\n" + styleDim.Render("Restore test is not set up (see VERIFY_MODE and VERIFY_SCRIPT)."))
@@ -450,13 +450,11 @@ func (m *Model) accessPage() string {
 	} else {
 		b.WriteString("The secrets are hidden. p shows them.\n\n")
 	}
-	w := 0
-	for _, v := range m.env.Vars {
-		w = max(w, len(v.Name))
+	vars := make([]present.Row, len(m.env.Vars))
+	for i, v := range m.env.Vars {
+		vars[i] = present.Row{Label: v.Name, Text: v.Value}
 	}
-	for _, v := range m.env.Vars {
-		fmt.Fprintf(&b, "%s  %s\n", styleLabel.Render(fmt.Sprintf("%-*s", w, v.Name)), v.Value)
-	}
+	b.WriteString(rows(vars, m.width) + "\n")
 	if len(m.env.Args) > 0 {
 		fmt.Fprintf(&b, "\n%s  %s\n", styleLabel.Render("restic options"), strings.Join(m.env.Args, " "))
 	}

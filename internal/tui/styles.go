@@ -45,9 +45,15 @@ func framed(c color.Color, width int, content string) string {
 	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(c).Padding(0, 1).Width(width).Render(content)
 }
 
+// boxWidth is the outer width of a dialog on a terminal of the given width.
+func boxWidth(width int) int { return min(max(width, 24), 92) }
+
+// boxText is the width of the text inside a dialog: without border and padding.
+func boxText(width int) int { return boxWidth(width) - 4 }
+
 // box frames the body of a dialog.
 func box(title, body, hint string, width int) string {
-	inner := min(max(width, 24), 92)
+	inner := boxWidth(width)
 	content := styleAccent.Bold(true).Render(title) + "\n\n" + strings.TrimRight(body, "\n") + "\n\n" + styleDim.Render(hint)
 	return framed(colAccent, inner, content)
 }
@@ -63,18 +69,27 @@ func fill(line string, width int) string {
 	return line + strings.Repeat(" ", max(0, width-lipgloss.Width(line)))
 }
 
-// wrap breaks text into lines of at most width cells.
+// wrap breaks text into lines of at most width cells. A word that is longer
+// than a line, such as a path, is cut.
 func wrap(text string, width int) string {
 	if width < 10 {
 		return text
 	}
 	var out, line []string
 	n := 0
+	flush := func() { out, line, n = append(out, strings.Join(line, " ")), nil, 0 }
 	for w := range strings.FieldsSeq(text) {
-		if n+len(w)+1 > width && len(line) > 0 {
-			out, line, n = append(out, strings.Join(line, " ")), nil, 0
+		for r := []rune(w); ; {
+			if n+len(r)+1 > width && len(line) > 0 {
+				flush()
+			}
+			if len(r) <= width {
+				line, n = append(line, string(r)), n+len(r)+1
+				break
+			}
+			out = append(out, string(r[:width]))
+			r = r[width:]
 		}
-		line, n = append(line, w), n+len(w)+1
 	}
 	return strings.Join(append(out, strings.Join(line, " ")), "\n")
 }

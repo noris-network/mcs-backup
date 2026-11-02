@@ -7,6 +7,7 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/noris-network/mcs-backup/v2/internal/present"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
@@ -434,7 +435,7 @@ func (d *restoreDialog) view(width int) string {
 		b.WriteString("Mode when replacing the live data\n" + cursor + mode + "\n")
 		hint = "tab next field · ←→ change mode · enter check · esc cancel"
 	case stagePreview:
-		b.WriteString(rows(present.PreflightRows(*d.pre, d.now)) + "\n")
+		b.WriteString(rows(present.PreflightRows(*d.pre, d.now), boxText(width)) + "\n")
 		if d.pre.SpaceWarning {
 			mark := "[ ]"
 			if d.ignore {
@@ -453,16 +454,22 @@ func (d *restoreDialog) view(width int) string {
 	return box("Restore", b.String(), hint, width)
 }
 
-// rows renders labeled rows as aligned text.
-func rows(rs []present.Row) string {
+// rows renders labeled rows as aligned text. Values that are longer than
+// width wrap under the value column.
+func rows(rs []present.Row, width int) string {
 	w := labelWidth(rs)
+	indent := strings.Repeat(" ", w+2)
 	var b strings.Builder
 	for _, r := range rs {
-		text := r.Text
+		style := lipgloss.NewStyle()
 		if r.Severity == service.SeverityWarning || r.Severity == service.SeverityError {
-			text = styleBad.Render(text)
+			style = styleBad
 		}
-		fmt.Fprintf(&b, "%s  %s\n", styleLabel.Render(fmt.Sprintf("%-*s", w, r.Label)), text)
+		lines := strings.Split(wrap(r.Text, width-w-2), "\n")
+		b.WriteString(styleLabel.Render(fmt.Sprintf("%-*s", w, r.Label)) + "  " + style.Render(lines[0]) + "\n")
+		for _, l := range lines[1:] {
+			b.WriteString(indent + style.Render(l) + "\n")
+		}
 	}
 	return strings.TrimRight(b.String(), "\n")
 }

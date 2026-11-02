@@ -456,3 +456,28 @@ func TestDialogCapturesKeys(t *testing.T) {
 		t.Error("esc did not close the dialog")
 	}
 }
+
+func TestLongValuesWrapUnderTheirColumn(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	long := "/home/someone/workspace/a-project/with/a/very/long/path/to/the/data/directory/that/does/not/fit/in/the/box"
+	r.fake.RestorePreflightFn = func(_ context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {
+		return service.RestorePreflight{Snapshot: snap("cccccccc", time.Hour), Target: long, InPlace: true, Mode: req.Mode, SafetySnapshot: true}, nil
+	}
+	r.press("2", "enter", "enter")
+	r.wantScreen("Target", "Safety snapshot", "that/does/not/fit/in/the/box")
+	lines := strings.Split(r.screen(), "\n")
+	for i, l := range lines {
+		if w := len([]rune(l)); w > r.m.width {
+			t.Errorf("line %d is %d cells wide on a terminal of %d: %q", i, w, r.m.width, l)
+		}
+	}
+	// a wrapped value continues under the value column, not under the label
+	indent := strings.Repeat(" ", len("Safety snapshot")+2)
+	for i, l := range lines {
+		if strings.Contains(l, "Target") {
+			if next := strings.TrimPrefix(lines[i+1], "│ "); !strings.HasPrefix(next, indent) {
+				t.Errorf("the continuation of the target is not indented: %q", lines[i+1])
+			}
+		}
+	}
+}
