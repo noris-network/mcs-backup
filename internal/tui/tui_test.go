@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
 
@@ -601,3 +603,17 @@ func TestShellLinesStayReadableForAShell(t *testing.T) {
 
 // shellQuoteForTest quotes like envexport: in single quotes, with ' as '\”.
 func shellQuoteForTest(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
+
+func TestResizeRepaintsTheScreen(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	_, cmd := r.m.Update(tea.WindowSizeMsg{Width: 90, Height: 30})
+	if cmd == nil {
+		t.Fatal("a new size does not clear the screen")
+	}
+	if _, cmd := r.m.Update(tea.WindowSizeMsg{Width: 90, Height: 30}); cmd != nil {
+		t.Error("the same size clears the screen again")
+	}
+	if r.m.width != 90 || r.m.height != 30 {
+		t.Errorf("size = %dx%d", r.m.width, r.m.height)
+	}
+}

@@ -88,7 +88,11 @@ func (m *Model) say(format string, args ...any) {
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
+		resized := msg.Width != m.width || msg.Height != m.height
 		m.width, m.height = msg.Width, msg.Height
+		if resized { // repaint everything: what an earlier, wider frame left behind must not stay
+			return m, tea.ClearScreen
+		}
 	case tea.KeyPressMsg:
 		return m, m.key(msg)
 	case tickMsg:
