@@ -3,7 +3,6 @@ package webui
 import (
 	"cmp"
 	"errors"
-	"fmt"
 	"maps"
 	"net/http"
 	"slices"
@@ -139,8 +138,7 @@ func (h *Handler) liveData(r *http.Request) (liveData, error) {
 	switch {
 	case st.Operation != nil:
 		op := st.Operation
-		d.OpTitle = cmp.Or(present.PhaseTitle(op.Phase), present.PhaseTitle(string(op.Kind)))
-		d.OpLine = fmt.Sprintf("%s, started by %s, running for %s", op.Kind, op.Source, present.Duration(h.o.Now().Sub(op.Started)))
+		d.OpTitle, d.OpLine = present.OperationTitle(*op), present.OperationMeta(h.o.Now(), *op)
 		if l, err := h.svc.Log(r.Context(), op.Kind); err == nil {
 			for _, line := range l.Lines[max(0, len(l.Lines)-30):] {
 				if text, ok := present.LogLine(line); ok {

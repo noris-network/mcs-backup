@@ -1,8 +1,11 @@
 package present
 
 import (
+	"cmp"
+	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
@@ -37,6 +40,16 @@ func PhaseTitle(phase string) string {
 		return ""
 	}
 	return strings.ToUpper(phase[:1]) + phase[1:]
+}
+
+// OperationTitle says in words what a running operation does now.
+func OperationTitle(op service.Operation) string {
+	return cmp.Or(PhaseTitle(op.Phase), PhaseTitle(string(op.Kind)))
+}
+
+// OperationMeta says which operation runs, who started it and for how long.
+func OperationMeta(now time.Time, op service.Operation) string {
+	return fmt.Sprintf("%s, started by %s, running for %s", op.Kind, op.Source, Duration(now.Sub(op.Started)))
 }
 
 var (
