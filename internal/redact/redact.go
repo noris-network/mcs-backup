@@ -66,3 +66,24 @@ func New(environ []string) *Redactor {
 
 // String returns s with the secrets replaced.
 func (r *Redactor) String(s string) string { return r.r.Replace(s) }
+
+// Error returns err with the secrets in its message replaced. errors.Is and
+// errors.As still see the original error, so only its message must be shown.
+func (r *Redactor) Error(err error) error {
+	if err == nil {
+		return nil
+	}
+	msg := err.Error()
+	if s := r.String(msg); s != msg {
+		return &redacted{msg: s, err: err}
+	}
+	return err
+}
+
+type redacted struct {
+	msg string
+	err error
+}
+
+func (e *redacted) Error() string { return e.msg }
+func (e *redacted) Unwrap() error { return e.err }

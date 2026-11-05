@@ -15,8 +15,10 @@ import (
 // repository again), which must not hold the slot for long.
 const afterTimeout = 10 * time.Minute
 
+// notify passes ev to the notifier with the secrets in its texts hidden.
 func (d *Daemon) notify(ev notify.Event) {
 	if n := d.o.Notifier; n != nil {
+		ev.Message, ev.Error = d.redact.String(ev.Message), d.redact.String(ev.Error)
 		n.Notify(ev)
 	}
 }

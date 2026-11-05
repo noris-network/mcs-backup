@@ -5,6 +5,7 @@ import (
 	"errors"
 	"iter"
 	"net/http"
+	"slices"
 	"time"
 	"uuid"
 
@@ -68,6 +69,7 @@ func (d *Daemon) begin(ctx context.Context, kind service.Kind, origin service.Or
 
 // end releases the operation slot and publishes the result.
 func (d *Daemon) end(r *running, res service.RunResult) {
+	res = d.redactResult(res)
 	d.mu.Lock()
 	d.op = nil
 	d.lastRuns[res.Kind] = res
@@ -82,9 +84,21 @@ func (d *Daemon) end(r *running, res service.RunResult) {
 // record stores the result of a part of an operation that has its own kind,
 // such as the copy phase of a backup.
 func (d *Daemon) record(res service.RunResult) {
+	res = d.redactResult(res)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.lastRuns[res.Kind] = res
+}
+
+// redactResult hides the secrets in the texts of a result, which quote the
+// output of restic and of the scripts, before clients can see it.
+func (d *Daemon) redactResult(res service.RunResult) service.RunResult {
+	res.Message, res.Error = d.redact.String(res.Message), d.redact.String(res.Error)
+	res.Warnings = slices.Clone(res.Warnings)
+	for i, w := range res.Warnings {
+		res.Warnings[i] = d.redact.String(w)
+	}
+	return res
 }
 
 // sink connects an engine operation to the log, the events and the status.
@@ -129,7 +143,7 @@ func (d *Daemon) exclusive(ctx context.Context, kind service.Kind, detail string
 		return err
 	}
 	start := d.now()
-	err = fn(opCtx)
+	err = d.redact.Error(fn(opCtx))
 	res := service.RunResult{ID: r.op.ID, Kind: kind, Result: service.ResultSuccess, Source: r.op.Source, Started: start, Duration: service.Duration(d.now().Sub(start))}
 	if err != nil {
 		res.Result, res.Error = service.ResultFailure, err.Error()

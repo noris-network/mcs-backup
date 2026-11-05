@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"encoding/json/v2"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -302,6 +303,70 @@ func TestSnapshotsListsOnlyOwnNewestFirst(t *testing.T) {
 		if !got[0].Keep || got[0].Note != "x" {
 			t.Errorf("snapshot = %+v", got[0])
 		}
+	})
+}
+
+// The texts of results, repository errors and notifications quote restic and
+// the scripts; the secrets of the configuration must not reach anybody that way.
+func TestSecretsAreHidden(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		const secret = "hunter2-secret" // the RESTIC_PASSWORD of the test daemon
+		var healthy atomic.Bool
+		d := newTestDaemon(t, func(f *fakeEngine) {
+			f.openMain = func(int) (engine.RepoInfo, error) {
+				if healthy.Load() {
+					return engine.RepoInfo{ID: "repo1"}, nil
+				}
+				return engine.RepoInfo{}, errors.New("cannot open the repository with " + secret)
+			}
+			f.backup = func(context.Context, service.BackupRequest, engine.Sink) engine.BackupResult {
+				return engine.BackupResult{Result: service.ResultFailure, Message: "the hook said " + secret,
+					Error: "wrong password " + secret, Warnings: []string{"the hook printed " + secret}}
+			}
+		})
+		ctx, stop := start(t, d)
+		var events []service.Event
+		ectx, cancelEvents := context.WithCancel(ctx)
+		go func() {
+			for ev, err := range d.Events(ectx) {
+				if err != nil {
+					return
+				}
+				events = append(events, ev)
+			}
+		}()
+
+		time.Sleep(5 * time.Minute) // down for longer than the grace period
+		synctest.Wait()
+		down, _ := d.Status(ctx)
+		healthy.Store(true)
+		time.Sleep(2 * time.Minute)
+		synctest.Wait()
+		if _, err := d.StartBackup(ctx, service.BackupRequest{}); err != nil {
+			t.Fatal(err)
+		}
+		synctest.Wait()
+		failed, _ := d.Status(ctx)
+		cancelEvents()
+		synctest.Wait()
+
+		d.eng.mu.Lock()
+		d.eng.snapsErr = errors.New("cannot list the snapshots with " + secret)
+		d.eng.mu.Unlock()
+		_, err := d.Snapshots(ctx)
+
+		d.notes.mu.Lock()
+		out, _ := json.Marshal([]any{down, failed, events, d.notes.events, err.Error()})
+		d.notes.mu.Unlock()
+		if strings.Contains(string(out), secret) {
+			t.Errorf("a secret got out:\n%s", out)
+		}
+		for _, want := range []string{"the repository with ***", "wrong password ***", "the hook said ***", "the hook printed ***", "snapshots with ***"} {
+			if !strings.Contains(string(out), want) {
+				t.Errorf("%q is missing:\n%s", want, out)
+			}
+		}
+		stop()
 	})
 }
 

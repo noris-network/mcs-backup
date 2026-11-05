@@ -76,8 +76,9 @@ func (d *Daemon) Status(context.Context) (service.Status, error) {
 // warningsLocked lists what an operator should look at.
 func (d *Daemon) warningsLocked(st service.Status, now time.Time) []service.Warning {
 	var w []service.Warning
+	// a warning can quote an error of restic or of the notification command
 	add := func(code string, sev service.Severity, format string, args ...any) {
-		w = append(w, service.Warning{Code: code, Severity: sev, Message: fmt.Sprintf(format, args...)})
+		w = append(w, service.Warning{Code: code, Severity: sev, Message: d.redact.String(fmt.Sprintf(format, args...))})
 	}
 
 	if !st.Repository.Up {
@@ -161,7 +162,7 @@ func (d *Daemon) backupAgeLocked(last, now time.Time) time.Duration {
 func (d *Daemon) Snapshots(ctx context.Context) ([]service.Snapshot, error) {
 	snaps, err := d.eng.Snapshots(ctx)
 	if err != nil {
-		return nil, err
+		return nil, d.redact.Error(err)
 	}
 	own := service.Own(snaps, service.OwnHosts(d.cfg.Host, snaps))
 	out := make([]service.Snapshot, len(own))
@@ -173,15 +174,20 @@ func (d *Daemon) Snapshots(ctx context.Context) ([]service.Snapshot, error) {
 
 // Retention implements service.Service.
 func (d *Daemon) Retention(ctx context.Context) (service.RetentionInfo, error) {
-	return d.eng.Retention(ctx)
+	info, err := d.eng.Retention(ctx)
+	return info, d.redact.Error(err)
 }
 
 // Locks implements service.Service.
-func (d *Daemon) Locks(ctx context.Context) ([]service.Lock, error) { return d.eng.Locks(ctx) }
+func (d *Daemon) Locks(ctx context.Context) ([]service.Lock, error) {
+	locks, err := d.eng.Locks(ctx)
+	return locks, d.redact.Error(err)
+}
 
 // RestorePreflight implements service.Service.
 func (d *Daemon) RestorePreflight(ctx context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {
-	return d.eng.RestorePreflight(ctx, req)
+	pre, err := d.eng.RestorePreflight(ctx, req)
+	return pre, d.redact.Error(err)
 }
 
 // Env implements service.Service.
@@ -249,7 +255,7 @@ func (d *Daemon) NotifyTest(ctx context.Context) error {
 		return fmt.Errorf("%w: NOTIFY_COMMAND is not configured", service.ErrUnavailable)
 	}
 	d.log.InfoContext(ctx, "sending a test notification", "source", service.SourceFrom(ctx))
-	return n.Send(ctx, notify.Event{Name: "test", Message: "This is a test notification from mcs-backup.", Time: d.now()})
+	return d.redact.Error(n.Send(ctx, notify.Event{Name: "test", Message: "This is a test notification from mcs-backup.", Time: d.now()}))
 }
 
 var errNoWebUI = fmt.Errorf("%w: the web UI is not part of this build", service.ErrUnavailable)

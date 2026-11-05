@@ -1,6 +1,10 @@
 package redact
 
-import "testing"
+import (
+	"errors"
+	"fmt"
+	"testing"
+)
 
 func TestRedactor(t *testing.T) {
 	r := New([]string{
@@ -19,5 +23,25 @@ func TestRedactor(t *testing.T) {
 		if got := r.String(in); got != want {
 			t.Errorf("String(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestError(t *testing.T) {
+	r := New([]string{"RESTIC_PASSWORD=hunter2-secret"})
+	if r.Error(nil) != nil {
+		t.Error("Error(nil) must stay nil")
+	}
+	plain := errors.New("connection refused")
+	if r.Error(plain) != plain {
+		t.Error("an error without a secret must stay the same")
+	}
+
+	sentinel := errors.New("not found")
+	err := r.Error(fmt.Errorf("%w: wrong password hunter2-secret", sentinel))
+	if err.Error() != "not found: wrong password ***" {
+		t.Errorf("Error() = %q", err)
+	}
+	if !errors.Is(err, sentinel) {
+		t.Error("errors.Is must still see the original error")
 	}
 }

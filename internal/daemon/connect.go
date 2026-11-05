@@ -195,7 +195,7 @@ func (d *Daemon) markDown(second bool, err error) {
 		st, name = &d.second, "copy"
 	}
 	wasUp := st.up
-	st.up, st.err = false, err.Error()
+	st.up, st.err = false, d.redact.String(err.Error())
 	if wasUp || st.since.IsZero() {
 		st.since = now
 	}
