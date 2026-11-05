@@ -1,7 +1,9 @@
 package webui
 
 import (
+	"cmp"
 	"errors"
+	"maps"
 	"net/http"
 	"slices"
 	"strings"
@@ -94,38 +96,44 @@ func (h *Handler) liveData(r *http.Request) (liveData, error) {
 			d.Rows = append(d.Rows, present.Row{Label: strings.TrimSpace(row.Label), Text: row.Text})
 		}
 	}
-	for _, res := range st.LastRuns {
+	runs := slices.SortedFunc(maps.Values(st.LastRuns), newestFirst)
+	for _, res := range runs {
 		d.Runs = append(d.Runs, runRow{
 			Kind: res.Kind, Result: res.Result, Class: resultClass(res.Result), Started: present.Stamp(res.Started),
 			Duration: present.Duration(res.Duration.Std()), Snapshot: present.Short(res.Snapshot),
 		})
 	}
-	slices.SortFunc(d.Runs, func(a, b runRow) int { return strings.Compare(b.Started, a.Started) })
 	switch {
 	case st.Operation != nil:
 		d.OpLine = present.OperationLine(h.o.Now(), *st.Operation)
 		if l, err := h.svc.Log(r.Context(), st.Operation.Kind); err == nil {
 			d.Log = l.Lines[max(0, len(l.Lines)-6):]
 		}
-	default:
+	case len(runs) > 0:
 		// the most recent result of any kind
-		var last *service.RunResult
-		for _, res := range st.LastRuns {
-			if last == nil || res.Started.After(last.Started) {
-				last = &res
-			}
-		}
-		if last != nil {
-			d.Result, d.ResultLines, d.ResultOK, d.ResultClass = last, present.ResultLines(*last), last.Result.OK(), resultClass(last.Result)
-			h.mu.Lock()
-			rr := h.lastRestore
-			h.mu.Unlock()
-			if last.Kind == service.KindRestore && !last.Result.OK() && rr != nil && rr.Target == "" && !rr.NoSafetySnapshot {
-				d.CanRepeat, d.RepeatWhat = true, rr.Snapshot
-			}
+		last := &runs[0]
+		d.Result, d.ResultLines, d.ResultOK, d.ResultClass = last, present.ResultLines(*last), last.Result.OK(), resultClass(last.Result)
+		h.mu.Lock()
+		rr := h.lastRestore
+		h.mu.Unlock()
+		if last.Kind == service.KindRestore && !last.Result.OK() && rr != nil && rr.Target == "" && !rr.NoSafetySnapshot {
+			d.CanRepeat, d.RepeatWhat = true, rr.Snapshot
 		}
 	}
 	return d, nil
+}
+
+// newestFirst orders results by their start, the newest first. The copy of a
+// backup has the start of the backup and comes after it, so that the backup
+// is the last result; the kind keeps the order stable between refreshes.
+func newestFirst(a, b service.RunResult) int {
+	copyLast := func(r service.RunResult) int {
+		if r.Kind == service.KindCopy {
+			return 1
+		}
+		return 0
+	}
+	return cmp.Or(b.Started.Compare(a.Started), cmp.Compare(copyLast(a), copyLast(b)), strings.Compare(string(a.Kind), string(b.Kind)))
 }
 
 func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {

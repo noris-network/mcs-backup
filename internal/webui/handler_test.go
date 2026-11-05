@@ -520,6 +520,33 @@ func TestOverviewShowsCardsHealthAndRuns(t *testing.T) {
 	}
 }
 
+func TestTheBackupIsTheLastResultNotItsCopy(t *testing.T) {
+	s := newSite(t, "")
+	st := s.fake.StatusFn
+	s.fake.StatusFn = func(ctx context.Context) (service.Status, error) {
+		v, _ := st(ctx)
+		// a backup with a copy records both with the same start
+		v.LastRuns = map[service.Kind]service.RunResult{
+			service.KindBackup: {Kind: service.KindBackup, Result: service.ResultSuccess, Started: t0},
+			service.KindCopy:   {Kind: service.KindCopy, Result: service.ResultSuccess, Started: t0},
+			service.KindVerify: {Kind: service.KindVerify, Result: service.ResultSuccess, Started: t0.Add(-time.Hour)},
+		}
+		return v, nil
+	}
+	s.login()
+	// the order of a map is random: ask often enough to see a wrong one
+	for range 20 {
+		body := s.do("GET", "/ui/live", nil).body
+		if !strings.Contains(body, "backup: success") {
+			t.Fatalf("the last result is not the backup:\n%s", body)
+		}
+		b, c, v := strings.Index(body, "<td>backup</td>"), strings.Index(body, "<td>copy</td>"), strings.Index(body, "<td>verify</td>")
+		if b < 0 || b > c || c > v {
+			t.Fatalf("the runs are not backup, copy, verify:\n%s", body)
+		}
+	}
+}
+
 func TestSnapshotFlagsAreBadges(t *testing.T) {
 	s := newSite(t, "")
 	s.fake.SnapshotsFn = func(context.Context) ([]service.Snapshot, error) {
