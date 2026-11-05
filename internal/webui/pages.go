@@ -5,6 +5,7 @@ import (
 	"errors"
 	"maps"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 	"time"
@@ -295,12 +296,29 @@ type restoreForm struct {
 	Merge    bool
 }
 
+// restoreForm shows the form filled from the query, see restoreURL.
 func (h *Handler) restoreForm(w http.ResponseWriter, r *http.Request) {
-	snap := r.URL.Query().Get("snapshot")
-	if snap == "" {
-		snap = "latest"
+	q := r.URL.Query()
+	h.render(w, r, "restore", "snapshots", restoreForm{
+		Snapshot: cmp.Or(q.Get("snapshot"), "latest"), Target: q.Get("target"), Include: q.Get("include"),
+		Merge: q.Get("mode") == string(service.ModeMerge),
+	})
+}
+
+// restoreURL is the restore form filled with req, so that the way back from
+// the check keeps what was entered.
+func restoreURL(req service.RestoreRequest) string {
+	q := url.Values{"snapshot": {req.Snapshot}}
+	if req.Target != "" {
+		q.Set("target", req.Target)
 	}
-	h.render(w, r, "restore", "snapshots", restoreForm{Snapshot: snap})
+	if len(req.Includes) > 0 {
+		q.Set("include", strings.Join(req.Includes, " "))
+	}
+	if req.Mode == service.ModeMerge {
+		q.Set("mode", string(req.Mode))
+	}
+	return "/restore?" + q.Encode()
 }
 
 // restoreRequest reads the restore fields of a form.
@@ -325,6 +343,7 @@ type restoreCheckData struct {
 	Rows    []present.Row
 	Pre     service.RestorePreflight
 	Include string
+	Back    string
 }
 
 func (h *Handler) restoreCheck(w http.ResponseWriter, r *http.Request) {
@@ -342,11 +361,12 @@ func (h *Handler) restoreCheck(w http.ResponseWriter, r *http.Request) {
 	pre, err := h.svc.RestorePreflight(r.Context(), req)
 	if err != nil {
 		h.setFlash(w, r, false, describe(err))
-		http.Redirect(w, r, "/restore?snapshot="+req.Snapshot, http.StatusSeeOther)
+		http.Redirect(w, r, restoreURL(req), http.StatusSeeOther)
 		return
 	}
 	h.render(w, r, "restore_check", "snapshots", restoreCheckData{
 		Request: req, Pre: pre, Rows: present.PreflightRows(pre, h.o.Now()), Include: strings.Join(req.Includes, " "),
+		Back: restoreURL(req),
 	})
 }
 

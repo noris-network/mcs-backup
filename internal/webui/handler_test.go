@@ -490,7 +490,7 @@ func TestRestoreFlow(t *testing.T) {
 
 	// another target: no typed confirmation, the space warning needs its checkbox
 	other := s.do("POST", "/restore/check", url.Values{"snapshot": {"latest"}, "target": {"/tmp/out"}})
-	other.want(t, http.StatusOK, "restore although the space looks too small")
+	other.want(t, http.StatusOK, "restore although the space looks too small", `href="/restore?snapshot=latest&amp;target=%2Ftmp%2Fout"`)
 	if strings.Contains(other.body, "to confirm") {
 		t.Error("a restore to another directory asks for a typed confirmation")
 	}
@@ -500,6 +500,15 @@ func TestRestoreFlow(t *testing.T) {
 	}
 
 	s.do("POST", "/restore/check", url.Values{"snapshot": {""}}).want(t, http.StatusSeeOther)
+
+	// a check that fails goes back to the form with everything that was entered
+	s.fake.RestorePreflightFn = func(context.Context, service.RestoreRequest) (service.RestorePreflight, error) {
+		return service.RestorePreflight{}, errors.New("no snapshot a&b#c")
+	}
+	failed := s.do("POST", "/restore/check", url.Values{"snapshot": {"a&b#c"}, "target": {"/tmp/x y"}, "include": {"/etc /var"}, "mode": {"merge"}})
+	failed.want(t, http.StatusSeeOther)
+	s.do("GET", failed.header.Get("Location"), nil).want(t, http.StatusOK, "No snapshot a&amp;b#c",
+		`value="a&amp;b#c"`, `value="/tmp/x y"`, `value="/etc /var"`, `value="merge" selected`)
 }
 
 func TestLocksAndLog(t *testing.T) {
