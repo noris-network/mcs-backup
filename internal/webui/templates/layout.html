@@ -7,6 +7,7 @@
 <title>mcs-backup{{with .Status}} · {{.Host}}{{end}}</title>
 <link rel="stylesheet" href="/static/app.css">
 <script src="/static/htmx.min.js" defer></script>
+<script src="/static/app.js" defer></script>
 </head>
 <body>
 <header class="top">
@@ -18,7 +19,7 @@
     <a href="/locks"{{if eq .Nav "locks"}} aria-current="page"{{end}}>Locks</a>
     <a href="/access"{{if eq .Nav "access"}} aria-current="page"{{end}}>Access</a>
   </nav>
-  {{if .Health}}<span class="pill {{.HealthLevel}}">{{.Health}}</span>{{end}}
+  {{if .Health}}<span id="health" class="pill {{.HealthLevel}}">{{.Health}}</span>{{end}}
   <form method="post" action="/logout" class="inline"><button class="link">Log out</button></form>
   {{end}}
 </header>

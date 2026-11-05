@@ -547,6 +547,18 @@ func TestTheBackupIsTheLastResultNotItsCopy(t *testing.T) {
 	}
 }
 
+func TestTheRefreshBringsTheHealthAlong(t *testing.T) {
+	s := newSite(t, "")
+	s.login()
+	page := s.do("GET", "/", nil)
+	page.want(t, http.StatusOK, `id="health"`, `src="/static/app.js"`, `class="banner stale-note"`)
+	if n := strings.Count(page.body, `id="health"`); n != 1 {
+		t.Errorf("the page has %d health indicators, want 1", n)
+	}
+	s.do("GET", "/ui/live", nil).want(t, http.StatusOK, `<span id="health" class="pill ok" hx-swap-oob="true">healthy</span>`)
+	s.do("GET", "/static/app.js", nil).want(t, http.StatusOK, "htmx:afterRequest")
+}
+
 func TestSnapshotFlagsAreBadges(t *testing.T) {
 	s := newSite(t, "")
 	s.fake.SnapshotsFn = func(context.Context) ([]service.Snapshot, error) {

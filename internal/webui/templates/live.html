@@ -1,4 +1,5 @@
 {{define "live"}}
+{{if .Fragment}}<span id="health" class="pill {{.HealthLevel}}" hx-swap-oob="true">{{.Health}}</span>{{end}}
 <div class="stackv">
   <section class="cards">
     {{range .Cards}}

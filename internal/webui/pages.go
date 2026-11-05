@@ -39,6 +39,10 @@ type liveData struct {
 	ForgetHeld  bool
 	AppendOnly  bool
 	VerifyReady bool
+	// Fragment is set when htmx refreshes the part; it then brings the
+	// indicator of the header along (Health, HealthLevel).
+	Fragment            bool
+	Health, HealthLevel string
 }
 
 // note is one thing that needs attention.
@@ -75,6 +79,8 @@ func (h *Handler) liveData(r *http.Request) (liveData, error) {
 	}
 	d := liveData{Op: st.Operation, Retry: st.Retry, Web: st.WebUI, ForgetHeld: st.ForgetHeld, AppendOnly: st.AppendOnly, VerifyReady: st.VerifyConfigured}
 	d.Cards = present.Cards(st, h.o.Now())
+	label, level := present.Health(st)
+	d.Health, d.HealthLevel = label, string(level)
 	// the cards, the notes and the runs are shown on their own
 	inRuns := false
 	for _, row := range present.StatusRows(st, h.o.Now()) {
@@ -152,6 +158,7 @@ func (h *Handler) live(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, describe(err), http.StatusBadGateway)
 		return
 	}
+	d.Fragment = true
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := h.pages["overview"].ExecuteTemplate(w, "live", d); err != nil {
 		h.o.Log.ErrorContext(r.Context(), "web UI fragment failed", "error", err)

@@ -1,4 +1,5 @@
 {{define "content"}}
+<p class="banner stale-note" role="alert">This page is out of date: the service does not answer, or the login ended when it restarted. It keeps trying; reload the page to log in again.</p>
 <div class="layout">
   <div id="live" hx-get="/ui/live" hx-trigger="every 3s" hx-swap="innerHTML">
 {{template "live" .Data}}
