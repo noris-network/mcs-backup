@@ -24,8 +24,9 @@
   {{if .Op}}
   <section class="panel running">
     <h2>Running</h2>
-    <p class="title"><span class="spinner" aria-hidden="true"></span>{{.OpLine}}</p>
-    {{with .Op.Progress}}{{if gt .Percent 0.0}}<p class="progress"><progress max="100" value="{{percent .Percent}}"></progress> <span>{{percent .Percent}}%</span> <span class="dim">{{.Current}}</span></p>{{end}}{{end}}
+    <p class="title"><span class="spinner" aria-hidden="true"></span>{{.OpTitle}}</p>
+    <p class="dim">{{.OpLine}}</p>
+    {{with .Op.Progress}}{{if gt .Percent 0.0}}<p class="progress"><progress max="100" value="{{percent .Percent}}"></progress> <span>{{percent .Percent}}%</span> <span class="dim current">{{.Current}}</span></p>{{end}}{{end}}
     {{if .Log}}<pre class="log">{{range .Log}}{{.}}
 {{end}}</pre>{{end}}
     <form method="post" action="/cancel" class="btnrow"><button>Cancel</button> <a href="/log/{{.Op.Kind}}">Full log</a></form>
@@ -48,17 +49,17 @@
     </form>
     {{end}}
   </section>
-  {{else if .Retry}}
+  {{end}}
+  {{if and .Retry (not .Op)}}
   <section class="panel">
-    <p>The failed backup is retried ({{.Retry.Attempt}}/{{.Retry.Max}}) at {{stamp .Retry.At}}.</p>
-    <form method="post" action="/cancel"><button>Cancel the retry</button></form>
+    <form method="post" action="/cancel" class="btnrow"><span>The failed backup is tried again ({{.Retry.Attempt}}/{{.Retry.Max}}) at {{stamp .Retry.At}}.</span> <button>Cancel the retry</button></form>
   </section>
   {{end}}
 
   <section class="panel">
     <h2>Details</h2>
     <dl class="rows">
-      {{range .Rows}}<dt>{{.Label}}</dt><dd>{{.Text}}</dd>
+      {{range .Rows}}<dt{{if .Sub}} class="sub"{{end}}>{{.Label}}</dt><dd>{{.Text}}</dd>
       {{end}}
       <dt>Web UI</dt><dd>{{if .Web.Enabled}}on at {{.Web.Addr}}{{if not .Web.Until.IsZero}} until {{stamp .Web.Until}}{{end}}{{else}}off{{end}}</dd>
     </dl>

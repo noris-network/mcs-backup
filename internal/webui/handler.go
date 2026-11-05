@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"html/template"
 	"log/slog"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -62,7 +63,7 @@ func NewHandler(svc service.Service, auth *Auth, o Options) http.Handler {
 		"ago":      func(t time.Time) string { return present.Ago(o.Now(), t) },
 		"duration": func(d service.Duration) string { return present.Duration(d.Std()) },
 		"join":     strings.Join,
-		"percent":  func(f float64) int { return int(f * 100) },
+		"percent":  func(f float64) int { return int(math.Round(f * 100)) },
 		"flagclass": func(flag string) string {
 			switch flag {
 			case "keep":

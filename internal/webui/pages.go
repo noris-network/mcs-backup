@@ -3,6 +3,7 @@ package webui
 import (
 	"cmp"
 	"errors"
+	"fmt"
 	"maps"
 	"net/http"
 	"slices"
@@ -18,15 +19,17 @@ import (
 type liveData struct {
 	// Cards are the headline figures, Rows the details below them.
 	Cards []present.Card
-	Rows  []present.Row
+	Rows  []detailRow
 	// Notes need attention; NotesLevel is the color of the worst one.
 	Notes      []note
 	NotesLevel string
 	// Runs are the latest results of the kinds of operations.
-	Runs        []runRow
-	Op          *service.Operation
-	OpLine      string
-	Log         []string
+	Runs []runRow
+	// Op is the running operation: what it does in words (OpTitle), what
+	// it is (OpLine) and the latest lines of its log in plain words.
+	Op              *service.Operation
+	OpTitle, OpLine string
+	Log             []string
 	Result      *service.RunResult
 	ResultLines []string
 	ResultOK    bool
@@ -43,6 +46,12 @@ type liveData struct {
 	// indicator of the header along (Health, HealthLevel).
 	Fragment            bool
 	Health, HealthLevel string
+}
+
+// detailRow is a row of the details; Sub rows belong to the row above them.
+type detailRow struct {
+	Label, Text string
+	Sub         bool
 }
 
 // note is one thing that needs attention.
@@ -81,7 +90,7 @@ func (h *Handler) liveData(r *http.Request) (liveData, error) {
 	d.Cards = present.Cards(st, h.o.Now())
 	label, level := present.Health(st)
 	d.Health, d.HealthLevel = label, string(level)
-	// the cards, the notes and the runs are shown on their own
+	// the cards, the notes, the runs and the operation are shown on their own
 	inRuns := false
 	for _, row := range present.StatusRows(st, h.o.Now()) {
 		switch {
@@ -96,10 +105,11 @@ func (h *Handler) liveData(r *http.Request) (liveData, error) {
 			case d.NotesLevel == "":
 				d.NotesLevel = "warn"
 			}
-		case row.Label == "Repository" || row.Label == "Last backup" || row.Label == "Secondary" || row.Label == "  next backup":
+		case row.Label == "Repository" || row.Label == "Last backup" || row.Label == "Secondary" || row.Label == "  next backup" || row.Label == "Operation":
 		default:
 			inRuns = false
-			d.Rows = append(d.Rows, present.Row{Label: strings.TrimSpace(row.Label), Text: row.Text})
+			label := strings.TrimLeft(row.Label, " ")
+			d.Rows = append(d.Rows, detailRow{Label: label, Text: row.Text, Sub: label != row.Label})
 		}
 	}
 	runs := slices.SortedFunc(maps.Values(st.LastRuns), newestFirst)
@@ -111,9 +121,16 @@ func (h *Handler) liveData(r *http.Request) (liveData, error) {
 	}
 	switch {
 	case st.Operation != nil:
-		d.OpLine = present.OperationLine(h.o.Now(), *st.Operation)
-		if l, err := h.svc.Log(r.Context(), st.Operation.Kind); err == nil {
-			d.Log = l.Lines[max(0, len(l.Lines)-6):]
+		op := st.Operation
+		d.OpTitle = cmp.Or(present.PhaseTitle(op.Phase), present.PhaseTitle(string(op.Kind)))
+		d.OpLine = fmt.Sprintf("%s, started by %s, running for %s", op.Kind, op.Source, present.Duration(h.o.Now().Sub(op.Started)))
+		if l, err := h.svc.Log(r.Context(), op.Kind); err == nil {
+			for _, line := range l.Lines[max(0, len(l.Lines)-30):] {
+				if text, ok := present.LogLine(line); ok {
+					d.Log = append(d.Log, text)
+				}
+			}
+			d.Log = d.Log[max(0, len(d.Log)-6):]
 		}
 	case len(runs) > 0:
 		// the most recent result of any kind

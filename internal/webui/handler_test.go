@@ -265,10 +265,34 @@ func TestLiveFragmentShowsTheOperation(t *testing.T) {
 		return v, nil
 	}
 	s.fake.LogFn = func(_ context.Context, k service.Kind) (service.Log, error) {
-		return service.Log{Kind: k, Lines: []string{"scanned 3 files"}}, nil
+		return service.Log{Kind: k, Lines: []string{"using snapshot 1234abcd as parent", "", "scanned 3 files"}}, nil
 	}
 	s.login()
-	s.do("GET", "/ui/live", nil).want(t, http.StatusOK, "backup running for 1m", `value="40"`, "/data/x", "scanned 3 files", `action="/cancel"`)
+	live := s.do("GET", "/ui/live", nil)
+	live.want(t, http.StatusOK, "Backing up", "backup, started by schedule, running for 1m", `value="40"`, "/data/x",
+		"incremental to snapshot 1234abcd\nscanned 3 files\n", `action="/cancel"`)
+	// the progress is said once, and the details do not repeat the panel
+	if strings.Contains(live.body, "40%,") || strings.Contains(live.body, "<dt>Operation</dt>") {
+		t.Errorf("the operation is shown twice:\n%s", live.body)
+	}
+}
+
+func TestDetailsAndRetry(t *testing.T) {
+	s := newSite(t, "")
+	st := s.fake.StatusFn
+	s.fake.StatusFn = func(ctx context.Context) (service.Status, error) {
+		v, _ := st(ctx)
+		v.Schedule.Next = map[service.Kind]time.Time{service.KindBackup: t0.Add(time.Hour), service.KindPrune: t0.Add(2 * time.Hour)}
+		v.LastRuns = map[service.Kind]service.RunResult{
+			service.KindBackup: {Kind: service.KindBackup, Result: service.ResultFailure, Error: "repository not reachable", Started: t0, WillRetry: true},
+		}
+		v.Retry = &service.RetryInfo{Attempt: 2, Max: 3, At: t0.Add(5 * time.Minute)}
+		return v, nil
+	}
+	s.login()
+	// the retry can be cancelled although the failed backup is shown as the last result
+	s.do("GET", "/ui/live", nil).want(t, http.StatusOK, "backup: failure", "tried again (2/3)", "Cancel the retry",
+		`<dt>Schedule</dt>`, `<dt class="sub">next prune</dt>`)
 }
 
 func TestLastResultAndRepeatWithoutSafetySnapshot(t *testing.T) {
