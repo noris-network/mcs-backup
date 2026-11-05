@@ -74,6 +74,9 @@ type Config struct {
 	Log       *slog.Logger
 }
 
+// errStopped ends the deliveries that Stop could not wait for.
+var errStopped = errors.New("stopped at shutdown")
+
 // Notifier delivers events asynchronously and one at a time. A failing
 // command never affects operations: it is only counted and logged.
 type Notifier struct {
@@ -84,6 +87,7 @@ type Notifier struct {
 	done chan struct{}
 
 	mu      sync.Mutex
+	abort   context.CancelCauseFunc // set by Start
 	closed  bool
 	lastErr string
 	errors  atomic.Int64
@@ -113,11 +117,21 @@ func New(cfg Config) *Notifier {
 // Enabled reports whether a command is configured.
 func (n *Notifier) Enabled() bool { return n.cfg.Command != "" }
 
-// Start launches the delivery goroutine. It ends when Stop is called or ctx is done.
+// Start launches the delivery goroutine, which runs until Stop has emptied the
+// queue. Once ctx ends, the delivery under way is aborted and the events still
+// queued are dropped.
 func (n *Notifier) Start(ctx context.Context) {
+	ctx, abort := context.WithCancelCause(ctx)
+	n.mu.Lock()
+	n.abort = abort
+	n.mu.Unlock()
 	go func() {
 		defer close(n.done)
 		for ev := range n.ch {
+			if ctx.Err() != nil {
+				n.fail(fmt.Errorf("%s not sent: %w", ev.Name, context.Cause(ctx)))
+				continue
+			}
 			if err := n.Send(ctx, ev); err != nil {
 				n.fail(err)
 			}
@@ -125,17 +139,25 @@ func (n *Notifier) Start(ctx context.Context) {
 	}()
 }
 
-// Stop stops accepting events and waits until the queue is empty or ctx ends.
+// Stop stops accepting events and waits until the queued ones are delivered.
+// If ctx ends first, the delivery under way is aborted and the rest is
+// dropped; every lost event is counted and logged.
 func (n *Notifier) Stop(ctx context.Context) {
 	n.mu.Lock()
 	if !n.closed {
 		n.closed = true
 		close(n.ch)
 	}
+	abort := n.abort
 	n.mu.Unlock()
+	if abort == nil {
+		return // never started
+	}
 	select {
 	case <-n.done:
 	case <-ctx.Done():
+		abort(errStopped)
+		<-n.done
 	}
 }
 
@@ -204,7 +226,7 @@ func (n *Notifier) Send(ctx context.Context, ev Event) error {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, n.cfg.Timeout)
+	ctx, cancel := context.WithTimeoutCause(ctx, n.cfg.Timeout, fmt.Errorf("timed out after %v", n.cfg.Timeout))
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", n.cfg.Command) //nolint:gosec // running the configured command is the purpose
 	cmd.Env = append(slices.Clone(n.env),
@@ -229,8 +251,8 @@ func (n *Notifier) Send(ctx context.Context, ev Event) error {
 		if len(msg) > 500 {
 			msg = msg[len(msg)-500:]
 		}
-		if ctx.Err() != nil {
-			err = fmt.Errorf("timed out after %v", n.cfg.Timeout)
+		if cause := context.Cause(ctx); cause != nil {
+			err = cause // the timeout, the shutdown or the caller giving up
 		}
 		if msg != "" {
 			return fmt.Errorf("NOTIFY_COMMAND: %w: %s", err, msg)

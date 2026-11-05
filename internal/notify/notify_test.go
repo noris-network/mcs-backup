@@ -1,8 +1,10 @@
 package notify
 
 import (
+	"bytes"
 	"context"
 	"encoding/json/v2"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -120,6 +122,13 @@ func TestSendFailures(t *testing.T) {
 	if d := time.Since(start); d > 5*time.Second {
 		t.Errorf("took %v", d)
 	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	time.AfterFunc(200*time.Millisecond, cancel)
+	err = newNotifier(t, `sleep 30`).Send(ctx, Event{Name: "test"})
+	if err == nil || strings.Contains(err.Error(), "timed out") || !strings.Contains(err.Error(), "canceled") {
+		t.Errorf("err = %v, want the cancellation and no timeout", err)
+	}
 }
 
 func TestNotifyAsync(t *testing.T) {
@@ -145,6 +154,29 @@ func TestNotifyAsync(t *testing.T) {
 		t.Errorf("errors = %d", n.Errors())
 	}
 	n.Notify(Event{Name: "backup.failed"}) // after Stop: ignored, no panic
+}
+
+func TestStopAbortsTheRestWhenItsContextEnds(t *testing.T) {
+	var log bytes.Buffer
+	n := newNotifier(t, `sleep 30`, func(c *Config) { c.Log = slog.New(slog.NewTextHandler(&log, nil)) })
+	n.Start(t.Context())
+	for range 3 {
+		n.Notify(Event{Name: "backup.failed"})
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	n.Stop(ctx)
+
+	if d := time.Since(start); d > 5*time.Second {
+		t.Errorf("Stop took %v", d)
+	}
+	if n.Errors() != 3 || !strings.Contains(n.LastError(), "stopped at shutdown") {
+		t.Errorf("errors = %d, last = %q: every lost event must be counted with the reason", n.Errors(), n.LastError())
+	}
+	if out := log.String(); !strings.Contains(out, "NOTIFY_COMMAND: stopped at shutdown") || strings.Contains(out, "timed out") {
+		t.Errorf("the aborted delivery is logged as\n%s", out)
+	}
 }
 
 func TestNotifyFailureIsCounted(t *testing.T) {
