@@ -32,8 +32,8 @@ func TestError(t *testing.T) {
 		t.Error("Error(nil) must stay nil")
 	}
 	plain := errors.New("connection refused")
-	if r.Error(plain) != plain {
-		t.Error("an error without a secret must stay the same")
+	if errors.Unwrap(r.Error(plain)) != nil {
+		t.Error("an error without a secret must not be wrapped")
 	}
 
 	sentinel := errors.New("not found")
