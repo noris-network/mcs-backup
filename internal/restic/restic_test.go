@@ -182,7 +182,7 @@ func TestBackup(t *testing.T) {
 	want := []string{"backup", "--json", "--host", "mcs-backup",
 		"--tag", "mcs-backup", "--tag", "manual", "--tag", "note:two words",
 		"--parent", "abc123", "--exclude", "*.tmp", "--exclude", "cache",
-		"--one-file-system", "."}
+		"--one-file-system", "--", "."}
 	if got := f.CallsTo(t, "backup")[0]; !slices.Equal(got, want) {
 		t.Errorf("args =\n %q\nwant\n %q", got, want)
 	}
@@ -319,8 +319,8 @@ func TestRestore(t *testing.T) {
 	if len(progress) != 1 || progress[0].FilesRestored != 2 {
 		t.Errorf("progress = %+v", progress)
 	}
-	want := []string{"restore", "abc", "--json", "--target", "/mnt", "--delete", "--verify",
-		"--include", "/a", "--include", "/b", "--include-file", "/tmp/list", "--sparse"}
+	want := []string{"restore", "--json", "--target", "/mnt", "--delete", "--verify",
+		"--include", "/a", "--include", "/b", "--include-file", "/tmp/list", "--sparse", "--", "abc"}
 	if got := f.CallsTo(t, "restore")[0]; !slices.Equal(got, want) {
 		t.Errorf("args =\n %q\nwant\n %q", got, want)
 	}
@@ -333,7 +333,7 @@ func TestDump(t *testing.T) {
 	if err := newRepo(t, f).Dump(t.Context(), "abc", "/dump.sql", &buf); err != nil || buf.String() != "SELECT 1;\n" {
 		t.Errorf("Dump() = %q, %v", buf.String(), err)
 	}
-	if got := f.CallsTo(t, "dump")[0]; !slices.Equal(got, []string{"dump", "abc", "/dump.sql"}) {
+	if got := f.CallsTo(t, "dump")[0]; !slices.Equal(got, []string{"dump", "--", "abc", "/dump.sql"}) {
 		t.Errorf("args = %q", got)
 	}
 	f.On(t, "dump", resticfake.Response{Stderr: "Fatal: path not found\n", Exit: 1})
@@ -390,7 +390,7 @@ func TestStats(t *testing.T) {
 	if err != nil || s.TotalSize != 2173 || s.TotalUncompressedSize != 4376 || s.CompressionRatio < 2 {
 		t.Errorf("raw-data = %+v, %v", s, err)
 	}
-	if got := f.CallsTo(t, "stats")[0]; !slices.Equal(got, []string{"stats", "--json", "--no-lock", "--mode", "restore-size", "abc"}) {
+	if got := f.CallsTo(t, "stats")[0]; !slices.Equal(got, []string{"stats", "--json", "--no-lock", "--mode", "restore-size", "--", "abc"}) {
 		t.Errorf("args = %q", got)
 	}
 }
@@ -458,7 +458,7 @@ func TestLs(t *testing.T) {
 	if files != 3 || nodes[0].Path != "/a" || nodes[0].Type != "dir" {
 		t.Errorf("nodes = %+v", nodes)
 	}
-	if got := f.CallsTo(t, "ls")[0]; !slices.Equal(got, []string{"ls", "--json", "--no-lock", "abc", "/a"}) {
+	if got := f.CallsTo(t, "ls")[0]; !slices.Equal(got, []string{"ls", "--json", "--no-lock", "--", "abc", "/a"}) {
 		t.Errorf("args = %q", got)
 	}
 
@@ -500,7 +500,7 @@ func TestTag(t *testing.T) {
 	if err != nil || id != "new123" {
 		t.Fatalf("Tag() = %q, %v", id, err)
 	}
-	want := []string{"tag", "--json", "--add", "keep", "--add", "note:why not", "--remove", "suspicious", "old"}
+	want := []string{"tag", "--json", "--add", "keep", "--add", "note:why not", "--remove", "suspicious", "--", "old"}
 	if got := f.CallsTo(t, "tag")[0]; !slices.Equal(got, want) {
 		t.Errorf("args = %q, want %q", got, want)
 	}
@@ -545,7 +545,7 @@ func TestInitAndCopy(t *testing.T) {
 	if err := second.Copy(t.Context(), main, CopyOptions{Snapshots: []string{"abc"}, Hosts: []string{"h"}}, &out); err != nil {
 		t.Fatal(err)
 	}
-	if got := f.CallsTo(t, "copy")[0]; !slices.Equal(got, []string{"copy", "--host", "h", "abc"}) {
+	if got := f.CallsTo(t, "copy")[0]; !slices.Equal(got, []string{"copy", "--host", "h", "--", "abc"}) {
 		t.Errorf("copy args = %q", got)
 	}
 	if out.String() != "snapshot abc copied\n" {
@@ -608,7 +608,7 @@ func TestRemove(t *testing.T) {
 	if err := newRepo(t, f).Remove(t.Context(), "abc", "def"); err != nil {
 		t.Fatal(err)
 	}
-	if got := f.CallsTo(t, "forget")[0]; !slices.Equal(got, []string{"forget", "abc", "def"}) {
+	if got := f.CallsTo(t, "forget")[0]; !slices.Equal(got, []string{"forget", "--", "abc", "def"}) {
 		t.Errorf("args = %q", got)
 	}
 }

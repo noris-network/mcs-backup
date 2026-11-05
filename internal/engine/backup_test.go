@@ -427,7 +427,7 @@ func TestBackupCopy(t *testing.T) {
 	if res.Result != service.ResultSuccess || res.Copy == nil || res.Copy.Result != service.ResultSuccess {
 		t.Fatalf("result = %+v", res)
 	}
-	if call := r.second.CallsTo(t, "copy")[0]; !slices.Equal(call, []string{"copy", "new1"}) {
+	if call := r.second.CallsTo(t, "copy")[0]; !slices.Equal(call, []string{"copy", "--", "new1"}) {
 		t.Errorf("copy args = %q", call)
 	}
 	env := r.second.LastEnv(t)
@@ -472,7 +472,7 @@ func TestBackupSuspiciousIsStillCopied(t *testing.T) {
 	if res.Result != service.ResultSuspicious || res.Copy == nil || res.Copy.Result != service.ResultSuccess {
 		t.Fatalf("result = %+v", res)
 	}
-	if call := r.second.CallsTo(t, "copy")[0]; !slices.Equal(call, []string{"copy", "new2"}) {
+	if call := r.second.CallsTo(t, "copy")[0]; !slices.Equal(call, []string{"copy", "--", "new2"}) {
 		t.Errorf("the tagged snapshot is copied: %q", call)
 	}
 	if len(r.main.CallsTo(t, "forget")) != 0 || len(r.second.CallsTo(t, "forget")) != 0 {

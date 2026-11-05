@@ -72,6 +72,13 @@ func (r *Repo) cmd(ctx context.Context, args []string, extraEnv ...string) *exec
 	return cmd
 }
 
+// positional appends positional arguments behind a "--" terminator. restic
+// takes flags anywhere on the command line, so a path or snapshot that starts
+// with "-" would otherwise be read as a flag, such as --password-command.
+func positional(args []string, pos ...string) []string {
+	return append(append(args, "--"), pos...)
+}
+
 // run options
 type runOpts struct {
 	env        []string

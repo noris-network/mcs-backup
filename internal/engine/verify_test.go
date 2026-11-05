@@ -257,7 +257,7 @@ func TestVerifyPipeMode(t *testing.T) {
 		if got, _ := os.ReadFile(received); string(got) != "ok\n" {
 			t.Errorf("script output = %q", got)
 		}
-		if call := r.main.CallsTo(t, "dump")[0]; !slices.Equal(call, []string{"dump", "snap1", "/dump.sql"}) {
+		if call := r.main.CallsTo(t, "dump")[0]; !slices.Equal(call, []string{"dump", "--", "snap1", "/dump.sql"}) {
 			t.Errorf("dump args = %q", call)
 		}
 		if len(r.main.CallsTo(t, "restore")) != 0 {

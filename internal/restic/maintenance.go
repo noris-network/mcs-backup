@@ -53,7 +53,7 @@ func (r *Repo) Forget(ctx context.Context, o ForgetOptions) ([]ForgetGroup, erro
 
 // Remove forgets the given snapshots without pruning their data.
 func (r *Repo) Remove(ctx context.Context, ids ...string) error {
-	_, err := r.run(ctx, append([]string{"forget"}, ids...), runOpts{})
+	_, err := r.run(ctx, positional([]string{"forget"}, ids...), runOpts{})
 	return err
 }
 
@@ -93,8 +93,7 @@ func (r *Repo) Tag(ctx context.Context, snapshot string, add, remove []string) (
 	for _, t := range remove {
 		args = append(args, "--remove", t)
 	}
-	args = append(args, snapshot)
-	_, err = r.run(ctx, args, runOpts{stdoutLine: func(line []byte) {
+	_, err = r.run(ctx, positional(args, snapshot), runOpts{stdoutLine: func(line []byte) {
 		var m struct {
 			Type string `json:"message_type"`
 			New  string `json:"new_snapshot_id"`
@@ -142,8 +141,7 @@ func (r *Repo) Copy(ctx context.Context, from *Repo, o CopyOptions, out io.Write
 	for _, h := range o.Hosts {
 		args = append(args, "--host", h)
 	}
-	args = append(args, o.Snapshots...)
-	_, err := r.run(ctx, args, runOpts{env: from.fromEnv(), combined: out})
+	_, err := r.run(ctx, positional(args, o.Snapshots...), runOpts{env: from.fromEnv(), combined: out})
 	return err
 }
 

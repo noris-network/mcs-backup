@@ -24,7 +24,7 @@ type RestoreOptions struct {
 }
 
 func (o RestoreOptions) args() []string {
-	args := []string{"restore", o.Snapshot, "--json", "--target", o.Target}
+	args := []string{"restore", "--json", "--target", o.Target}
 	if o.Delete {
 		args = append(args, "--delete")
 	}
@@ -37,7 +37,7 @@ func (o RestoreOptions) args() []string {
 	if o.IncludeFile != "" {
 		args = append(args, "--include-file", o.IncludeFile)
 	}
-	return append(args, o.Extra...)
+	return positional(append(args, o.Extra...), o.Snapshot)
 }
 
 // Restore restores a snapshot and reports progress to onStatus (which may be nil).
@@ -76,6 +76,6 @@ func (r *Repo) Restore(ctx context.Context, o RestoreOptions, onStatus func(Rest
 
 // Dump writes a file of a snapshot to w.
 func (r *Repo) Dump(ctx context.Context, snapshot, file string, w io.Writer) error {
-	_, err := r.run(ctx, []string{"dump", snapshot, file}, runOpts{stdout: w})
+	_, err := r.run(ctx, positional([]string{"dump"}, snapshot, file), runOpts{stdout: w})
 	return err
 }

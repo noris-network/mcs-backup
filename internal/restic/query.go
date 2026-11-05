@@ -71,7 +71,7 @@ func (r *Repo) Snapshots(ctx context.Context) ([]Snapshot, error) {
 // the given snapshots, or over the whole repository if none are given.
 func (r *Repo) Stats(ctx context.Context, mode string, snapshots ...string) (Stats, error) {
 	var s Stats
-	args := append([]string{"stats", "--json", "--no-lock", "--mode", mode}, snapshots...)
+	args := positional([]string{"stats", "--json", "--no-lock", "--mode", mode}, snapshots...)
 	return s, r.query(ctx, args, &s)
 }
 
@@ -135,7 +135,7 @@ func (r *Repo) Ls(ctx context.Context, snapshot string, paths ...string) iter.Se
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
-		args := append([]string{"ls", "--json", "--no-lock", snapshot}, paths...)
+		args := append(positional([]string{"ls", "--json", "--no-lock"}, snapshot), paths...)
 		cmd := r.cmd(ctx, args)
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {

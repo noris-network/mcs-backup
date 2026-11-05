@@ -347,7 +347,7 @@ func TestRestorePipeMode(t *testing.T) {
 		if got, _ := os.ReadFile(received); string(got) != "SELECT 1;\n" {
 			t.Errorf("script received %q", got)
 		}
-		if call := r.main.CallsTo(t, "dump")[0]; !slices.Equal(call, []string{"dump", "snap1", "/dump.sql"}) {
+		if call := r.main.CallsTo(t, "dump")[0]; !slices.Equal(call, []string{"dump", "--", "snap1", "/dump.sql"}) {
 			t.Errorf("dump args = %q", call)
 		}
 		if call := r.main.CallsTo(t, "backup")[0]; !hasArgs(call, "--stdin-from-command", "--stdin-filename", "dump.sql") || !hasArgs(call, "--tag", "pre-restore") {
@@ -421,7 +421,7 @@ func TestRestoreIfEmpty(t *testing.T) {
 			t.Fatalf("action = %q, %v", action, err)
 		}
 		call := r.main.CallsTo(t, "restore")[0]
-		if !hasArgs(call, "snap1", "--json") || slices.Contains(call, "--delete") {
+		if !hasArgs(call, "--", "snap1") || slices.Contains(call, "--delete") {
 			t.Errorf("restore args = %q", call)
 		}
 		if len(r.main.CallsTo(t, "backup")) != 0 {

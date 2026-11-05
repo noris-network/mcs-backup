@@ -126,6 +126,24 @@ func TestPartialRestoreToAnotherDirectory(t *testing.T) {
 	}
 }
 
+// restic reads flags anywhere on the command line: an include path that looks
+// like --password-command must stay a path and not run a command.
+func TestRestoreIncludeIsNoFlag(t *testing.T) {
+	i := newInst(t)
+	i.write("app/a.txt", "alpha\n")
+	i.start()
+	i.mustBackup("", false)
+
+	marker := filepath.Join(i.home, "pwned")
+	req := service.RestoreRequest{Snapshot: "latest", Includes: []string{"--password-command=touch " + marker}}
+	if _, err := i.d.RestorePreflight(i.ctx(), req); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(marker); err == nil {
+		t.Fatal("an include path ran a command")
+	}
+}
+
 func TestBackupPathsAndExcludes(t *testing.T) {
 	i := newInst(t, "BACKUP_PATHS=keep:also", "EXCLUDE_PATHS=keep/tmp")
 	i.write("keep/a.txt", "a")

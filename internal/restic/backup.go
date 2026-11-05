@@ -42,10 +42,10 @@ func (o BackupOptions) args() ([]string, error) {
 	}
 	args = append(args, o.Extra...)
 	if len(o.StdinCommand) > 0 {
-		args = append(args, "--stdin-from-command", "--stdin-filename", o.StdinFilename, "--")
-		return append(args, o.StdinCommand...), nil
+		args = append(args, "--stdin-from-command", "--stdin-filename", o.StdinFilename)
+		return positional(args, o.StdinCommand...), nil
 	}
-	return append(args, o.Paths...), nil
+	return positional(args, o.Paths...), nil
 }
 
 // checkTags rejects tags restic would split at commas.
