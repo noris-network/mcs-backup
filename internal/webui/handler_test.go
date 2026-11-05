@@ -466,6 +466,10 @@ func TestAccessMasksSecretsUnlessAsked(t *testing.T) {
 		t.Error("secret shown by default")
 	}
 	s.do("GET", "/access?reveal=1", nil).want(t, http.StatusOK, "hunter2")
+	// the same variables ready for a shell, with the export prefix
+	hidden := s.do("GET", "/access", nil)
+	hidden.want(t, http.StatusOK, "export RESTIC_PASSWORD=&#39;***&#39;", "RESTIC_PASSWORD=***", "docker run")
+	s.do("GET", "/access?reveal=1", nil).want(t, http.StatusOK, "export RESTIC_PASSWORD=&#39;hunter2&#39;")
 }
 
 func TestServiceErrorsDoNotBreakPages(t *testing.T) {

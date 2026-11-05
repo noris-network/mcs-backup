@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/noris-network/mcs-backup/v2/internal/envexport"
 	"github.com/noris-network/mcs-backup/v2/internal/present"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
@@ -193,6 +194,15 @@ func (h *Handler) locks(w http.ResponseWriter, r *http.Request) {
 type accessData struct {
 	Info     service.EnvInfo
 	Revealed bool
+	// the same variables for a shell, an env file and docker
+	Export, Dotenv, Docker string
+}
+
+// render writes info in a style of the env command.
+func render(info service.EnvInfo, style envexport.Style) string {
+	var b strings.Builder
+	_ = envexport.Write(&b, info, style) // writing to a Builder does not fail
+	return b.String()
 }
 
 func (h *Handler) access(w http.ResponseWriter, r *http.Request) {
@@ -206,7 +216,10 @@ func (h *Handler) access(w http.ResponseWriter, r *http.Request) {
 	if reveal {
 		h.o.Log.InfoContext(r.Context(), "restic environment revealed", "source", service.SourceFrom(r.Context()))
 	}
-	h.render(w, r, "access", "access", accessData{info, reveal})
+	h.render(w, r, "access", "access", accessData{
+		Info: info, Revealed: reveal,
+		Export: render(info, envexport.StyleExport), Dotenv: render(info, envexport.StyleDotenv), Docker: render(info, envexport.StyleDocker),
+	})
 }
 
 type logData struct {

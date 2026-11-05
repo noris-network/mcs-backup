@@ -10,6 +10,20 @@
   </dl>
 </section>
 <section class="panel">
+  <h2>For a shell</h2>
+  <p class="dim">Paste this into a terminal to run restic against the repository.
+  {{if not .Data.Revealed}}The secrets are hidden (<code>***</code>): <a href="/access?reveal=1">show them</a> first to get values that work.{{end}}</p>
+  <pre class="export">{{.Data.Export}}</pre>
+  <details>
+    <summary>As an env file (<code>.env</code>)</summary>
+    <pre class="export">{{.Data.Dotenv}}</pre>
+  </details>
+  <details>
+    <summary>As a <code>docker run</code> command</summary>
+    <pre class="export">{{.Data.Docker}}</pre>
+  </details>
+</section>
+<section class="panel">
   <p>restic {{.Data.Info.MinVersion}} or newer is needed.</p>
   <ul>{{range .Data.Info.Notes}}<li class="dim">{{.}}</li>{{end}}</ul>
 </section>

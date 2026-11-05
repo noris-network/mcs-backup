@@ -133,13 +133,17 @@ button.small { padding: .15rem .6rem; font-size: .85rem; }
 .inline { display: inline; }
 .inline input { width: 9rem; padding: .15rem .4rem; font-size: .85rem; }
 .btnrow { display: flex; flex-wrap: wrap; gap: .5rem .75rem; align-items: center; }
-.running pre.log { margin-bottom: .75rem; }
+.running pre.export { user-select: all; white-space: pre; margin: .5rem 0; }
+details { margin-top: .6rem; } summary { cursor: pointer; color: var(--accent); }
+pre.log { margin-bottom: .75rem; }
 .flash { margin: 0; padding: .6rem .9rem; border-radius: .5rem; background: var(--accent-soft); border-left: 4px solid var(--accent); }
 .flash.ok { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); } .flash.bad { background: var(--bad-bg); border-color: var(--bad); color: var(--bad); }
 .danger-zone { border-color: var(--bad); }
 .danger-zone h2 { color: var(--bad); }
 
 pre { background: var(--bg); border: 1px solid var(--line); padding: .7rem .9rem; border-radius: .5rem; overflow-x: auto; margin: 0; }
+pre.export { user-select: all; white-space: pre; margin: .5rem 0; }
+details { margin-top: .6rem; } summary { cursor: pointer; color: var(--accent); }
 pre.log { max-height: 32rem; overflow: auto; font-size: .82rem; line-height: 1.45; }
 .secret { color: var(--dim); }
 .center { max-width: 34rem; margin: 3rem auto; }
