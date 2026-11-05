@@ -113,7 +113,7 @@ func (d *Daemon) sink(r *running) engine.Sink {
 
 // logLine adds a line to the log of the running kind and publishes it.
 func (d *Daemon) logLine(kind service.Kind, line string) {
-	line = d.redact.redact(line)
+	line = d.redact.String(line)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if l := d.logs[kind]; l != nil {

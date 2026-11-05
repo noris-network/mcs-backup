@@ -1,4 +1,6 @@
-package daemon
+// Package redact hides the secret values of the configuration in text that
+// leaves the service: logs, results, status and notifications.
+package redact
 
 import (
 	"regexp"
@@ -6,15 +8,18 @@ import (
 	"strings"
 )
 
-// redactor hides secrets in log lines before they are stored or sent to a client.
-type redactor struct {
+// Mask replaces a secret.
+const Mask = "***"
+
+// Redactor replaces known secret values with Mask.
+type Redactor struct {
 	r *strings.Replacer
 }
 
 var urlPassword = regexp.MustCompile(`://[^/@:\s]+:([^/@\s]+)@`)
 
-// secretName reports whether an environment variable holds a secret.
-func secretName(name string) bool {
+// SecretName reports whether an environment variable holds a secret.
+func SecretName(name string) bool {
 	for _, marker := range []string{"PASSWORD", "SECRET", "TOKEN", "_KEY", "CREDENTIAL", "SAS"} {
 		if strings.Contains(name, marker) {
 			return true
@@ -23,16 +28,16 @@ func secretName(name string) bool {
 	return false
 }
 
-// newRedactor collects the secret values of environ (KEY=VALUE pairs) and the
-// passwords inside repository URLs.
-func newRedactor(environ []string) *redactor {
+// New collects the secret values of environ (KEY=VALUE pairs) and the
+// passwords inside URLs.
+func New(environ []string) *Redactor {
 	seen := map[string]bool{}
 	for _, kv := range environ {
 		name, value, ok := strings.Cut(kv, "=")
 		if !ok {
 			continue
 		}
-		if secretName(name) && len(value) >= 4 && !strings.ContainsAny(value, "\n") {
+		if SecretName(name) && len(value) >= 4 && !strings.ContainsAny(value, "\n") {
 			seen[value] = true
 		}
 		for _, m := range urlPassword.FindAllStringSubmatch(value, -1) {
@@ -54,9 +59,10 @@ func newRedactor(environ []string) *redactor {
 	})
 	args := make([]string, 0, 2*len(secrets))
 	for _, s := range secrets {
-		args = append(args, s, "***")
+		args = append(args, s, Mask)
 	}
-	return &redactor{r: strings.NewReplacer(args...)}
+	return &Redactor{r: strings.NewReplacer(args...)}
 }
 
-func (r *redactor) redact(s string) string { return r.r.Replace(s) }
+// String returns s with the secrets replaced.
+func (r *Redactor) String(s string) string { return r.r.Replace(s) }

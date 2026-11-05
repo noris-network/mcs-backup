@@ -18,6 +18,7 @@ import (
 	"github.com/noris-network/mcs-backup/v2/internal/engine"
 	"github.com/noris-network/mcs-backup/v2/internal/metrics"
 	"github.com/noris-network/mcs-backup/v2/internal/notify"
+	"github.com/noris-network/mcs-backup/v2/internal/redact"
 	"github.com/noris-network/mcs-backup/v2/internal/restic"
 	"github.com/noris-network/mcs-backup/v2/internal/schedule"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
@@ -114,7 +115,7 @@ type Daemon struct {
 	eng    Engine
 	log    *slog.Logger
 	now    func() time.Time
-	redact *redactor
+	redact *redact.Redactor
 	events *broadcaster
 	sched  *schedule.Scheduler
 	reg    *prometheus.Registry
@@ -180,7 +181,7 @@ func New(o Options) *Daemon {
 	}
 	d := &Daemon{
 		o: o, cfg: o.Config, eng: o.Engine, log: o.Logger, now: o.Now,
-		redact:   newRedactor(o.Config.Environ()),
+		redact:   redact.New(o.Config.Environ()),
 		events:   newBroadcaster(),
 		hardStop: make(chan struct{}),
 		lastRuns: map[service.Kind]service.RunResult{},
