@@ -287,7 +287,8 @@ func TestLastResultAndRepeatWithoutSafetySnapshot(t *testing.T) {
 	}
 
 	s.do("POST", "/restore", url.Values{"snapshot": {"latest"}, "confirm": {"latest"}})
-	s.do("GET", "/ui/live", nil).want(t, http.StatusOK, "no-safety-snapshot")
+	// the refresh keeps what was typed into the form
+	s.do("GET", "/ui/live", nil).want(t, http.StatusOK, "no-safety-snapshot", `id="repeat-restore" hx-preserve`)
 
 	// the repeat needs the second phrase
 	s.do("POST", "/restore", url.Values{"snapshot": {"latest"}, "confirm": {"latest"}, "no_safety_snapshot": {"1"}})

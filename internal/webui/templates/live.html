@@ -37,7 +37,8 @@
 {{end}}</pre>
     <p><a href="/log/{{.Result.Kind}}">Log of the {{.Result.Kind}} run</a></p>
     {{if .CanRepeat}}
-    <form method="post" action="/restore" class="stack">
+    {{/* kept across the refreshes, which would otherwise clear what was typed */}}
+    <form method="post" action="/restore" class="stack" id="repeat-restore" hx-preserve>
       <p class="dot bad">The restore failed. If the safety snapshot is the reason (for example because the application is dead and its dump cannot run), you can repeat the restore without it. The current data is then lost for good.</p>
       <input type="hidden" name="snapshot" value="{{.RepeatWhat}}">
       <input type="hidden" name="no_safety_snapshot" value="1">
