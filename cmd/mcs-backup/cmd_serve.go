@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/spf13/cobra"
@@ -13,6 +14,7 @@ import (
 	"github.com/noris-network/mcs-backup/v2/internal/daemon"
 	"github.com/noris-network/mcs-backup/v2/internal/engine"
 	"github.com/noris-network/mcs-backup/v2/internal/notify"
+	"github.com/noris-network/mcs-backup/v2/internal/redact"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 	"github.com/noris-network/mcs-backup/v2/internal/webui"
 )
@@ -44,7 +46,8 @@ func (a *app) serve(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	log := newLogger(a.stdout, a.getenv)
+	// the log quotes restic, the scripts and the notification command, which can print secrets
+	log := slog.New(redact.New(cfg.Environ()).Handler(newLogger(a.stdout, a.getenv).Handler()))
 	for _, w := range cfg.Warnings {
 		log.WarnContext(ctx, w)
 	}
