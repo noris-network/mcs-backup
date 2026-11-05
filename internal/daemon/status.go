@@ -111,7 +111,7 @@ func (d *Daemon) warningsLocked(st service.Status, now time.Time) []service.Warn
 	}
 	switch {
 	case st.Schedule.MaintenanceUntil.After(now):
-		add("maintenance", service.SeverityInfo, "scheduled backups are paused until %s", st.Schedule.MaintenanceUntil.Format(time.RFC3339))
+		add("maintenance", service.SeverityInfo, "scheduled backups are paused until %s", st.Schedule.MaintenanceUntil.Local().Format(time.DateTime))
 	case !st.Schedule.Enabled:
 		add("backups_disabled", service.SeverityWarning, "scheduled backups are disabled until they are enabled again or the service restarts")
 	}
