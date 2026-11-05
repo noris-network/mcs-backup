@@ -37,6 +37,10 @@ func TestShutdownWaitsForACooperativeOperation(t *testing.T) {
 		if res := d.lastRuns[service.KindBackup]; res.Result != service.ResultCancelled {
 			t.Errorf("last run = %+v: the operation must be finished before the service exits", res)
 		}
+		if d.notes.endedFirst || d.notes.stopLeft != 22*time.Second {
+			t.Errorf("notifier cut short: %v, given %v: the queued notifications get the rest of the budget",
+				d.notes.endedFirst, d.notes.stopLeft)
+		}
 	})
 }
 
@@ -64,6 +68,9 @@ func TestShutdownStopsAStubbornOperationAfterTheBudget(t *testing.T) {
 		case <-d.hardStop:
 		default:
 			t.Error("the hard stop was not signalled")
+		}
+		if d.notes.stopLeft != 3*time.Second {
+			t.Errorf("the notifier got %v after the budget was used up, want 3s", d.notes.stopLeft)
 		}
 		close(release)
 		synctest.Wait()

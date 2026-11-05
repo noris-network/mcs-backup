@@ -225,8 +225,10 @@ func (d *Daemon) Cancel(ctx context.Context) error {
 
 // shutdown stops the service within the shutdown budget: a running operation
 // is cancelled, gets the budget to finish (and run its post-hook), and is
-// then stopped hard.
+// then stopped hard. The notifications still queued get what is left of the
+// budget, but at least a few seconds.
 func (d *Daemon) shutdown(srv *http.Server) {
+	begin := time.Now()
 	d.mu.Lock()
 	d.shuttingDown = true
 	d.clearRetryLocked()
@@ -269,7 +271,8 @@ func (d *Daemon) shutdown(srv *http.Server) {
 	}
 
 	if n := d.o.Notifier; n != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		left := max(d.cfg.Timeouts.Shutdown-time.Since(begin), 3*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), left)
 		n.Stop(ctx)
 		cancel()
 	}

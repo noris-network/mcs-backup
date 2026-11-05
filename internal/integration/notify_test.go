@@ -75,6 +75,20 @@ func TestNotificationsGoToTheCommand(t *testing.T) {
 	}
 }
 
+func TestNotificationsAreDeliveredAtShutdown(t *testing.T) {
+	i := newInst(t, "NOTIFY_ON=all")
+	log := filepath.Join(i.home, "events.log")
+	i.set("NOTIFY_COMMAND=" + i.script("notify.sh", `sleep 1; echo "$MCS_BACKUP_EVENT" >> `+log))
+	i.write("a.txt", "a")
+	i.start()
+
+	i.mustBackup("", false)
+	i.stop() // while the notification is being sent
+	if b, _ := readFile(log); b != "backup.succeeded\n" {
+		t.Errorf("delivered before the service exited:\n%s\nservice log:\n%s", b, i.log)
+	}
+}
+
 func TestABrokenNotificationCommandChangesNothing(t *testing.T) {
 	i := newInst(t, "NOTIFY_ON=all", "NOTIFY_COMMAND=/nonexistent/notify")
 	i.write("a.txt", "a")

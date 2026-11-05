@@ -98,7 +98,7 @@ slot (once). A due backup is skipped and logged.
 | `PRUNE_TIMEOUT`, `CHECK_TIMEOUT`, `VERIFY_TIMEOUT` | `12h` | |
 | `RESTORE_TIMEOUT` | `0` (none) | |
 | `POST_HOOK_TIMEOUT` | `5m` | The post-hook runs even after a timeout or cancellation and gets its own limit. |
-| `SHUTDOWN_TIMEOUT` | `25s` | Time to stop the running operation after SIGTERM (Kubernetes waits 30 s by default; raise `terminationGracePeriodSeconds` together with this for big dumps). |
+| `SHUTDOWN_TIMEOUT` | `25s` | Time to stop the running operation after SIGTERM (Kubernetes waits 30 s by default; raise `terminationGracePeriodSeconds` together with this for big dumps). Waiting notifications are sent within the rest of it, at least 3 s. |
 | `BACKUP_RETRIES` | `2` | Scheduled and caught-up backups that fail are repeated this often, as complete runs including hooks. |
 | `BACKUP_RETRY_DELAY` | `5m` | Delay between attempts; the slot is free meanwhile. |
 | `ALLOW_EMPTY_SNAPSHOT` | `false` | An empty source is not an error. restic does not store empty snapshots anyway, the run then ends as `skipped`. |

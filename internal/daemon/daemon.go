@@ -226,7 +226,9 @@ func (d *Daemon) Run(ctx context.Context) error {
 		}
 	}
 	if n := d.o.Notifier; n != nil {
-		n.Start(d.opsCtx)
+		// the notifications of the last operations still go out at shutdown,
+		// which stops the notifier last
+		n.Start(context.WithoutCancel(ctx))
 	}
 
 	d.mu.Lock()

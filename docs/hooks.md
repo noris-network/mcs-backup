@@ -109,7 +109,10 @@ PIPE_IN_FILENAME=all.sql
 `NOTIFY_COMMAND` is run with `sh -c` once per event that matches `NOTIFY_ON`.
 It is independent of the hooks, and a broken command never changes the result
 of an operation: failures show up in the log, in the metric
-`mcsbackup_notify_errors_total` and as a warning in the status.
+`mcsbackup_notify_errors_total` and as a warning in the status. Events are
+sent one at a time, in order. At shutdown the events still waiting are sent
+within what is left of `SHUTDOWN_TIMEOUT`, but at least 3 seconds; whatever
+does not make it is logged.
 
 Event data never becomes part of the command text. It is passed as environment
 variables and as one JSON object on stdin:

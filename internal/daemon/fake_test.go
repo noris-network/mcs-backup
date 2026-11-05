@@ -210,10 +210,28 @@ type recorder struct {
 	mu     sync.Mutex
 	events []notify.Event
 	errs   int64
+	// started is the context of Start; Stop notes the time it was given and
+	// whether started had ended by then.
+	started    context.Context
+	stopLeft   time.Duration
+	endedFirst bool
 }
 
-func (r *recorder) Start(context.Context) {}
-func (r *recorder) Stop(context.Context)  {}
+func (r *recorder) Start(ctx context.Context) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.started = ctx
+}
+
+func (r *recorder) Stop(ctx context.Context) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if dl, ok := ctx.Deadline(); ok {
+		r.stopLeft = time.Until(dl)
+	}
+	r.endedFirst = r.started.Err() != nil
+}
+
 func (r *recorder) Notify(ev notify.Event) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
