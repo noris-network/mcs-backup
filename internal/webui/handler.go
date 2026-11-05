@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/noris-network/mcs-backup/v2/internal/present"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
@@ -271,5 +273,9 @@ func describe(err error) string {
 		return "Not available in this configuration."
 	}
 	s := err.Error()
-	return strings.ToUpper(s[:1]) + s[1:]
+	if s == "" {
+		return "Failed without an error message."
+	}
+	first, size := utf8.DecodeRuneInString(s)
+	return string(unicode.ToUpper(first)) + s[size:]
 }

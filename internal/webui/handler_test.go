@@ -403,6 +403,14 @@ func TestActionsShowTheirOutcome(t *testing.T) {
 	}
 	s.do("POST", "/backup", url.Values{})
 	s.do("GET", "/", nil).want(t, http.StatusOK, "Another operation is running (prune)")
+
+	for msg, want := range map[string]string{"übel: no space": "Übel: no space", "": "Failed without an error message."} {
+		s.fake.StartBackupFn = func(context.Context, service.BackupRequest) (service.Operation, error) {
+			return service.Operation{}, errors.New(msg)
+		}
+		s.do("POST", "/backup", url.Values{}).want(t, http.StatusSeeOther)
+		s.do("GET", "/", nil).want(t, http.StatusOK, want)
+	}
 }
 
 func TestScheduleActions(t *testing.T) {
