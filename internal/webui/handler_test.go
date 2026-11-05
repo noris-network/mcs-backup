@@ -422,6 +422,43 @@ func TestScheduleActions(t *testing.T) {
 	s.do("GET", "/", nil).want(t, http.StatusOK, "Unknown schedule action")
 }
 
+func TestSchedulePanelOffersWhatFits(t *testing.T) {
+	s := newSite(t, "")
+	var sched service.ScheduleStatus
+	st := s.fake.StatusFn
+	s.fake.StatusFn = func(ctx context.Context) (service.Status, error) {
+		v, _ := st(ctx)
+		v.Schedule = sched
+		return v, nil
+	}
+	s.login()
+	enable, disable, pause := `name="action" value="enable"`, `name="action" value="disable"`, `name="action" value="maintenance"`
+	for _, c := range []struct {
+		name     string
+		sched    service.ScheduleStatus
+		text     string
+		want, no []string
+	}{
+		{"on", service.ScheduleStatus{Enabled: true, Backup: "0 2 * * *"}, "backups enabled (0 2 * * *)", []string{disable, pause}, []string{enable}},
+		{"paused", service.ScheduleStatus{Enabled: true, Backup: "0 2 * * *", MaintenanceUntil: t0.Add(time.Hour)}, "paused for maintenance", []string{enable}, []string{disable, pause}},
+		{"off", service.ScheduleStatus{Backup: "0 2 * * *"}, "backups are disabled", []string{enable}, []string{disable, pause}},
+		{"manual", service.ScheduleStatus{Enabled: true}, "backups are started manually", nil, []string{enable, disable, pause}},
+	} {
+		sched = c.sched
+		body := s.do("GET", "/", nil).body
+		for _, p := range append(c.want, c.text) {
+			if !strings.Contains(body, p) {
+				t.Errorf("%s: the page lacks %q", c.name, p)
+			}
+		}
+		for _, p := range c.no {
+			if strings.Contains(body, p) {
+				t.Errorf("%s: the page offers %q", c.name, p)
+			}
+		}
+	}
+}
+
 func TestRestoreFlow(t *testing.T) {
 	s := newSite(t, "")
 	s.fake.RestorePreflightFn = func(_ context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {

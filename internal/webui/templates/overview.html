@@ -17,16 +17,26 @@
 
     <section class="panel">
       <h2>Schedule</h2>
+      {{with .Data.Schedule}}{{if .Text}}
+      {{if .Manual}}<p>{{.Text}}</p>{{else}}
+      <p class="dot {{if .On}}ok{{else}}warn{{end}}">{{.Text}}</p>
+      {{if .On}}
       <form method="post" action="/schedule" class="stack">
-        <label>Scheduled backups
-          <select name="action">
-            <option value="enable">enable</option>
-            <option value="disable">disable until enabled again or restarted</option>
-            <option value="maintenance">pause for maintenance …</option>
-          </select></label>
-        <label>Pause for <input name="for" placeholder="2h, only for maintenance"></label>
-        <button>Apply</button>
+        <input type="hidden" name="action" value="maintenance">
+        <label>Pause for maintenance, for <span class="btnrow nowrap"><input name="for" placeholder="2h" required> <button>Pause</button></span></label>
       </form>
+      <form method="post" action="/schedule" class="btnrow">
+        <input type="hidden" name="action" value="disable">
+        <button>Disable</button> <span class="dim">until enabled again or the service restarts</span>
+      </form>
+      {{else}}
+      <form method="post" action="/schedule">
+        <input type="hidden" name="action" value="enable">
+        <button class="primary">Enable the scheduled backups</button>
+      </form>
+      {{end}}
+      {{end}}
+      {{end}}{{end}}
     </section>
 
     <section class="panel">

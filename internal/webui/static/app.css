@@ -139,6 +139,7 @@ button.small { padding: .15rem .6rem; font-size: .85rem; }
 .inline { display: inline; }
 .inline input { width: 9rem; padding: .15rem .4rem; font-size: .85rem; }
 .btnrow { display: flex; flex-wrap: wrap; gap: .5rem .75rem; align-items: center; }
+.btnrow.nowrap { flex-wrap: nowrap; } .btnrow.nowrap input { flex: 1; min-width: 0; }
 .running pre.export { user-select: all; white-space: pre; margin: .5rem 0; }
 details { margin-top: .6rem; } summary { cursor: pointer; color: var(--accent); }
 pre.log { margin-bottom: .75rem; }

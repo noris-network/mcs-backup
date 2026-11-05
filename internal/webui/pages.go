@@ -39,6 +39,7 @@ type liveData struct {
 	CanRepeat   bool
 	RepeatWhat  string
 	Web         service.WebUIStatus
+	Schedule    scheduleState
 	ForgetHeld  bool
 	AppendOnly  bool
 	VerifyReady bool
@@ -46,6 +47,14 @@ type liveData struct {
 	// indicator of the header along (Health, HealthLevel).
 	Fragment            bool
 	Health, HealthLevel string
+}
+
+// scheduleState is what the schedule panel says and offers: to pause or
+// disable the scheduled backups when they run (On), to enable them otherwise,
+// and nothing when there is no backup schedule (Manual).
+type scheduleState struct {
+	Text       string
+	On, Manual bool
 }
 
 // detailRow is a row of the details; Sub rows belong to the row above them.
@@ -90,6 +99,8 @@ func (h *Handler) liveData(r *http.Request) (liveData, error) {
 	d.Cards = present.Cards(st, h.o.Now())
 	label, level := present.Health(st)
 	d.Health, d.HealthLevel = label, string(level)
+	d.Schedule.Manual = st.Schedule.Backup == ""
+	d.Schedule.On = st.Schedule.Enabled && !st.Schedule.MaintenanceUntil.After(h.o.Now())
 	// the cards, the notes, the runs and the operation are shown on their own
 	inRuns := false
 	for _, row := range present.StatusRows(st, h.o.Now()) {
@@ -108,6 +119,9 @@ func (h *Handler) liveData(r *http.Request) (liveData, error) {
 		case row.Label == "Repository" || row.Label == "Last backup" || row.Label == "Secondary" || row.Label == "  next backup" || row.Label == "Operation":
 		default:
 			inRuns = false
+			if row.Label == "Schedule" {
+				d.Schedule.Text = row.Text
+			}
 			label := strings.TrimLeft(row.Label, " ")
 			d.Rows = append(d.Rows, detailRow{Label: label, Text: row.Text, Sub: label != row.Label})
 		}
