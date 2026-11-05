@@ -20,7 +20,8 @@ type liveData struct {
 	// Cards are the headline figures, Rows the details below them.
 	Cards []present.Card
 	Rows  []detailRow
-	// Notes need attention; NotesLevel is the color of the worst one.
+	// Notes need attention; NotesLevel is the color of the worst one, info
+	// when they are only for information.
 	Notes      []note
 	NotesLevel string
 	// Runs are the latest results of the kinds of operations.
@@ -30,11 +31,11 @@ type liveData struct {
 	Op              *service.Operation
 	OpTitle, OpLine string
 	Log             []string
-	Result      *service.RunResult
-	ResultLines []string
-	ResultOK    bool
-	ResultClass string
-	Retry       *service.RetryInfo
+	Result          *service.RunResult
+	ResultLines     []string
+	ResultOK        bool
+	ResultClass     string
+	Retry           *service.RetryInfo
 	// CanRepeat: the last restore failed and can be repeated without the safety snapshot.
 	CanRepeat   bool
 	RepeatWhat  string
@@ -113,8 +114,10 @@ func (h *Handler) liveData(r *http.Request) (liveData, error) {
 			switch {
 			case row.Severity == service.SeverityError:
 				d.NotesLevel = "bad"
-			case d.NotesLevel == "":
+			case row.Severity == service.SeverityWarning && d.NotesLevel != "bad":
 				d.NotesLevel = "warn"
+			case d.NotesLevel == "":
+				d.NotesLevel = "info" // only something to know, like a pause for maintenance
 			}
 		case row.Label == "Repository" || row.Label == "Last backup" || row.Label == "Secondary" || row.Label == "  next backup" || row.Label == "Operation":
 		default:

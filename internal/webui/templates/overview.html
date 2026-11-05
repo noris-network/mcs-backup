@@ -25,14 +25,15 @@
         <input type="hidden" name="action" value="maintenance">
         <label>Pause for maintenance, for <span class="btnrow nowrap"><input name="for" placeholder="2h" required> <button>Pause</button></span></label>
       </form>
-      <form method="post" action="/schedule" class="btnrow">
+      <form method="post" action="/schedule" class="stack start">
         <input type="hidden" name="action" value="disable">
-        <button>Disable</button> <span class="dim">until enabled again or the service restarts</span>
+        <button>Disable</button>
+        <span class="dim hint">until enabled again or the service restarts</span>
       </form>
       {{else}}
       <form method="post" action="/schedule">
         <input type="hidden" name="action" value="enable">
-        <button class="primary">Enable the scheduled backups</button>
+        <button class="primary">Enable scheduled backups</button>
       </form>
       {{end}}
       {{end}}

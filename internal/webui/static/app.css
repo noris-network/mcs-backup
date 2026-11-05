@@ -30,8 +30,9 @@ code { background: var(--accent-soft); padding: .05em .35em; border-radius: .3re
 .num { text-align: right; font-variant-numeric: tabular-nums; }
 
 /* header */
+/* the side padding lines the header up with the content of main */
 .top { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem;
-  padding: .6rem 1.25rem; background: var(--surface); border-bottom: 1px solid var(--line); }
+  padding: .6rem max(1.25rem, calc((100% - 78rem) / 2 + 1.25rem)); background: var(--surface); border-bottom: 1px solid var(--line); }
 .brand { font-weight: 700; letter-spacing: -.01em; padding: .15rem .6rem; border-radius: .4rem; background: var(--accent); color: var(--accent-fg); }
 .host { color: var(--dim); }
 nav { display: flex; gap: .15rem; flex: 1; flex-wrap: wrap; }
@@ -45,6 +46,9 @@ nav a[aria-current] { background: var(--accent-soft); color: var(--accent); font
 .pill.bad::before, .dot.bad::before { background: var(--bad); } .dot.skip::before { background: var(--dim); opacity: .5; }
 .pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--bad); }
 .dot { display: inline-flex; align-items: center; gap: .45rem; }
+.pill::before, .dot::before { flex-shrink: 0; }
+/* a dot in front of a text that may wrap sits on its first line */
+p.dot, dd.dot { display: flex; align-items: flex-start; } p.dot::before, dd.dot::before { margin-top: .48em; }
 
 main { max-width: 78rem; margin: 0 auto; padding: 1.25rem; }
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; gap: 1.25rem; align-items: start; }
@@ -67,6 +71,8 @@ p { margin: .5rem 0; }
 /* what needs attention, the running operation and the last result */
 .attention { border-radius: var(--radius); border: 1px solid var(--warn); background: var(--warn-bg); padding: .8rem 1.1rem; }
 .attention.bad { border-color: var(--bad); background: var(--bad-bg); }
+.attention.info { border-color: var(--line); background: var(--surface); }
+.attention.info h2 { color: var(--dim); }
 .attention h2 { color: inherit; }
 .attention.warn h2 { color: var(--warn); } .attention.bad h2 { color: var(--bad); }
 .attention ul { margin: 0; padding-left: 1.1rem; } .attention li + li { margin-top: .25rem; }
@@ -74,6 +80,7 @@ p { margin: .5rem 0; }
 .banner { border-radius: var(--radius); padding: .7rem 1rem; background: var(--bad-bg); border: 1px solid var(--bad); }
 .stale-note { display: none; }
 body.stale .stale-note { display: block; }
+body:not(.stale) .stale-note:first-child + * { margin-top: 0; }
 body.stale #live, body.stale #health { opacity: .45; }
 .running { border-color: var(--accent); }
 .running .title { font-weight: 600; font-size: 1.05rem; display: flex; align-items: center; gap: .6rem; margin-bottom: 0; }
@@ -96,6 +103,7 @@ progress { flex: 1; max-width: 26rem; height: .7rem; accent-color: var(--accent)
 @media (max-width: 40rem) {
   main { padding: .75rem; }
   .top { padding: .5rem .75rem; }
+  .host { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   nav { order: 5; flex: 0 0 100%; flex-wrap: nowrap; overflow-x: auto; }
   .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .card .value { font-size: 1.15rem; }
@@ -122,6 +130,9 @@ td.num, td.origin, td.when { white-space: nowrap; }
 .actions .panel + .panel { margin-top: 1rem; }
 .stack { display: grid; gap: .6rem; margin: 0; }
 .stack label { display: grid; gap: .2rem; font-size: .88rem; color: var(--dim); }
+.stack.start { justify-items: start; gap: .3rem; }
+.panel > form + form { margin-top: .9rem; }
+.hint { font-size: .85rem; }
 label.check { display: flex; gap: .5rem; align-items: center; }
 input, select { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: .45rem; padding: .4rem .6rem; width: 100%; }
 input:focus, select:focus, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -140,9 +151,6 @@ button.small { padding: .15rem .6rem; font-size: .85rem; }
 .inline input { width: 9rem; padding: .15rem .4rem; font-size: .85rem; }
 .btnrow { display: flex; flex-wrap: wrap; gap: .5rem .75rem; align-items: center; }
 .btnrow.nowrap { flex-wrap: nowrap; } .btnrow.nowrap input { flex: 1; min-width: 0; }
-.running pre.export { user-select: all; white-space: pre; margin: .5rem 0; }
-details { margin-top: .6rem; } summary { cursor: pointer; color: var(--accent); }
-pre.log { margin-bottom: .75rem; }
 .flash { margin: 0; padding: .6rem .9rem; border-radius: .5rem; background: var(--accent-soft); border-left: 4px solid var(--accent); }
 .flash.ok { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); } .flash.bad { background: var(--bad-bg); border-color: var(--bad); color: var(--bad); }
 .danger-zone { border-color: var(--bad); }
@@ -151,7 +159,7 @@ pre.log { margin-bottom: .75rem; }
 pre { background: var(--bg); border: 1px solid var(--line); padding: .7rem .9rem; border-radius: .5rem; overflow-x: auto; margin: 0; }
 pre.export { user-select: all; white-space: pre; margin: .5rem 0; }
 details { margin-top: .6rem; } summary { cursor: pointer; color: var(--accent); }
-pre.log { max-height: 32rem; overflow: auto; font-size: .82rem; line-height: 1.45; }
+pre.log { max-height: 32rem; overflow: auto; font-size: .82rem; line-height: 1.45; margin-bottom: .75rem; }
 .secret { color: var(--dim); }
 .center { max-width: 34rem; margin: 3rem auto; }
 .back { margin-top: 1rem; }

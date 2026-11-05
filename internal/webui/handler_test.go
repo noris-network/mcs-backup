@@ -609,6 +609,25 @@ func TestTheBackupIsTheLastResultNotItsCopy(t *testing.T) {
 	}
 }
 
+func TestNotesForInformationAreNotAlarms(t *testing.T) {
+	s := newSite(t, "")
+	var warnings []service.Warning
+	st := s.fake.StatusFn
+	s.fake.StatusFn = func(ctx context.Context) (service.Status, error) {
+		v, _ := st(ctx)
+		v.Warnings = warnings
+		return v, nil
+	}
+	s.login()
+	warnings = []service.Warning{{Code: "maintenance", Severity: service.SeverityInfo, Message: "scheduled backups are paused"}}
+	body := s.do("GET", "/ui/live", nil).body
+	if !strings.Contains(body, `class="attention info"`) || !strings.Contains(body, "<h2>Notes</h2>") || strings.Contains(body, "Needs attention") {
+		t.Errorf("a note for information looks like an alarm:\n%s", body)
+	}
+	warnings = append(warnings, service.Warning{Code: "stale_locks", Severity: service.SeverityWarning, Message: "1 stale locks"})
+	s.do("GET", "/ui/live", nil).want(t, http.StatusOK, `class="attention warn"`, "Needs attention")
+}
+
 func TestTheRefreshBringsTheHealthAlong(t *testing.T) {
 	s := newSite(t, "")
 	s.login()

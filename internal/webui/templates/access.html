@@ -1,7 +1,7 @@
 {{define "content"}}
 <h1>Access</h1>
 <section class="panel">
-  <p>What it takes to run restic against this repository from another place.
+  <p>What it takes to run restic ({{.Data.Info.MinVersion}} or newer) against this repository from another place.
   {{if .Data.Revealed}}<strong class="dot bad">The secrets are shown.</strong> <a href="/access" class="btn small">Hide them</a>{{else}}The secrets are hidden. <a href="/access?reveal=1" class="btn small">Show them</a>{{end}}</p>
   <dl class="rows">
     {{range .Data.Info.Vars}}<dt><code>{{.Name}}</code></dt><dd><code>{{.Value}}</code></dd>
@@ -23,8 +23,10 @@
     <pre class="export">{{.Data.Docker}}</pre>
   </details>
 </section>
+{{with .Data.Info.Notes}}
 <section class="panel">
-  <p>restic {{.Data.Info.MinVersion}} or newer is needed.</p>
-  <ul>{{range .Data.Info.Notes}}<li class="dim">{{.}}</li>{{end}}</ul>
+  <h2>Notes</h2>
+  <ul>{{range .}}<li>{{.}}</li>{{end}}</ul>
 </section>
+{{end}}
 {{end}}

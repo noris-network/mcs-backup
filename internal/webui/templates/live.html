@@ -13,7 +13,7 @@
 
   {{if .Notes}}
   <section class="attention {{.NotesLevel}}">
-    <h2>Needs attention</h2>
+    <h2>{{if eq .NotesLevel "info"}}Notes{{else}}Needs attention{{end}}</h2>
     <ul>{{range .Notes}}<li class="{{.Severity}}">{{.Text}}</li>{{end}}</ul>
   </section>
   {{end}}
@@ -72,7 +72,7 @@
     <table>
       <thead><tr><th>Operation</th><th>Result</th><th>Started</th><th class="num">Took</th><th>Snapshot</th></tr></thead>
       <tbody>
-      {{range .Runs}}<tr><td>{{.Kind}}</td><td><span class="dot {{.Class}}">{{.Result}}</span></td><td>{{.Started}}</td><td class="num">{{.Duration}}</td><td>{{if .Snapshot}}<code>{{.Snapshot}}</code>{{end}}</td></tr>
+      {{range .Runs}}<tr><td>{{.Kind}}</td><td><span class="dot {{.Class}}">{{.Result}}</span></td><td class="when">{{.Started}}</td><td class="num">{{.Duration}}</td><td>{{if .Snapshot}}<code>{{.Snapshot}}</code>{{end}}</td></tr>
       {{end}}
       </tbody>
     </table>
