@@ -329,12 +329,16 @@ func TestLiveOperation(t *testing.T) {
 		return st, nil
 	}
 	r.send(eventMsg{service.Event{Type: service.EventStarted, Operation: op}})
-	r.wantScreen("Running: backup running for 1m", "c cancel")
+	r.wantScreen("Backing up · backup, started by schedule, running for 1m", "c cancel")
+	r.wantNoScreen("Operation") // the panel shows it, not the details as well
 	r.send(eventMsg{service.Event{Type: service.EventLog, Line: "scanned 12 files"}})
 	op2 := *op
 	op2.Progress = &service.Progress{Percent: 0.5, Current: "/data/file"}
 	r.send(eventMsg{service.Event{Type: service.EventProgress, Operation: &op2}})
 	r.wantScreen("scanned 12 files", "50%", "/data/file")
+	if n := strings.Count(r.screen(), "50%"); n != 1 {
+		t.Errorf("the progress is shown %d times:\n%s", n, r.screen())
+	}
 
 	r.press("c")
 	if len(r.fake.CallsTo("Cancel")) != 1 {
@@ -345,7 +349,57 @@ func TestLiveOperation(t *testing.T) {
 	r.fake.StatusFn = status
 	r.send(eventMsg{service.Event{Type: service.EventFinished, Result: &service.RunResult{Kind: service.KindBackup, Result: service.ResultSuccess, Snapshot: "dddddddd00", Duration: service.Duration(time.Minute)}}})
 	r.wantScreen("backup: success", "snapshot dddddddd")
-	r.wantNoScreen("Running:")
+	r.wantNoScreen("Backing up")
+}
+
+func TestRetryStaysCancellableAfterTheFailure(t *testing.T) {
+	r := healthy(newRig(t))
+	status := r.fake.StatusFn
+	r.fake.StatusFn = func(ctx context.Context) (service.Status, error) {
+		st, _ := status(ctx)
+		st.Retry = &service.RetryInfo{Attempt: 2, Max: 3, At: t0.Add(5 * time.Minute)}
+		return st, nil
+	}
+	r.load()
+	// the failed backup is the last result, and its retry waits
+	r.send(eventMsg{service.Event{Type: service.EventFinished, Result: &service.RunResult{Kind: service.KindBackup, Result: service.ResultFailure, Error: "repository not reachable", WillRetry: true}}})
+	r.wantScreen("backup: failure", "tried again (2/3)", "c cancels the retry", "c cancel ·")
+	r.press("c")
+	if len(r.fake.CallsTo("Cancel")) != 1 {
+		t.Errorf("c did not cancel the retry: %v", r.fake)
+	}
+}
+
+func TestNotesForInformationAreNotAlarms(t *testing.T) {
+	r := healthy(newRig(t))
+	status := r.fake.StatusFn
+	r.fake.StatusFn = func(ctx context.Context) (service.Status, error) {
+		st, _ := status(ctx)
+		st.Warnings = []service.Warning{{Code: "maintenance", Severity: service.SeverityInfo, Message: "scheduled backups are paused"}}
+		return st, nil
+	}
+	r.load()
+	r.wantScreen("Notes", "scheduled backups are paused")
+	r.wantNoScreen("Needs attention")
+}
+
+func TestInputsShowTheirPlaceholder(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	r.press("b")
+	r.wantScreen("> e.g. before the upgrade")
+	r.press("esc", "2", "enter")
+	r.wantScreen("> /path/to/directory", "> /path/in/snapshot")
+}
+
+func TestLogWrapsLongLines(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	long := "snapshot 2cfa8ce2 of [/home/someone/workspace/mcs-backup/local/s3-demo/data] at 2026-10-29 13:45:00.986555142 +0100 CET by someone@host"
+	r.fake.LogFn = func(_ context.Context, kind service.Kind) (service.Log, error) {
+		return service.Log{Kind: kind, Lines: []string{long, "[0:00]          0 packs copied"}}, nil
+	}
+	r.press("l")
+	r.wantScreen("+0100 CET by someone@host", "[0:00]          0 packs copied") // the end of the long line, and the spaces kept
+	r.wantNoScreen("…")
 }
 
 func TestCancelWithoutOperation(t *testing.T) {
@@ -373,20 +427,22 @@ func TestLogDialog(t *testing.T) {
 func TestSchedule(t *testing.T) {
 	r := healthy(newRig(t)).load()
 	r.press("s")
-	r.wantScreen("Scheduled backups", "Disable until enabled again", "Pause for 4h")
-	r.press("down", "enter")
+	// the backups run: the menu says so and offers no Enable
+	r.wantScreen("Scheduled backups", "Now: backups enabled (0 2 * * *)", "Disable until enabled again", "Pause for 4h")
+	r.wantNoScreen("Enable")
+	r.press("enter")
 	calls := r.fake.CallsTo("SetSchedule")
 	if len(calls) != 1 || calls[0].Args[0].(service.ScheduleRequest).Action != service.ScheduleDisable {
 		t.Fatalf("calls: %v", r.fake)
 	}
 
-	r.press("s", "down", "down", "down", "enter") // 4h
+	r.press("s", "down", "down", "enter") // 4h
 	req := r.fake.CallsTo("SetSchedule")[1].Args[0].(service.ScheduleRequest)
 	if req.Action != service.ScheduleMaintenance || req.For.Std() != 4*time.Hour {
 		t.Errorf("request = %+v", req)
 	}
 
-	r.press("s", "down", "down", "down", "down", "down", "enter") // another time
+	r.press("s", "down", "down", "down", "down", "enter") // another time
 	r.wantScreen("Maintenance window")
 	r.typeText("soon")
 	r.press("enter")
@@ -396,6 +452,32 @@ func TestSchedule(t *testing.T) {
 	req = r.fake.CallsTo("SetSchedule")[2].Args[0].(service.ScheduleRequest)
 	if req.For.Std() != 90*time.Minute {
 		t.Errorf("request = %+v", req)
+	}
+}
+
+func TestScheduleMenuFitsTheState(t *testing.T) {
+	for _, c := range []struct {
+		name     string
+		sched    service.ScheduleStatus
+		want, no []string
+	}{
+		{"disabled", service.ScheduleStatus{Backup: "0 2 * * *"}, []string{"Now: backups are disabled", "> Enable"}, []string{"Disable", "Pause"}},
+		{"paused", service.ScheduleStatus{Enabled: true, Backup: "0 2 * * *", MaintenanceUntil: t0.Add(time.Hour)}, []string{"Now: paused for maintenance", "> Enable", "Disable", "Pause for 4h"}, nil},
+		{"manual", service.ScheduleStatus{Enabled: true}, []string{"Now: no backup schedule"}, []string{"Enable", "Disable", "Pause"}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			r := healthy(newRig(t))
+			status := r.fake.StatusFn
+			r.fake.StatusFn = func(ctx context.Context) (service.Status, error) {
+				st, _ := status(ctx)
+				st.Schedule = c.sched
+				return st, nil
+			}
+			r.load()
+			r.press("s")
+			r.wantScreen(c.want...)
+			r.wantNoScreen(c.no...)
+		})
 	}
 }
 
@@ -568,7 +650,7 @@ func TestOverviewNeverCutsAFrame(t *testing.T) {
 		if !strings.Contains(s, "Needs attention") {
 			t.Fatalf("height %d: the attention frame is gone:\n%s", h, s)
 		}
-		if !strings.Contains(s, "q quit") || !strings.Contains(s, "Running:") {
+		if !strings.Contains(s, "q quit") || !strings.Contains(s, "Backing up") {
 			t.Fatalf("height %d: the panel or the legend is gone:\n%s", h, s)
 		}
 	}

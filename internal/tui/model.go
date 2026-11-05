@@ -288,7 +288,7 @@ func (m *Model) key(k tea.KeyPressMsg) tea.Cmd {
 	case "l":
 		return fetchLog(m.ctx, m.svc, m.logKind())
 	case "s":
-		m.dlg = newScheduleDialog()
+		m.dlg = newScheduleDialog(m.status, m.o.Now())
 	case "n":
 		return act("test notification", func() error { return m.svc.NotifyTest(m.ctx) })
 	case "w":

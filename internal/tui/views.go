@@ -116,7 +116,7 @@ func (m *Model) footer() string {
 	if m.flash != "" {
 		return styleTitle.Render(m.flash)
 	}
-	return m.legend(m.tab, m.op != nil)
+	return m.legend(m.tab, m.op != nil || m.retrying())
 }
 
 // footerHeight is the number of lines the legend needs on the tab that needs
@@ -236,7 +236,8 @@ func (m *Model) overviewPage(avail int) string {
 	}
 	st := *m.status
 	cards := m.cardsFit()
-	// notes and the last runs are shown separately, with colors
+	// notes and the last runs are shown separately, with colors, and the
+	// operation and a retry in the panel at the bottom
 	var plain, notes []present.Row
 	inRuns := false
 	for _, r := range present.StatusRows(st, m.o.Now()) {
@@ -246,6 +247,7 @@ func (m *Model) overviewPage(avail int) string {
 		case inRuns && r.Label == "" && r.Severity == "":
 		case r.Severity != "" || r.Label == "Notes":
 			notes = append(notes, r)
+		case r.Label == "Operation":
 		case cards && (r.Label == "Repository" || r.Label == "Last backup" || r.Label == "Secondary" || r.Label == "  next backup"):
 		default:
 			inRuns = false
@@ -253,10 +255,10 @@ func (m *Model) overviewPage(avail int) string {
 		}
 	}
 	// the rows that can go when the room is short: the next runs of the
-	// maintenance jobs, and the operation while the panel shows it
+	// maintenance jobs
 	var compact []present.Row
 	for _, r := range plain {
-		if !strings.HasPrefix(r.Label, "  ") && (r.Label != "Operation" || m.op == nil) {
+		if !strings.HasPrefix(r.Label, "  ") {
 			compact = append(compact, r)
 		}
 	}
@@ -325,7 +327,11 @@ func (m *Model) attention(notes []present.Row) string {
 		text := strings.TrimPrefix(n.Text, present.SeverityMark(n.Severity)+" ")
 		lines = append(lines, style.Render("• "+wrap(text, m.width-8)))
 	}
-	return framed(c, m.width, styleTitle.Render("Needs attention")+"\n"+strings.Join(lines, "\n"))
+	title := "Needs attention"
+	if c == colMuted {
+		title = "Notes" // only for information, like a pause for maintenance
+	}
+	return framed(c, m.width, styleTitle.Render(title)+"\n"+strings.Join(lines, "\n"))
 }
 
 // lastRuns lists the latest result of every kind of operation.
@@ -377,8 +383,16 @@ func (m *Model) snapshotsPage(avail int) string {
 	if len(m.snapshots) == 0 {
 		return "There are no snapshots yet. " + styleKey.Render("b") + " starts a backup."
 	}
+	// a narrow terminal leaves out the age, so that the flags stay in view
+	withAge := m.width >= 90
+	columns := func(id, time, age, origin, files, size string) string {
+		if !withAge {
+			return fmt.Sprintf("%-9s %-19s  %-11s %7s %10s  ", id, time, origin, files, size)
+		}
+		return fmt.Sprintf("%-9s %-19s %*s  %-11s %7s %10s  ", id, time, ageWidth, age, origin, files, size)
+	}
 	var b strings.Builder
-	b.WriteString(styleDim.Render(fmt.Sprintf("  %-9s %-19s %*s  %-11s %7s %10s  %-*s %s", "ID", "TIME", ageWidth, "AGE", "ORIGIN", "FILES", "SIZE", flagWidth, "FLAGS", "NOTE")) + "\n")
+	b.WriteString(styleDim.Render("  "+columns("ID", "TIME", "AGE", "ORIGIN", "FILES", "SIZE")+fmt.Sprintf("%-*s %s", flagWidth, "FLAGS", "NOTE")) + "\n")
 	now := m.o.Now()
 	first, last := window(m.cursor[tabSnapshots], len(m.snapshots), avail-2) // the column header and the summary take two lines
 	for i := first; i < last; i++ {
@@ -387,7 +401,7 @@ func (m *Model) snapshotsPage(avail int) string {
 		if s.HasSummary {
 			files, size = strconv.FormatInt(s.Files, 10), present.Bytes(s.Bytes)
 		}
-		cols := fmt.Sprintf("%-9s %-19s %*s  %-11s %7s %10s  ", s.ShortID, present.Stamp(s.Time), ageWidth, present.Duration(now.Sub(s.Time)), s.Origin, files, size)
+		cols := columns(s.ShortID, present.Stamp(s.Time), present.Duration(now.Sub(s.Time)), string(s.Origin), files, size)
 		flags := present.SnapshotFlags(s)
 		var line string
 		if i == m.cursor[tabSnapshots] {
@@ -522,8 +536,9 @@ func (m *Model) operationPanel() string {
 	switch {
 	case m.op != nil:
 		var b strings.Builder
-		b.WriteString(styleAccent.Render(spinFrames[m.frame%len(spinFrames)]) + " " + styleTitle.Render("Running: ") + present.OperationLine(now, *m.op) + "\n")
-		if p := m.op.Progress; p != nil && p.Percent > 0 {
+		b.WriteString(styleAccent.Render(spinFrames[m.frame%len(spinFrames)]) + " " + styleTitle.Render(present.OperationTitle(*m.op)) +
+			styleDim.Render(" · "+present.OperationMeta(now, *m.op)) + "\n")
+		if p := m.op.Progress; p != nil && p.Percent > 0 { // the bar says the percentage
 			b.WriteString(bar(p.Percent, max(10, min(40, m.width-30))))
 			if p.Current != "" {
 				b.WriteString("  " + styleDim.Render(truncate(p.Current, m.width-60)))
@@ -553,12 +568,26 @@ func (m *Model) operationPanel() string {
 		if r := m.lastResult; r.Kind == service.KindRestore && !r.Result.OK() && m.lastRestore != nil && !m.lastRestore.NoSafetySnapshot && m.lastRestore.Target == "" {
 			b.WriteString(styleWarn.Render("x  repeat the restore without the safety snapshot") + "\n")
 		}
+		// the failed backup is the last result while its retry waits
+		if retry := m.retryLine(); retry != "" {
+			b.WriteString(styleWarn.Render(retry) + "\n")
+		}
 		return framed(c, m.width, strings.TrimRight(b.String(), "\n"))
-	case m.status != nil && m.status.Retry != nil:
-		r := m.status.Retry
-		return fmt.Sprintf("The failed backup is retried (%d/%d) at %s. c cancels the retry.", r.Attempt, r.Max, r.At.Local().Format("15:04"))
+	case m.retrying():
+		return m.retryLine()
 	}
 	return ""
+}
+
+func (m *Model) retrying() bool { return m.op == nil && m.status != nil && m.status.Retry != nil }
+
+// retryLine says when the failed backup is tried again, if it is.
+func (m *Model) retryLine() string {
+	if !m.retrying() {
+		return ""
+	}
+	r := m.status.Retry
+	return fmt.Sprintf("The failed backup is tried again (%d/%d) at %s. c cancels the retry.", r.Attempt, r.Max, r.At.Local().Format("15:04"))
 }
 
 func bar(frac float64, width int) string {
@@ -598,5 +627,5 @@ Locks       in Locks: u  remove stale locks, U  remove all
 Schedule    s  enable, disable or pause scheduled backups
 Log         l  log of the last run
 Web UI      w  switch it on and show a one-time login link
-Access      in Access: p  show or hide the secrets, y  show them as shell exports to paste
+Access      in Access: p  show or hide the secrets, y  export lines to paste
 Other       n  test notification · r  refresh · q  quit`

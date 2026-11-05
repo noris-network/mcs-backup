@@ -92,18 +92,6 @@ func wrap(text string, width int) string {
 	return strings.Join(append(out, strings.Join(line, " ")), "\n")
 }
 
-// clip shortens lines that are wider than width.
-func clip(lines []string, width int) []string {
-	out := make([]string, len(lines))
-	for i, l := range lines {
-		if r := []rune(l); len(r) > width && width > 1 {
-			l = string(r[:width-1]) + "…"
-		}
-		out[i] = l
-	}
-	return out
-}
-
 // exportText renders the restic environment as shell exports.
 func exportText(info service.EnvInfo) string {
 	var b strings.Builder

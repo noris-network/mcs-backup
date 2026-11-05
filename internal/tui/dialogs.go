@@ -8,6 +8,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/noris-network/mcs-backup/v2/internal/present"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
@@ -26,6 +27,13 @@ func newInput(placeholder string) textinput.Model {
 	in.Prompt = "> "
 	in.Focus()
 	return in
+}
+
+// field draws a text input as wide as the text of a dialog. Without a width
+// the input shows only the first letter of its placeholder.
+func field(in *textinput.Model, width int) string {
+	in.SetWidth(boxText(width) - lipgloss.Width(in.Prompt) - 1)
+	return in.View()
 }
 
 // typing feeds a key to a text input. The cursor does not blink, so there
@@ -64,7 +72,7 @@ func (d *confirmDialog) key(_ *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 
 func (d *confirmDialog) view(width int) string {
 	var b strings.Builder
-	b.WriteString(wrap(d.text, width-6) + "\n\n" + d.in.View() + "\n")
+	b.WriteString(wrap(d.text, boxText(width)) + "\n\n" + field(&d.in, width) + "\n")
 	if d.err != "" {
 		b.WriteString("\n" + styleBad.Render(d.err) + "\n")
 	}
@@ -104,7 +112,7 @@ func (d *promptDialog) key(_ *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 
 func (d *promptDialog) view(width int) string {
 	var b strings.Builder
-	b.WriteString(d.label + "\n\n" + d.in.View() + "\n")
+	b.WriteString(d.label + "\n\n" + field(&d.in, width) + "\n")
 	hint := "enter ok · esc cancel"
 	if d.checkbox != "" {
 		mark := "[ ]"
@@ -139,6 +147,7 @@ type menuItem struct {
 
 type menuDialog struct {
 	title string
+	text  string // above the items, if set
 	items []menuItem
 	at    int
 }
@@ -150,8 +159,11 @@ func (d *menuDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 	case "up", "k":
 		d.at = max(0, d.at-1)
 	case "down", "j":
-		d.at = min(len(d.items)-1, d.at+1)
+		d.at = max(0, min(len(d.items)-1, d.at+1))
 	case "enter":
+		if len(d.items) == 0 {
+			return nil, true
+		}
 		return d.items[d.at].do(m), true
 	}
 	return nil, false
@@ -159,6 +171,9 @@ func (d *menuDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 
 func (d *menuDialog) view(width int) string {
 	var b strings.Builder
+	if d.text != "" {
+		b.WriteString(wrap(d.text, boxText(width)) + "\n\n")
+	}
 	for i, it := range d.items {
 		if i == d.at {
 			b.WriteString(styleSel.Render("> "+it.label) + "\n")
@@ -169,7 +184,10 @@ func (d *menuDialog) view(width int) string {
 	return box(d.title, b.String(), "enter choose · esc close", width)
 }
 
-func newScheduleDialog() *menuDialog {
+// newScheduleDialog says how the scheduled backups run and offers what fits:
+// to disable or pause them when they run, to enable them otherwise (and to
+// change a pause), nothing when there is no backup schedule.
+func newScheduleDialog(st *service.Status, now time.Time) *menuDialog {
 	set := func(req service.ScheduleRequest) func(*Model) tea.Cmd {
 		return func(m *Model) tea.Cmd {
 			return act("schedule", func() error { _, err := m.svc.SetSchedule(m.ctx, req); return err })
@@ -178,23 +196,42 @@ func newScheduleDialog() *menuDialog {
 	window := func(d time.Duration) menuItem {
 		return menuItem{"Pause for " + present.Duration(d) + " (maintenance)", set(service.ScheduleRequest{Action: service.ScheduleMaintenance, For: service.Duration(d)})}
 	}
-	return &menuDialog{title: "Scheduled backups", items: []menuItem{
-		{"Enable", set(service.ScheduleRequest{Action: service.ScheduleEnable})},
-		{"Disable until enabled again or restarted", set(service.ScheduleRequest{Action: service.ScheduleDisable})},
-		window(time.Hour), window(4 * time.Hour), window(24 * time.Hour),
-		{"Pause for another time …", func(m *Model) tea.Cmd {
-			d := &promptDialog{title: "Maintenance window", label: "How long? (for example 90m or 2h)", in: newInput("2h")}
-			d.submit = func(v string, _ bool) (tea.Cmd, string) {
+	d := &menuDialog{title: "Scheduled backups"}
+	enabled, paused := true, false
+	if st != nil {
+		for _, r := range present.StatusRows(*st, now) {
+			if r.Label == "Schedule" {
+				d.text = "Now: " + r.Text
+			}
+		}
+		if st.Schedule.Backup == "" {
+			return d
+		}
+		enabled, paused = st.Schedule.Enabled, st.Schedule.MaintenanceUntil.After(now)
+	}
+	if !enabled || paused {
+		d.items = append(d.items, menuItem{"Enable", set(service.ScheduleRequest{Action: service.ScheduleEnable})})
+	}
+	if !enabled && !paused {
+		return d
+	}
+	d.items = append(d.items,
+		menuItem{"Disable until enabled again or restarted", set(service.ScheduleRequest{Action: service.ScheduleDisable})},
+		window(time.Hour), window(4*time.Hour), window(24*time.Hour),
+		menuItem{"Pause for another time …", func(m *Model) tea.Cmd {
+			p := &promptDialog{title: "Maintenance window", label: "How long? (for example 90m or 2h)", in: newInput("2h")}
+			p.submit = func(v string, _ bool) (tea.Cmd, string) {
 				dur, err := time.ParseDuration(v)
 				if err != nil || dur <= 0 {
 					return nil, "Not a duration. Use something like 90m or 2h."
 				}
 				return set(service.ScheduleRequest{Action: service.ScheduleMaintenance, For: service.Duration(dur)})(m), ""
 			}
-			m.dlg = d
+			m.dlg = p
 			return nil
 		}},
-	}}
+	)
+	return d
 }
 
 // ---- scrollable text (the log) ----
@@ -229,15 +266,21 @@ func (d *textDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 
 func (d *textDialog) view(width int) string {
 	const height = 18
+	// a long line wraps, so that nothing of it is lost (an error of restic,
+	// for example); the scrolling goes by the lines on the screen
+	shown := make([]string, 0, len(d.lines))
+	for _, l := range d.lines {
+		shown = append(shown, strings.Split(ansi.Wrap(l, boxText(width), ""), "\n")...)
+	}
 	top := d.top
-	if d.follow || top > len(d.lines)-height {
-		top = max(0, len(d.lines)-height)
+	if d.follow || top > len(shown)-height {
+		top = max(0, len(shown)-height)
 	}
 	d.top = top
-	end := min(len(d.lines), top+height)
+	end := min(len(shown), top+height)
 	body := "(the log is empty)"
-	if len(d.lines) > 0 {
-		body = strings.Join(clip(d.lines[top:end], width-6), "\n")
+	if len(shown) > 0 {
+		body = strings.Join(shown[top:end], "\n")
 	}
 	return box(d.title, body, "↑↓ pgup pgdn scroll · G end · esc close", width)
 }
@@ -457,7 +500,7 @@ func (d *restoreDialog) view(width int) string {
 	switch d.stage {
 	case stageForm:
 		for i := range d.fields {
-			b.WriteString(d.labels[i] + "\n" + d.fields[i].View() + "\n\n")
+			b.WriteString(d.labels[i] + "\n" + field(&d.fields[i], width) + "\n\n")
 		}
 		mode := "exact (files that are not in the snapshot are removed)"
 		if d.merge {
@@ -480,7 +523,7 @@ func (d *restoreDialog) view(width int) string {
 		}
 		hint = "enter continue · esc back"
 	case stageConfirm:
-		b.WriteString(wrap("This replaces the current data. Type "+d.req.Snapshot+" to confirm.", width-6) + "\n\n" + d.confirm.View() + "\n")
+		b.WriteString(wrap("This replaces the current data. Type "+d.req.Snapshot+" to confirm.", boxText(width)) + "\n\n" + field(&d.confirm, width) + "\n")
 		hint = "enter restore · esc back"
 	}
 	if d.err != "" {
