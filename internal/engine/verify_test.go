@@ -362,6 +362,11 @@ func TestEscapePattern(t *testing.T) {
 		`/back\slash`:     `/back\\slash`,
 		"/ümläut/日本語":     "/ümläut/日本語",
 		"/with space/x y": "/with space/x y",
+		"/price$5/$HOME":  "/price$$5/$$HOME",
+		"/trailing \t":    "/trailing[ ][\t]",
+		"/ leading/x":     "/ leading/x",
+		"/new\nline\n":    "/new?line?",
+		"/caf\ufffd":      "/caf?",
 	}
 	for in, want := range tests {
 		if got := escapePattern(in); got != want {

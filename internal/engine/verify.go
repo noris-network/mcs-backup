@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/noris-network/mcs-backup/v2/internal/restic"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
@@ -278,15 +280,34 @@ func (e *Engine) sampleFiles(ctx context.Context, repo *restic.Repo, snap restic
 	return reservoir, nil
 }
 
-// escapePattern escapes the characters that restic's include patterns treat
-// specially, so that a file name is matched literally.
+// escapePattern turns a path into a line of an include file that matches it
+// literally. restic treats \ * ? [ as wildcards, expands $ as an environment
+// variable and trims white space at the end of the line, which a character
+// class keeps. A newline cannot be written into a line, and a name that is not
+// valid UTF-8 arrives with U+FFFD in place of the bad bytes: both become ?,
+// which matches that one character.
 func escapePattern(p string) string {
+	body := strings.TrimRightFunc(p, unicode.IsSpace)
 	var b strings.Builder
-	for _, r := range p {
-		if strings.ContainsRune(`\*?[`, r) {
+	for _, r := range body {
+		switch r {
+		case '\\', '*', '?', '[':
 			b.WriteByte('\\')
+			b.WriteRune(r)
+		case '$':
+			b.WriteString("$$")
+		case '\n', utf8.RuneError:
+			b.WriteByte('?')
+		default:
+			b.WriteRune(r)
 		}
-		b.WriteRune(r)
+	}
+	for _, r := range p[len(body):] {
+		if r == '\n' {
+			b.WriteByte('?')
+		} else {
+			b.WriteString("[" + string(r) + "]")
+		}
 	}
 	return b.String()
 }

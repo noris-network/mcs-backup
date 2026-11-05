@@ -6,6 +6,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -61,6 +63,31 @@ func TestVerifyRestoresASampleAndCleansUp(t *testing.T) {
 	}
 	if i.status().LastRuns[service.KindVerify].Result != service.ResultSuccess {
 		t.Error("the result is not in the status")
+	}
+}
+
+func TestVerifySampleRestoresOddFileNames(t *testing.T) {
+	i := newInst(t)
+	names := []string{
+		"price$5.txt", "$HOME.txt", "${HOME}.txt", "$$.txt", "end$", "star*", "brack[1]", `back\slash`,
+		"trailing ", "tab\t", " leading", "new\nline", "#hash", "!bang",
+	}
+	if runtime.GOOS != "darwin" { // APFS accepts only UTF-8 names
+		names = append(names, "latin1-caf\xe9")
+	}
+	for _, n := range names {
+		i.write("odd/"+n, n)
+	}
+	seen := filepath.Join(i.home, "seen")
+	i.set("VERIFY_SCRIPT=" + i.script("count.sh", `find "$MCS_BACKUP_VERIFY_DIR" -type f -exec printf x \; | wc -c > `+seen))
+	i.start()
+	i.mustBackup("", false)
+
+	if res := i.verify(""); res.Result != service.ResultSuccess {
+		t.Fatalf("verify: %s %s %s\n%s", res.Result, res.Message, res.Error, i.log)
+	}
+	if got := strings.TrimSpace(fileContent(t, seen)); got != strconv.Itoa(len(names)) {
+		t.Errorf("%s of %d files were restored", got, len(names))
 	}
 }
 
