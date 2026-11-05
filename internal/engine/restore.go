@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/noris-network/mcs-backup/v2/internal/restic"
@@ -123,7 +124,12 @@ func (e *Engine) checkSpace(ctx context.Context, p *restorePlan) {
 			current, _ = dirSize(ctx, p.Target)
 		}
 		for _, inc := range p.includes {
-			n, _ := dirSize(ctx, filepath.Join(p.Target, filepath.FromSlash(inc)))
+			// an include that leads out of the target replaces nothing there
+			rel := strings.TrimLeft(filepath.FromSlash(inc), string(filepath.Separator))
+			if !filepath.IsLocal(rel) {
+				continue
+			}
+			n, _ := dirSize(ctx, filepath.Join(p.Target, rel))
 			current += n
 		}
 		need = max(0, size-current)

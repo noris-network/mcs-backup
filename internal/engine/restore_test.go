@@ -98,6 +98,16 @@ func TestRestorePreflight(t *testing.T) {
 		}
 	})
 
+	t.Run("an include out of the target is not sized", func(t *testing.T) {
+		r := restoreRig(t)
+		writeFile(t, filepath.Join(filepath.Dir(r.root), "outside", "big.bin"), 300)
+		r.main.On(t, "ls", resticfake.Response{Stdout: lsOutput(file("/../outside/f", 100))})
+		p, err := r.e.RestorePreflight(t.Context(), service.RestoreRequest{Snapshot: "snap1", Includes: []string{"/../outside"}})
+		if err != nil || p.NeedBytes != 110 {
+			t.Errorf("preflight = %+v, %v", p, err)
+		}
+	})
+
 	t.Run("errors", func(t *testing.T) {
 		r := restoreRig(t)
 		if _, err := r.e.RestorePreflight(t.Context(), service.RestoreRequest{Snapshot: "nope"}); !errors.Is(err, ErrNoSnapshot) {
