@@ -179,7 +179,7 @@ func TestRestoreNeedsConfirmation(t *testing.T) {
 
 func TestRestoreSafetySnapshotFailure(t *testing.T) {
 	log := filepath.Join(t.TempDir(), "hooks.log")
-	post := script(t, `echo "post" >> "$HOOKLOG"`)
+	post := script(t, `echo "post $MCS_BACKUP_RESULT" >> "$HOOKLOG"`)
 	r := restoreRig(t, "HOOKLOG="+log, "POST_RESTORE_SCRIPT="+post)
 	r.main.On(t, "backup", resticfake.Response{Stderr: "Fatal: database is down\n", Exit: 1})
 
@@ -190,8 +190,8 @@ func TestRestoreSafetySnapshotFailure(t *testing.T) {
 	if len(r.main.CallsTo(t, "restore")) != 0 {
 		t.Error("the restore must not run after a failed safety snapshot")
 	}
-	if _, err := os.Stat(log); err == nil {
-		t.Error("the post-restore hook must not run after a failed restore")
+	if got := readFile(t, log); got != "post failure\n" {
+		t.Errorf("hook log = %q: the post-restore hook undoes the pre-hook also when nothing was restored", got)
 	}
 
 	res = r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "latest", Confirm: "latest", NoSafetySnapshot: true}, r.sink())
@@ -303,16 +303,70 @@ func TestRestoreSpaceWarning(t *testing.T) {
 
 func TestRestoreFailure(t *testing.T) {
 	log := filepath.Join(t.TempDir(), "hooks.log")
-	post := script(t, `echo "post" >> "$HOOKLOG"`)
+	post := script(t, `echo "post $MCS_BACKUP_RESULT $MCS_BACKUP_SNAPSHOT [$MCS_BACKUP_ERROR] $*" >> "$HOOKLOG"`)
 	r := restoreRig(t, "HOOKLOG="+log, "POST_RESTORE_SCRIPT="+post)
 	r.main.On(t, "restore", resticfake.Response{Stderr: "Fatal: disk full\n", Exit: 1})
 
-	res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "snap1", Confirm: "snap1"}, r.sink())
+	res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "snap1", Confirm: "snap1", HookArgs: []string{"--maintenance", "on"}}, r.sink())
 	if res.Result != service.ResultFailure || !strings.Contains(res.Error, "disk full") || res.SafetySnapshot != "safety1" {
 		t.Fatalf("result = %+v", res)
 	}
+	// the post-restore hook runs after a failure too and is told about it
+	got := readFile(t, log)
+	if !strings.HasPrefix(got, "post failure snap1") || !strings.Contains(got, "disk full") || !strings.HasSuffix(got, "] --maintenance on\n") {
+		t.Errorf("hook log = %q", got)
+	}
+}
+
+func TestPostRestoreHookAfterASuccess(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "hooks.log")
+	post := script(t, `echo "post $MCS_BACKUP_RESULT [$MCS_BACKUP_ERROR]" >> "$HOOKLOG"`)
+	r := restoreRig(t, "HOOKLOG="+log, "POST_RESTORE_SCRIPT="+post)
+	res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "snap1", Confirm: "snap1"}, r.sink())
+	if res.Result != service.ResultSuccess {
+		t.Fatalf("result = %+v", res)
+	}
+	if got := readFile(t, log); got != "post success []\n" {
+		t.Errorf("hook log = %q", got)
+	}
+}
+
+func TestPostRestoreHookDoesNotRunForARefusedRestore(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "hooks.log")
+	post := script(t, `echo "post" >> "$HOOKLOG"`)
+	r := restoreRig(t, "HOOKLOG="+log, "POST_RESTORE_SCRIPT="+post)
+	for _, req := range []service.RestoreRequest{
+		{Snapshot: "snap1"},                     // not confirmed
+		{Snapshot: "nosuch", Confirm: "nosuch"}, // no such snapshot
+	} {
+		if res := r.e.Restore(t.Context(), req, r.sink()); res.Result != service.ResultFailure {
+			t.Fatalf("%+v: result = %+v", req, res)
+		}
+	}
 	if _, err := os.Stat(log); err == nil {
-		t.Error("the post-restore hook must not run after a failed restore")
+		t.Error("the post-restore hook ran although the restore never began: the pre-hook did not run either")
+	}
+}
+
+func TestFailingPostRestoreHook(t *testing.T) {
+	post := script(t, `echo "cannot start the app"; exit 3`)
+
+	// after a good restore the result is a failure, as the application is not back
+	r := restoreRig(t, "POST_RESTORE_SCRIPT="+post)
+	res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "snap1", Confirm: "snap1"}, r.sink())
+	if res.Result != service.ResultFailure || !strings.Contains(res.Error, "post-restore hook") {
+		t.Errorf("result = %+v", res)
+	}
+
+	// after a failed restore the reason of the failure stays in front
+	r = restoreRig(t, "POST_RESTORE_SCRIPT="+post)
+	r.main.On(t, "restore", resticfake.Response{Stderr: "Fatal: disk full\n", Exit: 1})
+	res = r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "snap1", Confirm: "snap1"}, r.sink())
+	if res.Result != service.ResultFailure || !strings.Contains(res.Error, "disk full") {
+		t.Errorf("result = %+v", res)
+	}
+	if !slices.ContainsFunc(res.Warnings, func(w string) bool { return strings.Contains(w, "post-restore hook failed") }) {
+		t.Errorf("warnings = %q", res.Warnings)
 	}
 }
 

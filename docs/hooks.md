@@ -7,7 +7,7 @@
 | `PRE_BACKUP_SCRIPT` | first step of every backup | the backup stops; no snapshot is made |
 | `POST_BACKUP_SCRIPT` | last step of every backup, **always** (also after a failure, a timeout or a cancellation) | the run ends with the result `warning` |
 | `PRE_RESTORE_SCRIPT` | before a restore | the restore stops |
-| `POST_RESTORE_SCRIPT` | after a successful restore (not after a failed one) | the restore is reported as failed, although the data is already restored |
+| `POST_RESTORE_SCRIPT` | last step of every restore that got as far as the pre-restore hook, **always** (also after a failure, a timeout or a cancellation) | a good restore is reported as failed, although the data is already restored; a failed one keeps its error and gets a warning |
 
 All scripts
 
@@ -21,17 +21,34 @@ All scripts
 * receive SIGTERM when the operation is cancelled or times out, and SIGKILL ten
   seconds later.
 
-The post-backup hook additionally gets the outcome, so one script can both
-clean up and report:
+The post-backup and the post-restore hook additionally get the outcome, so one
+script can both clean up and report:
 
 | Variable | Value |
 | --- | --- |
 | `MCS_BACKUP_RESULT` | `success`, `warning`, `skipped`, `failure`, `suspicious`, `timeout` or `cancelled` |
 | `MCS_BACKUP_ERROR` | the error message, empty on success |
-| `MCS_BACKUP_SNAPSHOT` | ID of the new snapshot, empty if none was made |
+| `MCS_BACKUP_SNAPSHOT` | backup: ID of the new snapshot, empty if none was made; restore: ID of the restored snapshot |
 
-The post-backup hook has its own time limit, `POST_HOOK_TIMEOUT` (default 5
-minutes), so a backup that ran into `BACKUP_TIMEOUT` can still clean up.
+Both have their own time limit, `POST_HOOK_TIMEOUT` (default 5 minutes), so a
+backup that ran into `BACKUP_TIMEOUT` can still clean up.
+
+**Check `MCS_BACKUP_RESULT` in a post-restore hook.** It also runs when the
+restore failed, so that it can undo what the pre-restore hook did. The data may
+then be restored only in part: leave the maintenance mode, but do not start the
+application on it as if nothing had happened.
+
+```sh
+#!/bin/sh
+# POST_RESTORE_SCRIPT
+case "$MCS_BACKUP_RESULT" in
+  success|warning) rm -f .maintenance ;;
+  *) echo "restore ended as $MCS_BACKUP_RESULT, staying in maintenance: $MCS_BACKUP_ERROR" >&2 ;;
+esac
+```
+
+A restore that is refused before it begins (no confirmation, unknown snapshot,
+too little space) runs neither hook.
 
 ### Restore hooks get arguments
 

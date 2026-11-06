@@ -51,7 +51,9 @@ func (e *Engine) Backup(ctx context.Context, req service.BackupRequest, sink Sin
 			res.Message = "backup failed"
 		}
 	}
-	e.postHook(parent, e.cfg.Hooks.PostBackup, "post-backup", sink, &res)
+	if err := e.postHook(parent, e.cfg.Hooks.PostBackup, "post-backup", nil, sink, res.Result, res.Error, res.Snapshot); err != nil {
+		res.warn("post-backup hook failed: %v", err)
+	}
 
 	if len(res.Warnings) > 0 && res.Result == service.ResultSuccess {
 		res.Result = service.ResultWarning
@@ -300,25 +302,22 @@ func (e *Engine) copyPhase(ctx context.Context, res *BackupResult, sink Sink) {
 	}
 }
 
-// postHook runs the post-hook with its own time limit, independent of the
-// timeout or cancellation of the operation.
-func (e *Engine) postHook(parent context.Context, script, name string, sink Sink, res *BackupResult) {
+// postHook runs a post-hook with its own time limit, independent of the
+// timeout or cancellation of the operation, and tells it the outcome.
+func (e *Engine) postHook(parent context.Context, script, name string, args []string, sink Sink, result service.Result, errMsg, snapshot string) error {
 	if script == "" {
-		return
+		return nil
 	}
 	sink.phase("wrapup")
 	ctx, cancelTimeout := context.WithTimeout(context.WithoutCancel(parent), e.cfg.Timeouts.PostHook)
 	defer cancelTimeout()
 	ctx, cancel := hardStopContext(parent, ctx)
 	defer cancel()
-	err := e.runHook(ctx, name, script, nil, sink,
-		"MCS_BACKUP_RESULT="+string(res.Result),
-		"MCS_BACKUP_ERROR="+res.Error,
-		"MCS_BACKUP_SNAPSHOT="+res.Snapshot,
+	return e.runHook(ctx, name, script, args, sink,
+		"MCS_BACKUP_RESULT="+string(result),
+		"MCS_BACKUP_ERROR="+errMsg,
+		"MCS_BACKUP_SNAPSHOT="+snapshot,
 	)
-	if err != nil {
-		res.warn("%s hook failed: %v", name, err)
-	}
 }
 
 func unreadableMessage(sum restic.BackupSummary) string {

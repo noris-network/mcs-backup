@@ -87,6 +87,9 @@ their policy.
 * `restore` restores `exact` by default (files that are not in the snapshot are
   removed); `--merge` keeps them. `--include` restores parts.
 * Free space is checked first; `--force` overrides a warning.
+* **`POST_RESTORE_SCRIPT` also runs after a failed restore**, so that it can
+  undo what `PRE_RESTORE_SCRIPT` did. A script that starts the application must
+  check `MCS_BACKUP_RESULT` first, see [hooks](hooks.md#backup-and-restore-hooks).
 * `restore-if-empty` is the command for init containers. It does not contact
   the repository when the directory already has data.
 

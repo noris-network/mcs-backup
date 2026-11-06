@@ -191,11 +191,12 @@ func (e *Engine) Restore(ctx context.Context, req service.RestoreRequest, sink S
 // restores into an empty target).
 func (e *Engine) restore(ctx context.Context, req service.RestoreRequest, sink Sink, trusted bool) RestoreResult {
 	start := e.now()
+	parent := ctx
 	ctx, cancel := withTimeout(ctx, e.cfg.Timeouts.Restore)
 	defer cancel()
 
 	var res RestoreResult
-	err := e.restorePhases(ctx, req, sink, trusted, &res)
+	began, err := e.restorePhases(ctx, req, sink, trusted, &res)
 	if err != nil {
 		res.Result = classify(ctx, err)
 		res.Error = err.Error()
@@ -206,30 +207,45 @@ func (e *Engine) restore(ctx context.Context, req service.RestoreRequest, sink S
 			res.Result = service.ResultWarning
 		}
 	}
+	// The post-hook runs whenever the pre-hook was due, also after a failure:
+	// it may have to undo what the pre-hook did, such as a maintenance mode.
+	if began {
+		herr := e.postHook(parent, e.cfg.Hooks.PostRestore, "post-restore", req.HookArgs, sink, res.Result, res.Error, res.Snapshot)
+		switch {
+		case herr != nil && res.Result.OK():
+			res.Result = service.ResultFailure
+			res.Error = fmt.Sprintf("post-restore hook: %v", herr)
+			res.Message = "restore failed"
+		case herr != nil:
+			res.Warnings = append(res.Warnings, fmt.Sprintf("post-restore hook failed: %v", herr))
+		}
+	}
 	res.Duration = e.now().Sub(start)
 	return res
 }
 
-func (e *Engine) restorePhases(ctx context.Context, req service.RestoreRequest, sink Sink, trusted bool, res *RestoreResult) error {
+// restorePhases does everything but the post-hook. began reports whether the
+// restore got past its checks, to the point where the pre-hook runs.
+func (e *Engine) restorePhases(ctx context.Context, req service.RestoreRequest, sink Sink, trusted bool, res *RestoreResult) (began bool, err error) {
 	sink.phase("prepare")
 	plan, err := e.planRestore(ctx, req)
 	if err != nil {
-		return err
+		return false, err
 	}
 	res.Snapshot = plan.snap.ID
 	res.Warnings = append(res.Warnings, plan.Warnings...)
 
 	if plan.InPlace && !trusted && (req.Confirm == "" || req.Confirm != req.Snapshot) {
-		return fmt.Errorf("%w: an in-place restore replaces the current data, confirm with %q", ErrConfirm, req.Snapshot)
+		return false, fmt.Errorf("%w: an in-place restore replaces the current data, confirm with %q", ErrConfirm, req.Snapshot)
 	}
 	if plan.SpaceWarning && !req.IgnoreSpaceWarning {
-		return fmt.Errorf("not enough free space: %s needed, %s free (override to restore anyway)",
+		return false, fmt.Errorf("not enough free space: %s needed, %s free (override to restore anyway)",
 			formatBytes(plan.NeedBytes), formatBytes(plan.FreeBytes))
 	}
 
 	if script := e.cfg.Hooks.PreRestore; script != "" {
 		if err := e.runHook(ctx, "pre-restore", script, req.HookArgs, sink); err != nil {
-			return fmt.Errorf("pre-restore hook: %w", err)
+			return true, fmt.Errorf("pre-restore hook: %w", err)
 		}
 	}
 
@@ -238,11 +254,11 @@ func (e *Engine) restorePhases(ctx context.Context, req service.RestoreRequest, 
 		sink.logf("taking a snapshot of the current data before it is replaced")
 		snaps, err := e.main.Snapshots(ctx)
 		if err != nil {
-			return fmt.Errorf("list snapshots: %w", err)
+			return true, fmt.Errorf("list snapshots: %w", err)
 		}
 		sum, err := e.runBackup(ctx, snaps, service.OriginPreRestore, "before restore of "+short(plan.snap.ID), false, sink)
 		if err != nil && !errors.Is(err, restic.ErrIncomplete) {
-			return fmt.Errorf("safety snapshot failed, nothing was restored (restore without a safety snapshot to continue): %w", err)
+			return true, fmt.Errorf("safety snapshot failed, nothing was restored (restore without a safety snapshot to continue): %w", err)
 		}
 		res.SafetySnapshot = sum.SnapshotID
 		sink.logf("safety snapshot %s taken", short(sum.SnapshotID))
@@ -255,17 +271,10 @@ func (e *Engine) restorePhases(ctx context.Context, req service.RestoreRequest, 
 		err = e.restoreFiles(ctx, plan, sink, res)
 	}
 	if err != nil {
-		return err
+		return true, err
 	}
 	res.Message = fmt.Sprintf("snapshot %s restored", short(plan.snap.ID))
-
-	if script := e.cfg.Hooks.PostRestore; script != "" {
-		sink.phase("wrapup")
-		if err := e.runHook(ctx, "post-restore", script, req.HookArgs, sink); err != nil {
-			return fmt.Errorf("post-restore hook: %w", err)
-		}
-	}
-	return nil
+	return true, nil
 }
 
 func (e *Engine) restoreFiles(ctx context.Context, plan restorePlan, sink Sink, res *RestoreResult) error {

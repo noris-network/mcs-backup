@@ -187,3 +187,13 @@ func writeFile(t *testing.T, path string, size int) {
 		t.Fatal(err)
 	}
 }
+
+// readFile returns the content of a file, empty if it does not exist.
+func readFile(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	return string(data)
+}
