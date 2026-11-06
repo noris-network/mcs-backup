@@ -154,7 +154,7 @@ Details are in [hooks.md](hooks.md).
 | `VERIFY_MODE` | `sample` | `sample` restores a random selection, `full` the whole snapshot. |
 | `VERIFY_SAMPLE_FILES` | `100` | Upper bound of the sample (files). |
 | `VERIFY_SAMPLE_BYTES` | `256MiB` | Upper bound of the sample (size). |
-| `VERIFY_DIR` | system temp directory | Sandbox; must not be inside `BACKUP_ROOT`. Always emptied afterwards. If the free space is too small, the test is skipped with a warning. |
+| `VERIFY_DIR` | system temp directory | Sandbox; must not be inside `BACKUP_ROOT`. Always emptied afterwards; if that fails, the test ends with a warning. If the free space is too small, the test is skipped with a warning. |
 | `VERIFY_SCRIPT` | – | Is called with the sandbox path in `MCS_BACKUP_VERIFY_DIR`; its exit code decides. In pipe mode the dump is streamed to it on stdin. Without it, pipe mode has no restore test. |
 | `VERIFY_COPY` | `false` | Test the secondary repository as well. |
 

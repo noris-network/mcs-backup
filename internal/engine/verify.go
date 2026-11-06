@@ -149,7 +149,7 @@ func (e *Engine) verifyPipe(ctx context.Context, repo *restic.Repo, snap restic.
 }
 
 // verifyFiles restores the snapshot, or a sample of it, into a sandbox.
-func (e *Engine) verifyFiles(ctx context.Context, repo *restic.Repo, snap restic.Snapshot, mode string, rr VerifyRepoResult, sink Sink) VerifyRepoResult {
+func (e *Engine) verifyFiles(ctx context.Context, repo *restic.Repo, snap restic.Snapshot, mode string, rr VerifyRepoResult, sink Sink) (out VerifyRepoResult) {
 	fail := func(err error, msg string) VerifyRepoResult {
 		rr.Result, rr.Error, rr.Message = classify(ctx, err), err.Error(), msg
 		return rr
@@ -171,7 +171,14 @@ func (e *Engine) verifyFiles(ctx context.Context, repo *restic.Repo, snap restic
 		_ = os.Remove(sandbox)
 		return fail(fmt.Errorf("sandbox %s is inside BACKUP_ROOT", sandbox), "refusing to run the restore test")
 	}
-	defer forceRemove(sandbox)
+	// a sandbox that is left over takes space every time, so it is a warning
+	defer func() {
+		if err := forceRemove(sandbox); err != nil {
+			sink.logf("verify: cannot remove the sandbox: %v", err)
+			out.Result = out.Result.Worse(service.ResultWarning)
+			out.Message += "; the sandbox " + sandbox + " could not be removed"
+		}
+	}()
 
 	opts := restic.RestoreOptions{Snapshot: snap.ID, Target: sandbox, Verify: true, Extra: e.cfg.Restic.Restore}
 	var need int64
@@ -320,12 +327,12 @@ func within(dir, path string) bool {
 
 // forceRemove deletes a directory tree even if restic restored read-only
 // directories.
-func forceRemove(dir string) {
+func forceRemove(dir string) error {
 	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err == nil && d.IsDir() {
 			_ = os.Chmod(p, 0o700) //nolint:gosec // directories need the owner bits to be deleted
 		}
 		return nil
 	})
-	_ = os.RemoveAll(dir)
+	return os.RemoveAll(dir)
 }

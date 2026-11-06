@@ -161,6 +161,22 @@ func TestVerifyFailures(t *testing.T) {
 		}
 	})
 
+	t.Run("a sandbox that cannot be removed is a warning", func(t *testing.T) {
+		if os.Geteuid() == 0 {
+			t.Skip("root can remove anything")
+		}
+		lock := script(t, `chmod 500 "$(dirname "$MCS_BACKUP_VERIFY_DIR")"`)
+		r, base := verifyRig(t, false, "VERIFY_SCRIPT="+lock)
+		t.Cleanup(func() { _ = os.Chmod(base, 0o700) }) //nolint:gosec // let t.TempDir clean up
+		res := r.e.Verify(t.Context(), service.VerifyRequest{}, r.sink())
+		if res.Result != service.ResultWarning || !strings.Contains(res.Message, "files restored and verified; the sandbox "+base) {
+			t.Errorf("result = %+v", res)
+		}
+		if !slices.ContainsFunc(r.lines, func(l string) bool { return strings.Contains(l, "cannot remove the sandbox") }) {
+			t.Errorf("the run log does not say why: %q", r.lines)
+		}
+	})
+
 	t.Run("timeout", func(t *testing.T) {
 		r, base := verifyRig(t, false, "VERIFY_TIMEOUT=400ms")
 		r.main.On(t, "restore", resticfake.Response{Sleep: 30 * time.Second})
@@ -387,7 +403,9 @@ func TestForceRemove(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	forceRemove(dir)
+	if err := forceRemove(dir); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		t.Errorf("sandbox with read-only directories still exists: %v", err)
 	}
