@@ -377,6 +377,25 @@ type restoreDialog struct {
 	now     time.Time
 	confirm textinput.Model
 	err     string
+	// picked is a path chosen in the file browser: it is one path, also if
+	// it contains spaces, as long as the field still holds it.
+	picked string
+}
+
+// newRestoreDialogFor opens the restore of one path of a snapshot.
+func newRestoreDialogFor(snapshot, include string) *restoreDialog {
+	d := newRestoreDialog(snapshot)
+	d.picked = include
+	d.fields[2].SetValue(include)
+	return d
+}
+
+// includes returns the paths to restore.
+func (d *restoreDialog) includes() []string {
+	if v := d.fields[2].Value(); d.picked != "" && v == d.picked {
+		return []string{v}
+	}
+	return strings.Fields(d.fields[2].Value())
 }
 
 func newRestoreDialog(snapshot string) *restoreDialog {
@@ -437,7 +456,7 @@ func (d *restoreDialog) formKey(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 			d.err = "Name a snapshot, or latest."
 			return nil, false
 		}
-		req := service.RestoreRequest{Snapshot: snap, Target: strings.TrimSpace(d.fields[1].Value()), Includes: strings.Fields(d.fields[2].Value()), Mode: service.ModeExact}
+		req := service.RestoreRequest{Snapshot: snap, Target: strings.TrimSpace(d.fields[1].Value()), Includes: d.includes(), Mode: service.ModeExact}
 		if d.merge {
 			req.Mode = service.ModeMerge
 		}

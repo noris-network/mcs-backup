@@ -1,0 +1,130 @@
+package tui
+
+import (
+	"context"
+	"errors"
+	"path"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/noris-network/mcs-backup/v2/internal/service"
+)
+
+// tree is a small snapshot to browse.
+func tree(r *rig) *rig {
+	r.fake.FilesFn = func(_ context.Context, req service.FilesRequest) (service.FileList, error) {
+		list := service.FileList{Snapshot: snap(strings.TrimRight(req.Snapshot, "0"), time.Hour), Path: path.Join("/", req.Path)}
+		switch list.Path {
+		case "/":
+			list.Files = []service.File{{Path: "/my docs", Type: "dir", Mtime: t0}, {Path: "/readme.txt", Type: "file", Size: 2048, Mtime: t0}}
+		case "/my docs":
+			list.Files = []service.File{{Path: "/my docs/a b.txt", Type: "file", Size: 3 << 20, Mtime: t0}}
+		default:
+			return list, errors.New("snapshot cccccccc has no " + list.Path)
+		}
+		return list, nil
+	}
+	return r
+}
+
+func TestBrowseASnapshotAndRestoreAFile(t *testing.T) {
+	r := tree(healthy(newRig(t))).load()
+	r.press("2", "o") // the files of the newest snapshot
+	r.wantScreen("Files in snapshot cccccccc", "> my docs/", "readme.txt", "2.0 KiB")
+	if req := r.fake.CallsTo("Files")[0].Args[0].(service.FilesRequest); req.Snapshot != "cccccccc" || req.Path != "" {
+		t.Errorf("request = %+v", req)
+	}
+
+	r.press("down", "enter") // a file does not open
+	if n := len(r.fake.CallsTo("Files")); n != 1 {
+		t.Errorf("%d listings after enter on a file", n)
+	}
+	r.press("up", "enter")
+	r.wantScreen("/my docs", "> a b.txt", "3.0 MiB")
+	r.press("left")
+	r.wantScreen("> my docs/")
+	r.press("left") // the top has no parent
+	if n := len(r.fake.CallsTo("Files")); n != 3 {
+		t.Errorf("%d listings, want 3", n)
+	}
+
+	// restore the file: the form is filled, and the path with a space stays one path
+	r.press("enter", "r")
+	r.wantScreen("Restore", "cccccccc", "/my docs/a b.txt")
+	r.fake.RestorePreflightFn = func(_ context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {
+		return service.RestorePreflight{Snapshot: snap("cccccccc", time.Hour), Target: "/data", InPlace: true, Mode: req.Mode}, nil
+	}
+	r.press("enter")
+	req := r.fake.CallsTo("RestorePreflight")[0].Args[0].(service.RestoreRequest)
+	if req.Snapshot != "cccccccc" || len(req.Includes) != 1 || req.Includes[0] != "/my docs/a b.txt" {
+		t.Errorf("preflight request = %+v", req)
+	}
+}
+
+func TestFindAFileInAllSnapshots(t *testing.T) {
+	r := tree(healthy(newRig(t))).load()
+	newest := service.SnapshotRef{ID: "bbbbbbbb" + strings.Repeat("0", 56), Time: t0.Add(-24 * time.Hour)}
+	r.fake.FindFn = func(_ context.Context, req service.FindRequest) (service.FindResult, error) {
+		if req.Pattern == "*" {
+			return service.FindResult{}, errors.New("the pattern matches too many files: narrow it or search a single snapshot")
+		}
+		return service.FindResult{Searched: 3, Versions: []service.FileVersion{
+			{File: service.File{Path: "/my docs/a b.txt", Type: "file", Size: 3 << 20, Mtime: t0}, Newest: newest, Oldest: newest, Snapshots: 2},
+		}}, nil
+	}
+	r.press("2", "o", "/")
+	r.wantScreen("Find in all snapshots")
+	r.typeText("q") // typing goes into the pattern, it does not close the dialog
+	r.press("backspace")
+	r.typeText("*")
+	r.press("enter")
+	r.wantScreen("matches too many files", "my docs/") // the directory stays
+
+	r.press("/", "backspace")
+	r.typeText("a b.txt")
+	r.press("enter")
+	r.wantScreen("Files matching a b.txt in 3 snapshots", "> /my docs/a b.txt", "in 2, newest bbbbbbbb")
+	if req := r.fake.CallsTo("Find")[1].Args[0].(service.FindRequest); req.Pattern != "a b.txt" || req.Snapshot != "" || !req.IgnoreCase {
+		t.Errorf("request = %+v", req)
+	}
+
+	// restore from the newest snapshot that has this state of the file
+	r.press("r")
+	r.wantScreen("Restore", "bbbbbbbb", "/my docs/a b.txt")
+	r.press("esc")
+
+	// enter shows the file where it lies in that snapshot, esc leaves the search
+	r.press("2", "o", "/")
+	r.typeText("a b.txt")
+	r.press("enter", "enter")
+	r.wantScreen("Files in snapshot bbbbbbbb", "/my docs", "> a b.txt")
+	r.press("/")
+	r.typeText("x")
+	r.press("enter", "esc")
+	r.wantScreen("Files in snapshot bbbbbbbb")
+	r.press("esc")
+	if r.m.dlg != nil {
+		t.Error("esc does not close the file browser")
+	}
+}
+
+func TestFileBrowserShowsWhatIsWrong(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	r.fake.FilesFn = func(context.Context, service.FilesRequest) (service.FileList, error) {
+		return service.FileList{}, errors.New("repository not reachable")
+	}
+	r.press("2", "o")
+	r.wantScreen("Files", "repository not reachable")
+	r.press("down", "enter", "r", "left") // nothing to act on
+	r.press("esc")
+	if r.m.dlg != nil {
+		t.Error("the dialog stays open")
+	}
+
+	r.fake.FilesFn = func(context.Context, service.FilesRequest) (service.FileList, error) {
+		return service.FileList{Snapshot: snap("cccccccc", time.Hour), Path: "/", Truncated: true, Files: []service.File{{Path: "/a", Type: "file"}}}, nil
+	}
+	r.press("o")
+	r.wantScreen("Only the first 1 entries")
+}

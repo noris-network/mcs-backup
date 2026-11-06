@@ -129,6 +129,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case preflightMsg:
 		return m, m.gotPreflight(msg)
+	case filesMsg:
+		m.gotFiles(msg)
+	case findMsg:
+		m.gotFind(msg)
 	case pasteMsg:
 		m.dlg = &pasteDialog{title: "restic environment", intro: "These lines set up restic for this repository and contain the secrets. Select them with the mouse, copy them and paste them into a shell.", text: msg.text}
 	case linkMsg:
@@ -386,6 +390,11 @@ func (m *Model) snapshotKey(s string) tea.Cmd {
 	case "t":
 		m.dlg = newRestoreDialog("latest")
 		return nil
+	case "o":
+		if ok {
+			return m.openFiles(snap.ShortID)
+		}
+		return m.openFiles("latest")
 	}
 	if !ok || m.appendOnly() {
 		if ok && (s == "k" || s == "a") {
