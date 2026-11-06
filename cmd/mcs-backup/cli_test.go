@@ -658,3 +658,78 @@ func TestStatusFollow(t *testing.T) {
 		t.Errorf("--json --follow prints one JSON object per line: %q", lines)
 	}
 }
+
+func TestLs(t *testing.T) {
+	c := newCLI(t)
+	c.fake.FilesFn = func(_ context.Context, req service.FilesRequest) (service.FileList, error) {
+		return service.FileList{
+			Snapshot: service.Snapshot{ID: "aaaaaaaaaaaa", ShortID: "aaaaaaaa", Time: cliNow.Add(-time.Hour)},
+			Path:     "/data/docs",
+			Files: []service.File{
+				{Path: "/data/docs/sub", Type: "dir", Mtime: cliNow},
+				{Path: "/data/docs/a.txt", Type: "file", Size: 2048, Mtime: cliNow},
+			},
+			Truncated: req.Path == "big",
+		}, nil
+	}
+	if code := c.run("ls", "latest", "docs"); code != 0 {
+		t.Fatal(code, c.err())
+	}
+	for _, want := range []string{"/data/docs in snapshot aaaaaaaa", "/data/docs/sub/", "/data/docs/a.txt", "2.0 KiB"} {
+		if !strings.Contains(c.out(), want) {
+			t.Errorf("output lacks %q:\n%s", want, c.out())
+		}
+	}
+	if req := c.fake.CallsTo("Files")[0].Args[0].(service.FilesRequest); req.Snapshot != "latest" || req.Path != "docs" {
+		t.Errorf("request = %+v", req)
+	}
+	if c.run("ls", "latest", "big"); !strings.Contains(c.out(), "Only the first 2 entries") {
+		t.Errorf("output = %q", c.out())
+	}
+
+	c.fake.FilesFn = nil
+	if c.run("ls"); !strings.Contains(c.out(), "empty") {
+		t.Errorf("output = %q", c.out())
+	}
+	if req := c.fake.CallsTo("Files")[2].Args[0].(service.FilesRequest); req != (service.FilesRequest{}) {
+		t.Errorf("request = %+v: the service picks the latest snapshot and its top", req)
+	}
+	if code := c.run("ls", "a", "b", "c"); code != 2 {
+		t.Errorf("exit %d for too many arguments", code)
+	}
+}
+
+func TestFind(t *testing.T) {
+	c := newCLI(t)
+	if code := c.run("find", "x.txt"); code != 0 || !strings.Contains(c.out(), "Nothing found in 0 snapshots") {
+		t.Errorf("exit %d, output %q", code, c.out())
+	}
+	c.fake.FindFn = func(context.Context, service.FindRequest) (service.FindResult, error) {
+		newest := service.SnapshotRef{ID: "nnnnnnnnnnnn", Time: cliNow.Add(-time.Hour)}
+		oldest := service.SnapshotRef{ID: "oooooooooooo", Time: cliNow.Add(-72 * time.Hour)}
+		return service.FindResult{Searched: 5, Truncated: true, Versions: []service.FileVersion{
+			{File: service.File{Path: "/d/a.txt", Type: "file", Size: 3 << 20, Mtime: cliNow}, Newest: newest, Oldest: oldest, Snapshots: 4},
+			{File: service.File{Path: "/d/old", Type: "dir"}, Newest: oldest, Oldest: oldest, Snapshots: 1},
+		}}, nil
+	}
+	if code := c.run("find", "-i", "--snapshot", "latest", "*.TXT"); code != 0 {
+		t.Fatal(code, c.err())
+	}
+	for _, want := range []string{"/d/a.txt", "3.0 MiB", "nnnnnnnn", "oooooooo", "/d/old/", "Searched 5 snapshots", "restore <snapshot> --include", "Only the first 2 matches"} {
+		if !strings.Contains(c.out(), want) {
+			t.Errorf("output lacks %q:\n%s", want, c.out())
+		}
+	}
+	want := service.FindRequest{Pattern: "*.TXT", Snapshot: "latest", IgnoreCase: true}
+	if req := c.fake.CallsTo("Find")[1].Args[0].(service.FindRequest); req != want {
+		t.Errorf("request = %+v", req)
+	}
+	c.run("find", "a", "--json")
+	var got service.FindResult
+	if err := json.Unmarshal(c.stdout.Bytes(), &got); err != nil || len(got.Versions) != 2 {
+		t.Errorf("JSON: %v %s", err, c.out())
+	}
+	if code := c.run("find"); code != 2 {
+		t.Errorf("exit %d without a pattern", code)
+	}
+}

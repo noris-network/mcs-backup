@@ -75,6 +75,8 @@ one.
 | `backup [--note …] [--keep]` | Start a backup now. `--keep` protects the snapshot from the retention. |
 | `backup --maintenance 1h` / `--disable` / `--enable` | Pause or resume the schedule. A maintenance window survives restarts; a plain `--disable` ends with a restart. |
 | `snapshots` | The snapshots, newest first, with flags. |
+| `ls [<snapshot> [<path>]]` | What a snapshot holds in a directory. |
+| `find <pattern> [--snapshot …] [-i]` | Which snapshots have a file, and in which versions: the way to the snapshot to restore a lost file from. |
 | `restore [<snapshot>] [--target dir] [--include path] [--merge]` | Restore. Without `--target` it replaces the data in place, asks for confirmation and takes a safety snapshot first. |
 | `restore-if-empty` | Disaster recovery for init containers: restores only into an empty `BACKUP_ROOT`, and does not contact the repository otherwise. |
 | `verify [--full]` | The restore test. Runs weekly by default. |
