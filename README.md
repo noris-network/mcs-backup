@@ -121,6 +121,10 @@ start and cancel operations, restore with a dialog that shows the target, the
 free space and the hooks, keep snapshots, handle locks and the schedule. Press
 `?` for the keys.
 
+To bring back a single file, press `o` in the snapshots tab: it browses the
+files of the snapshot, `/` finds a file in all snapshots and `r` restores the
+selected entry. The web UI has the same on its "Files" page.
+
 ## Web UI
 
 Optional and off by default. The web UI shows the same as the TUI and is meant
