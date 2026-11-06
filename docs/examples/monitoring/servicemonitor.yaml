@@ -28,3 +28,16 @@ spec:
     - port: backup-metrics
       path: /metrics
       interval: 60s
+      # The series describe the backup of the app, not the pod: instance is
+      # namespace/app (prod/shop) instead of the pod address, and the pod name
+      # is dropped. Both change with every deployment, which would start new
+      # series: the graphs split up and every alert is a new one. This assumes
+      # one pod per app at a time, as with the Recreate strategy of the sidecar
+      # example. Without an app label, instance stays the pod address.
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_label_app]
+          separator: /
+          regex: (.+/.+)
+          targetLabel: instance
+        - action: labeldrop
+          regex: pod

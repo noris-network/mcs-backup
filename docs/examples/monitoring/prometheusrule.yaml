@@ -7,6 +7,9 @@
 #
 # The age limits assume a daily backup. Adjust them to your schedule: the limit
 # must be longer than the interval plus the duration of a backup and its retries.
+#
+# The summaries name the instance: namespace/app with servicemonitor.yaml, which,
+# unlike the pod, stays the same across deployments.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -21,7 +24,7 @@ spec:
           labels:
             severity: critical
           annotations:
-            summary: "The newest backup of {{ $labels.pod }} is older than 36 hours"
+            summary: "The newest backup of {{ $labels.instance }} is older than 36 hours"
             description: "Look at `mcs-backup status` and `mcs-backup log`."
 
         - alert: McsBackupNoSnapshots
@@ -30,7 +33,7 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "The repository of {{ $labels.pod }} has no snapshots"
+            summary: "The repository of {{ $labels.instance }} has no snapshots"
 
         - alert: McsBackupRepositoryDown
           expr: mcsbackup_repository_up == 0
@@ -38,7 +41,7 @@ spec:
           labels:
             severity: critical
           annotations:
-            summary: "The backup repository of {{ $labels.pod }} is not reachable"
+            summary: "The backup repository of {{ $labels.instance }} is not reachable"
 
         - alert: McsBackupSuspicious
           expr: mcsbackup_backup_suspicious == 1
@@ -46,7 +49,7 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "A backup of {{ $labels.pod }} is much smaller than the one before"
+            summary: "A backup of {{ $labels.instance }} is much smaller than the one before"
             description: >-
               The snapshot is kept and the retention is stopped until someone checks it.
               If the change is expected, accept it with `mcs-backup acknowledge`.
@@ -57,7 +60,7 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "The retention of {{ $labels.pod }} would delete many snapshots and waits for approval"
+            summary: "The retention of {{ $labels.instance }} would delete many snapshots and waits for approval"
             description: "Check `mcs-backup forget`, then run `mcs-backup approve-forget` or fix RETENTION_POLICY."
 
         - alert: McsBackupRunFailed
@@ -66,7 +69,7 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "The last {{ $labels.kind }} of {{ $labels.pod }} failed"
+            summary: "The last {{ $labels.kind }} of {{ $labels.instance }} failed"
 
         - alert: McsBackupCopyTooOld
           expr: time() - mcsbackup_copy_last_success_timestamp_seconds > 36 * 3600
@@ -74,7 +77,7 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "The newest snapshot in the secondary repository of {{ $labels.pod }} is older than 36 hours"
+            summary: "The newest snapshot in the secondary repository of {{ $labels.instance }} is older than 36 hours"
 
         - alert: McsBackupCopyRepositoryDown
           expr: mcsbackup_copy_repository_up == 0
@@ -82,11 +85,11 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "The secondary backup repository of {{ $labels.pod }} is not reachable"
+            summary: "The secondary backup repository of {{ $labels.instance }} is not reachable"
 
         - alert: McsBackupNotificationFailing
           expr: increase(mcsbackup_notify_errors_total[1h]) > 0
           labels:
             severity: info
           annotations:
-            summary: "NOTIFY_COMMAND of {{ $labels.pod }} fails"
+            summary: "NOTIFY_COMMAND of {{ $labels.instance }} fails"
