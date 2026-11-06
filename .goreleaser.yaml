@@ -35,3 +35,7 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+
+release:
+  # v2.0.0-rc1 is marked as a pre-release and does not become the latest release
+  prerelease: auto

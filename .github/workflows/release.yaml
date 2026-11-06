@@ -43,7 +43,13 @@ jobs:
         id: image
         run: |
           image=docker.io/${{ vars.DOCKERHUB_USERNAME }}/${{ vars.DOCKERHUB_REPOSITORY }}
-          echo "tags=$image:${GITHUB_REF_NAME},$image:latest" >> "$GITHUB_OUTPUT"
+          tags=$image:${GITHUB_REF_NAME}
+          # a pre-release such as v2.0.0-rc1 must not become "latest"
+          case "$GITHUB_REF_NAME" in
+            *-*) ;;
+            *) tags=$tags,$image:latest ;;
+          esac
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
           echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/build-push-action@v7
