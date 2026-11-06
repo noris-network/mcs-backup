@@ -187,3 +187,72 @@ func parseNode(line []byte) (Node, bool) {
 	}
 	return n.Node, true
 }
+
+// findOutputMax bounds the output of `restic find` that is read: restic prints
+// all matches at once, and a pattern such as "*" matches every file of every
+// snapshot.
+const findOutputMax = 16 << 20
+
+// ErrTooManyMatches is returned by Find when the pattern matches more than
+// can be handled.
+var ErrTooManyMatches = errors.New("too many matches")
+
+// FindOptions restricts a search.
+type FindOptions struct {
+	// Hosts restricts the search to snapshots of these hosts.
+	Hosts []string
+	// Snapshots restricts the search to these snapshots.
+	Snapshots []string
+	// IgnoreCase matches the pattern regardless of case.
+	IgnoreCase bool
+}
+
+// FindGroup is the matches of a search in one snapshot.
+type FindGroup struct {
+	Snapshot string `json:"snapshot"`
+	Matches  []Node `json:"matches"`
+}
+
+// Find searches the snapshots for files and directories whose name or path
+// matches the glob pattern. The groups come newest snapshot first.
+func (r *Repo) Find(ctx context.Context, pattern string, o FindOptions) ([]FindGroup, error) {
+	args := []string{"find", "--json", "--no-lock"}
+	if o.IgnoreCase {
+		args = append(args, "--ignore-case")
+	}
+	for _, h := range o.Hosts {
+		args = append(args, "--host", h)
+	}
+	for _, s := range o.Snapshots {
+		args = append(args, "--snapshot", s)
+	}
+	out := &capWriter{max: findOutputMax}
+	_, err := r.run(ctx, positional(args, pattern), runOpts{stdout: out})
+	if out.full {
+		return nil, ErrTooManyMatches
+	}
+	if err != nil {
+		return nil, err
+	}
+	var groups []FindGroup
+	if err := json.Unmarshal(out.buf, &groups); err != nil {
+		return nil, fmt.Errorf("restic find: unexpected output: %w", err)
+	}
+	return groups, nil
+}
+
+// capWriter collects what is written to it and fails once it is more than max.
+type capWriter struct {
+	max  int
+	buf  []byte
+	full bool
+}
+
+func (w *capWriter) Write(p []byte) (int, error) {
+	if w.full || len(w.buf)+len(p) > w.max {
+		w.full, w.buf = true, nil
+		return 0, ErrTooManyMatches
+	}
+	w.buf = append(w.buf, p...)
+	return len(p), nil
+}

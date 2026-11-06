@@ -667,3 +667,45 @@ func TestLineWriterBoundsLinesWithoutBreaks(t *testing.T) {
 		t.Errorf("%d lines, want two full pieces, the rest and the line after them", len(lines))
 	}
 }
+
+func TestFind(t *testing.T) {
+	f := resticfake.New(t)
+	f.On(t, "find", resticfake.Response{Stdout: fixture(t, "find.json")})
+	r := newRepo(t, f)
+
+	groups, err := r.Find(t.Context(), "*.txt", FindOptions{Hosts: []string{"h1", "h2"}, Snapshots: []string{"abc"}, IgnoreCase: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(groups) != 2 || len(groups[0].Snapshot) != 64 || len(groups[0].Matches) != 3 {
+		t.Fatalf("groups = %+v", groups)
+	}
+	if m := groups[0].Matches[1]; m.Path != "/data/docs/d.txt" || m.Type != "file" || m.Size != 2 || m.Mtime.IsZero() {
+		t.Errorf("match = %+v", m)
+	}
+	want := []string{"find", "--json", "--no-lock", "--ignore-case", "--host", "h1", "--host", "h2", "--snapshot", "abc", "--", "*.txt"}
+	if got := f.CallsTo(t, "find")[0]; !slices.Equal(got, want) {
+		t.Errorf("args = %q", got)
+	}
+
+	// no match is an empty list, not an error
+	f.On(t, "find", resticfake.Response{Stdout: "[]\n"})
+	if groups, err := r.Find(t.Context(), "-nothing", FindOptions{}); err != nil || len(groups) != 0 {
+		t.Errorf("no match: %+v, %v", groups, err)
+	}
+}
+
+func TestFindBoundsItsOutput(t *testing.T) {
+	f := resticfake.New(t)
+	f.On(t, "find", resticfake.Response{Stdout: "[" + strings.Repeat(" ", findOutputMax) + "]"})
+	if _, err := newRepo(t, f).Find(t.Context(), "*", FindOptions{}); !errors.Is(err, ErrTooManyMatches) {
+		t.Errorf("err = %v, want ErrTooManyMatches", err)
+	}
+	w := &capWriter{max: 4}
+	if _, err := w.Write([]byte("abc")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write([]byte("de")); err == nil || !w.full || w.buf != nil {
+		t.Errorf("a full capWriter keeps on collecting: %+v, %v", w, err)
+	}
+}
