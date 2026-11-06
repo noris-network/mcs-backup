@@ -297,3 +297,62 @@ func ResultLines(r service.RunResult) []string {
 	}
 	return lines
 }
+
+// DiffLines tells in words what changed from one snapshot to another: what
+// is gone first, as that is what matters for a backup that shrank.
+func DiffLines(d service.DiffResult) []string {
+	lines := []string{
+		fmt.Sprintf("From snapshot %s of %s to snapshot %s of %s:", d.From.ShortID, Stamp(d.From.Time), d.To.ShortID, Stamp(d.To.Time)),
+		"  removed  " + diffCount(d.Removed),
+		"  added    " + diffCount(d.Added),
+		fmt.Sprintf("  changed  %d %s", d.Changed, plural(d.Changed, "file")),
+	}
+	if d.Removed.Files+d.Removed.Dirs+d.Added.Files+d.Added.Dirs+d.Changed == 0 {
+		return append(lines, "", "The snapshots hold the same files.")
+	}
+	lines = append(lines, diffPaths("Removed", d.Removed)...)
+	lines = append(lines, diffPaths("Added", d.Added)...)
+	if len(d.ChangedPaths) > 0 {
+		lines = append(lines, "", "Changed:")
+		for _, p := range d.ChangedPaths {
+			lines = append(lines, "  "+p)
+		}
+		if more := d.Changed - len(d.ChangedPaths); more > 0 {
+			lines = append(lines, fmt.Sprintf("  … and %d more", more))
+		}
+	}
+	return lines
+}
+
+func diffCount(s service.DiffSide) string {
+	return fmt.Sprintf("%d %s, %d %s (%s in the repository)", s.Files, plural(s.Files, "file"), s.Dirs, plural(s.Dirs, "directory"), Bytes(s.Bytes))
+}
+
+func diffPaths(title string, s service.DiffSide) []string {
+	if len(s.Paths) == 0 {
+		return nil
+	}
+	lines := []string{"", title + ":"}
+	for _, p := range s.Paths {
+		line := "  " + p.Path
+		if p.Entries > 1 {
+			line += fmt.Sprintf("  (%d entries)", p.Entries)
+		}
+		lines = append(lines, line)
+	}
+	if s.More > 0 {
+		lines = append(lines, fmt.Sprintf("  … and %d more", s.More))
+	}
+	return lines
+}
+
+// plural returns noun in the plural unless n is 1.
+func plural(n int, noun string) string {
+	switch {
+	case n == 1:
+		return noun
+	case strings.HasSuffix(noun, "y"):
+		return strings.TrimSuffix(noun, "y") + "ies"
+	}
+	return noun + "s"
+}

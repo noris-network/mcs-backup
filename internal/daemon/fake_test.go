@@ -130,6 +130,10 @@ func (f *fakeEngine) Find(context.Context, service.FindRequest) (service.FindRes
 	return service.FindResult{Searched: 1}, f.filesErr
 }
 
+func (f *fakeEngine) Diff(context.Context, service.DiffRequest) (service.DiffResult, error) {
+	return service.DiffResult{}, f.filesErr
+}
+
 func (f *fakeEngine) RestorePreflight(context.Context, service.RestoreRequest) (service.RestorePreflight, error) {
 	return service.RestorePreflight{InPlace: true}, nil
 }

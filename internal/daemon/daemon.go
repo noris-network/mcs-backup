@@ -38,6 +38,7 @@ type Engine interface {
 	Locks(ctx context.Context) ([]service.Lock, error)
 	Files(ctx context.Context, req service.FilesRequest) (service.FileList, error)
 	Find(ctx context.Context, req service.FindRequest) (service.FindResult, error)
+	Diff(ctx context.Context, req service.DiffRequest) (service.DiffResult, error)
 	RestorePreflight(ctx context.Context, req service.RestoreRequest) (service.RestorePreflight, error)
 	VerifyConfigured() bool
 	// RestoreNeedsConfirm: the restore replaces the live data.

@@ -709,3 +709,27 @@ func TestFindBoundsItsOutput(t *testing.T) {
 		t.Errorf("a full capWriter keeps on collecting: %+v, %v", w, err)
 	}
 }
+
+func TestDiff(t *testing.T) {
+	f := resticfake.New(t)
+	f.On(t, "diff", resticfake.Response{Stdout: `{"message_type":"change","path":"/big/","modifier":"-"}
+{"message_type":"change","path":"/big/1","modifier":"-"}
+{"message_type":"change","path":"/docs/d.txt","modifier":"M"}
+not json
+{"message_type":"statistics","source_snapshot":"a","target_snapshot":"b","changed_files":1,"added":{"files":1,"dirs":0,"bytes":1867},"removed":{"files":2,"dirs":2,"bytes":2973}}
+`})
+	var changes []string
+	stats, err := newRepo(t, f).Diff(t.Context(), "-a", "b", func(path, modifier string) { changes = append(changes, modifier+path) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(changes, []string{"-/big/", "-/big/1", "M/docs/d.txt"}) {
+		t.Errorf("changes = %q", changes)
+	}
+	if stats.ChangedFiles != 1 || stats.Added.Files != 1 || stats.Removed.Dirs != 2 || stats.Removed.Bytes != 2973 {
+		t.Errorf("stats = %+v", stats)
+	}
+	if got := f.CallsTo(t, "diff")[0]; !slices.Equal(got, []string{"diff", "--json", "--no-lock", "--", "-a", "b"}) {
+		t.Errorf("args = %q", got)
+	}
+}

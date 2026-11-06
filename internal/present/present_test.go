@@ -55,3 +55,24 @@ func TestAppendOnlyRetention(t *testing.T) {
 		t.Errorf("RetentionLine = %q", got)
 	}
 }
+
+func TestDiffLines(t *testing.T) {
+	at := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
+	d := service.DiffResult{
+		From: service.Snapshot{ShortID: "aaaaaaaa", Time: at}, To: service.Snapshot{ShortID: "bbbbbbbb", Time: at.Add(time.Hour)},
+		Removed: service.DiffSide{Files: 3, Dirs: 1, Bytes: 2048, Paths: []service.DiffPath{{Path: "/big/", Entries: 4}}, More: 2},
+		Added:   service.DiffSide{Files: 1, Paths: []service.DiffPath{{Path: "/new.txt", Entries: 1}}},
+		Changed: 7, ChangedPaths: []string{"/docs/d.txt"},
+	}
+	text := strings.Join(present.DiffLines(d), "\n")
+	for _, want := range []string{"From snapshot aaaaaaaa", "to snapshot bbbbbbbb", "removed  3 files, 1 directory (2.0 KiB in the repository)", "added    1 file, 0 directories",
+		"changed  7 files", "Removed:\n  /big/  (4 entries)\n  … and 2 more", "Added:\n  /new.txt\n", "Changed:\n  /docs/d.txt\n  … and 6 more"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the text lacks %q:\n%s", want, text)
+		}
+	}
+	same := strings.Join(present.DiffLines(service.DiffResult{}), "\n")
+	if !strings.Contains(same, "hold the same files") {
+		t.Errorf("no difference:\n%s", same)
+	}
+}

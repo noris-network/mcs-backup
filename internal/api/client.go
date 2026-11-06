@@ -180,6 +180,18 @@ func (c *Client) Find(ctx context.Context, req service.FindRequest) (service.Fin
 	return get[service.FindResult](ctx, c, "/v1/find?"+q.Encode())
 }
 
+// Diff implements service.Service.
+func (c *Client) Diff(ctx context.Context, req service.DiffRequest) (service.DiffResult, error) {
+	q := url.Values{}
+	if req.From != "" {
+		q.Set("from", req.From)
+	}
+	if req.To != "" {
+		q.Set("to", req.To)
+	}
+	return get[service.DiffResult](ctx, c, "/v1/diff?"+q.Encode())
+}
+
 // RestorePreflight implements service.Service.
 func (c *Client) RestorePreflight(ctx context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {
 	q := url.Values{"snapshot": {req.Snapshot}}

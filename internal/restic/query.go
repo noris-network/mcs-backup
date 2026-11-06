@@ -256,3 +256,44 @@ func (w *capWriter) Write(p []byte) (int, error) {
 	w.buf = append(w.buf, p...)
 	return len(p), nil
 }
+
+// DiffCount is one side of the statistics of `restic diff`.
+type DiffCount struct {
+	Files int `json:"files"`
+	Dirs  int `json:"dirs"`
+	// Bytes is the size of the data in the repository, not of the files.
+	Bytes int64 `json:"bytes"`
+}
+
+// DiffStats is the summary of `restic diff`.
+type DiffStats struct {
+	ChangedFiles int       `json:"changed_files"`
+	Added        DiffCount `json:"added"`
+	Removed      DiffCount `json:"removed"`
+}
+
+// Diff compares two snapshots. onChange is called for every path that differs,
+// in the order of the paths: a directory (its path ends with a slash) comes
+// before what is in it. The modifier is "+" (added), "-" (removed), "M"
+// (content changed), "T" (type changed) or "U" (only metadata changed).
+func (r *Repo) Diff(ctx context.Context, from, to string, onChange func(path, modifier string)) (DiffStats, error) {
+	var stats DiffStats
+	args := positional([]string{"diff", "--json", "--no-lock"}, from, to)
+	_, err := r.run(ctx, args, runOpts{stdoutLine: func(line []byte) {
+		var m struct {
+			Type     string `json:"message_type"`
+			Path     string `json:"path"`
+			Modifier string `json:"modifier"`
+		}
+		if json.Unmarshal(line, &m) != nil {
+			return
+		}
+		switch m.Type {
+		case "change":
+			onChange(m.Path, m.Modifier)
+		case "statistics":
+			_ = json.Unmarshal(line, &stats)
+		}
+	}})
+	return stats, err
+}

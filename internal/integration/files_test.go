@@ -5,6 +5,7 @@ package integration
 import (
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/noris-network/mcs-backup/v2/internal/service"
@@ -81,5 +82,39 @@ func TestFindAndRestoreADeletedFile(t *testing.T) {
 	}
 	if !i.exists("docs/new.txt") {
 		t.Error("a merge restore of one file removed another")
+	}
+}
+
+// A backup that lost a directory is flagged, and the comparison names what is gone.
+func TestDiffNamesWhatASuspiciousBackupLost(t *testing.T) {
+	i := newInst(t)
+	i.write("big/one.bin", strings.Repeat("x", 4000))
+	i.write("big/sub/two.bin", strings.Repeat("y", 4000))
+	i.write("docs/a.txt", "first")
+	i.start()
+	good := i.mustBackup("", false)
+	i.remove("big")
+	i.write("docs/a.txt", "second")
+	i.write("docs/new.txt", "n")
+	bad := i.backup("", false)
+	if bad.Result != service.ResultSuspicious {
+		t.Fatalf("the shrunken backup ended as %s", bad.Result)
+	}
+
+	d, err := i.d.Diff(i.ctx(), service.DiffRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.From.ID != good.Snapshot || !d.To.Suspicious {
+		t.Errorf("compared %s with %s (suspicious %v)", d.From.ShortID, d.To.ShortID, d.To.Suspicious)
+	}
+	if len(d.Removed.Paths) != 1 || d.Removed.Paths[0] != (service.DiffPath{Path: "/big/", Entries: 4}) || d.Removed.Files != 2 || d.Removed.Dirs != 2 {
+		t.Errorf("removed = %+v", d.Removed)
+	}
+	if len(d.Added.Paths) != 1 || d.Added.Paths[0].Path != "/docs/new.txt" {
+		t.Errorf("added = %+v", d.Added)
+	}
+	if d.Changed != 1 || !slices.Equal(d.ChangedPaths, []string{"/docs/a.txt"}) {
+		t.Errorf("changed = %d %q", d.Changed, d.ChangedPaths)
 	}
 }

@@ -106,6 +106,15 @@ func TestRoundTrips(t *testing.T) {
 		t.Errorf("request = %+v", req)
 	}
 
+	fake.DiffFn = func(_ context.Context, req service.DiffRequest) (service.DiffResult, error) {
+		return service.DiffResult{From: service.Snapshot{ID: req.From}, To: service.Snapshot{ID: req.To}, Changed: 3,
+			Removed: service.DiffSide{Files: 2, Paths: []service.DiffPath{{Path: "/big/", Entries: 4}}, More: 1}}, nil
+	}
+	df, err := c.Diff(ctx, service.DiffRequest{From: "a&b", To: "latest"})
+	if err != nil || df.From.ID != "a&b" || df.To.ID != "latest" || df.Changed != 3 || df.Removed.Paths[0].Entries != 4 || df.Removed.More != 1 {
+		t.Errorf("Diff() = %+v, %v", df, err)
+	}
+
 	fake.LogFn = func(_ context.Context, k service.Kind) (service.Log, error) {
 		return service.Log{Kind: k, Lines: []string{"a", "b"}}, nil
 	}

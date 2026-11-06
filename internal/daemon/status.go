@@ -196,6 +196,12 @@ func (d *Daemon) Find(ctx context.Context, req service.FindRequest) (service.Fin
 	return res, d.redact.Error(err)
 }
 
+// Diff implements service.Service.
+func (d *Daemon) Diff(ctx context.Context, req service.DiffRequest) (service.DiffResult, error) {
+	res, err := d.eng.Diff(ctx, req)
+	return res, d.redact.Error(err)
+}
+
 // RestorePreflight implements service.Service.
 func (d *Daemon) RestorePreflight(ctx context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {
 	pre, err := d.eng.RestorePreflight(ctx, req)

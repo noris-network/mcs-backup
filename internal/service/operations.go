@@ -332,6 +332,49 @@ type FindResult struct {
 	Truncated bool `json:"truncated,omitzero"`
 }
 
+// DiffRequest asks what changed between two snapshots.
+type DiffRequest struct {
+	// To is the newer snapshot. Empty is the newest snapshot of this
+	// instance, also if it is marked suspicious.
+	To string `json:"to,omitempty"`
+	// From is the older snapshot. Empty is the newest regular snapshot
+	// before To.
+	From string `json:"from,omitempty"`
+}
+
+// DiffSide counts what one snapshot has and the other has not.
+type DiffSide struct {
+	Files int `json:"files"`
+	Dirs  int `json:"dirs"`
+	// Bytes is the size of the data in the repository, not of the files.
+	Bytes int64 `json:"bytes"`
+	// Paths are the files and directories that were added or removed as a
+	// whole: a directory stands for everything in it. The largest come first.
+	Paths []DiffPath `json:"paths,omitempty"`
+	// More is how many further paths are not listed.
+	More int `json:"more,omitzero"`
+}
+
+// DiffPath is a file or a directory (its path ends with a slash) that exists
+// in only one of two snapshots.
+type DiffPath struct {
+	Path string `json:"path"`
+	// Entries is the number of files and directories it stands for.
+	Entries int `json:"entries"`
+}
+
+// DiffResult is what changed from one snapshot to another.
+type DiffResult struct {
+	From    Snapshot `json:"from"`
+	To      Snapshot `json:"to"`
+	Added   DiffSide `json:"added"`
+	Removed DiffSide `json:"removed"`
+	// Changed is the number of files whose content changed, ChangedPaths
+	// the first of them.
+	Changed      int      `json:"changed"`
+	ChangedPaths []string `json:"changed_paths,omitempty"`
+}
+
 // ScheduleAction is what a ScheduleRequest does.
 type ScheduleAction string
 
@@ -404,6 +447,9 @@ type Service interface {
 	// files, to see what a restore would bring back and from which snapshot.
 	Files(ctx context.Context, req FilesRequest) (FileList, error)
 	Find(ctx context.Context, req FindRequest) (FindResult, error)
+	// Diff tells what changed between two snapshots, to judge a backup that
+	// is suspiciously small.
+	Diff(ctx context.Context, req DiffRequest) (DiffResult, error)
 	// RestorePreflight checks a restore without performing it.
 	RestorePreflight(ctx context.Context, req RestoreRequest) (RestorePreflight, error)
 	// Operation returns the running operation, nil if none.

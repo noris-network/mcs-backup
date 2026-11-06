@@ -52,6 +52,10 @@ func NewHandler(svc service.Service, log *slog.Logger) http.Handler {
 			Pattern: q.Get("pattern"), Snapshot: q.Get("snapshot"), IgnoreCase: q.Get("ignore_case") == "true",
 		})
 	}))
+	mux.HandleFunc("GET /v1/diff", reply(s, func(r *http.Request) (any, error) {
+		q := r.URL.Query()
+		return s.svc.Diff(r.Context(), service.DiffRequest{From: q.Get("from"), To: q.Get("to")})
+	}))
 	mux.HandleFunc("GET /v1/restore/preflight", reply(s, func(r *http.Request) (any, error) {
 		req, err := preflightRequest(r.URL.Query())
 		if err != nil {
