@@ -1,0 +1,59 @@
+{{define "content"}}
+<h1>Files <span class="dim">{{if .Data.SnapshotID}}in snapshot {{.Data.Snapshot}} of {{stamp .Data.SnapshotTime}}{{end}}</span></h1>
+<section class="panel">
+<form method="get" action="/files" class="stack">
+  <input type="hidden" name="snapshot" value="{{.Data.Snapshot}}">
+  <label><span>Find a file <span class="dim">(a name or a pattern such as *.sql or /docs/*report*)</span></span>
+    <span class="btnrow nowrap"><input name="q" value="{{.Data.Pattern}}" autocomplete="off"> <button class="primary">Find</button></span></label>
+  <label class="check"><input type="checkbox" name="only" value="1"{{if .Data.OnlyThis}} checked{{end}}> only in snapshot {{.Data.Snapshot}} <span class="dim">(otherwise in all snapshots)</span></label>
+  <label class="check"><input type="checkbox" name="i" value="1"{{if .Data.IgnoreCase}} checked{{end}}> ignore case</label>
+</form>
+</section>
+{{if .Data.Error}}<p class="flash bad" role="status">{{.Data.Error}}</p>{{end}}
+
+{{if .Data.Found}}
+{{if not .Data.Versions}}<section class="panel"><p>Nothing found in {{.Data.Searched}} snapshots.</p></section>{{else}}
+<section class="panel table">
+<table>
+<thead><tr><th>Path</th><th class="num">Size</th><th>Modified</th><th>Newest snapshot</th><th>Oldest snapshot</th><th class="num">In</th><th></th></tr></thead>
+<tbody>
+{{range .Data.Versions}}
+<tr>
+  <td class="path">{{.Path}}{{if eq .Type "dir"}}/{{end}}</td>
+  <td class="num">{{if eq .Type "file"}}{{bytes .Size}}{{else}}-{{end}}</td>
+  <td class="when">{{stamp .Mtime}}</td>
+  <td class="when"><code>{{short .Newest.ID}}</code> {{stamp .Newest.Time}}</td>
+  <td class="when">{{if ne .Oldest.ID .Newest.ID}}<code>{{short .Oldest.ID}}</code> {{stamp .Oldest.Time}}{{else}}-{{end}}</td>
+  <td class="num">{{.Snapshots}}</td>
+  <td class="row-actions"><a href="{{.Folder}}" class="btn small">folder</a> <a href="{{.Restore}}" class="btn small">restore</a></td>
+</tr>
+{{end}}
+</tbody>
+</table>
+</section>
+<p class="dim">Every state of a file is shown once. Restore takes it from the newest snapshot that has this state. Searched {{.Data.Searched}} snapshots{{if .Data.Truncated}}; there are more matches than are shown, narrow the pattern{{end}}.</p>
+{{end}}
+<p class="back"><a href="/files?snapshot={{.Data.Snapshot}}" class="btn">Browse snapshot {{.Data.Snapshot}}</a></p>
+{{else if .Data.SnapshotID}}
+<p class="crumbs">{{range $i, $c := .Data.Crumbs}}{{if $i}} / {{end}}<a href="{{$c.URL}}">{{$c.Name}}</a>{{end}}</p>
+{{if not .Data.Files}}<section class="panel"><p>The directory is empty.</p></section>{{else}}
+<section class="panel table">
+<table>
+<thead><tr><th>Name</th><th class="num">Size</th><th>Modified</th><th></th></tr></thead>
+<tbody>
+{{range .Data.Files}}
+<tr>
+  <td class="path">{{if .Browse}}<a href="{{.Browse}}">{{.Name}}/</a>{{else}}{{.Name}}{{end}}</td>
+  <td class="num">{{if eq .Type "file"}}{{bytes .Size}}{{else}}-{{end}}</td>
+  <td class="when">{{stamp .Mtime}}</td>
+  <td class="row-actions"><a href="{{.Restore}}" class="btn small">restore</a></td>
+</tr>
+{{end}}
+</tbody>
+</table>
+</section>
+{{if .Data.Truncated}}<p class="dim">Only the first {{len .Data.Files}} entries are shown: open a subdirectory or find the file by its name.</p>{{end}}
+{{end}}
+{{end}}
+<p class="back"><a href="/snapshots" class="btn">Snapshots</a></p>
+{{end}}

@@ -9,6 +9,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -505,16 +506,19 @@ func TestRestoreFlow(t *testing.T) {
 	s.login()
 	s.do("GET", "/restore?snapshot=aaaaaaaa", nil).want(t, http.StatusOK, `value="aaaaaaaa"`)
 
-	check := s.do("POST", "/restore/check", url.Values{"snapshot": {"aaaaaaaa"}, "mode": {"merge"}, "include": {"/etc /var"}})
-	check.want(t, http.StatusOK, "replaces the current data", "a snapshot of the current data is taken first", "Type <code>aaaaaaaa</code> to confirm", `name="mode" value="merge"`, `value="/etc /var"`)
+	check := s.do("POST", "/restore/check", url.Values{"snapshot": {"aaaaaaaa"}, "mode": {"merge"}, "include": {"/etc\r\n/my docs/a b.txt\n"}})
+	check.want(t, http.StatusOK, "replaces the current data", "a snapshot of the current data is taken first", "Type <code>aaaaaaaa</code> to confirm", `name="mode" value="merge"`,
+		`name="include" value="/etc"`, `name="include" value="/my docs/a b.txt"`)
 	req := s.fake.CallsTo("RestorePreflight")[0].Args[0].(service.RestoreRequest)
-	if req.Snapshot != "aaaaaaaa" || req.Mode != service.ModeMerge || len(req.Includes) != 2 {
+	// one path per line, so that a path may contain spaces
+	if req.Snapshot != "aaaaaaaa" || req.Mode != service.ModeMerge || !slices.Equal(req.Includes, []string{"/etc", "/my docs/a b.txt"}) {
 		t.Errorf("preflight request = %+v", req)
 	}
 
-	s.do("POST", "/restore", url.Values{"snapshot": {"aaaaaaaa"}, "mode": {"merge"}, "confirm": {"aaaaaaaa"}}).want(t, http.StatusSeeOther)
+	// the check page sends the paths back one by one
+	s.do("POST", "/restore", url.Values{"snapshot": {"aaaaaaaa"}, "mode": {"merge"}, "confirm": {"aaaaaaaa"}, "include": {"/etc", "/my docs/a b.txt"}}).want(t, http.StatusSeeOther)
 	got := s.fake.CallsTo("StartRestore")[0].Args[0].(service.RestoreRequest)
-	if got.Snapshot != "aaaaaaaa" || got.Confirm != "aaaaaaaa" || got.Mode != service.ModeMerge || got.NoSafetySnapshot {
+	if got.Snapshot != "aaaaaaaa" || got.Confirm != "aaaaaaaa" || got.Mode != service.ModeMerge || got.NoSafetySnapshot || len(got.Includes) != 2 {
 		t.Errorf("restore request = %+v", got)
 	}
 
@@ -535,10 +539,86 @@ func TestRestoreFlow(t *testing.T) {
 	s.fake.RestorePreflightFn = func(context.Context, service.RestoreRequest) (service.RestorePreflight, error) {
 		return service.RestorePreflight{}, errors.New("no snapshot a&b#c")
 	}
-	failed := s.do("POST", "/restore/check", url.Values{"snapshot": {"a&b#c"}, "target": {"/tmp/x y"}, "include": {"/etc /var"}, "mode": {"merge"}})
+	failed := s.do("POST", "/restore/check", url.Values{"snapshot": {"a&b#c"}, "target": {"/tmp/x y"}, "include": {"/etc\n/a b"}, "mode": {"merge"}})
 	failed.want(t, http.StatusSeeOther)
 	s.do("GET", failed.header.Get("Location"), nil).want(t, http.StatusOK, "No snapshot a&amp;b#c",
-		`value="a&amp;b#c"`, `value="/tmp/x y"`, `value="/etc /var"`, `value="merge" selected`)
+		`value="a&amp;b#c"`, `value="/tmp/x y"`, ">/etc\n/a b</textarea>", `value="merge" selected`)
+}
+
+func TestFilesPageBrowsesASnapshot(t *testing.T) {
+	s := newSite(t, "")
+	id := strings.Repeat("a", 64)
+	s.fake.FilesFn = func(_ context.Context, req service.FilesRequest) (service.FileList, error) {
+		if req.Path == "/nosuch" {
+			return service.FileList{}, errors.New("snapshot aaaaaaaa has no /nosuch")
+		}
+		return service.FileList{
+			Snapshot: service.Snapshot{ID: id, ShortID: "aaaaaaaa", Time: t0.Add(-time.Hour)}, Path: "/my docs/2026", Truncated: true,
+			Files: []service.File{
+				{Path: "/my docs/2026/sub", Type: "dir", Mtime: t0},
+				{Path: "/my docs/2026/<b>a&b.txt", Type: "file", Size: 2048, Mtime: t0},
+			},
+		}, nil
+	}
+	s.do("GET", "/files", nil).want(t, http.StatusUnauthorized)
+	s.login()
+
+	page := s.do("GET", "/files?snapshot=latest&path=my+docs/2026", nil)
+	page.want(t, http.StatusOK, "in snapshot aaaaaaaa",
+		// the way back up, one step at a time
+		`<a href="/files?path=%2F&amp;snapshot=`+id+`">top</a>`, `<a href="/files?path=%2Fmy&#43;docs&amp;snapshot=`+id+`">my docs</a>`,
+		// a directory opens, everything can be restored by its path
+		`<a href="/files?path=%2Fmy&#43;docs%2F2026%2Fsub&amp;snapshot=`+id+`">sub/</a>`,
+		`href="/restore?include=%2Fmy&#43;docs%2F2026%2F%3Cb%3Ea%26b.txt&amp;snapshot=`+id+`"`,
+		"&lt;b&gt;a&amp;b.txt", "2.0 KiB", "Only the first 2 entries")
+	if strings.Contains(page.body, "<b>a") {
+		t.Error("a file name is not escaped")
+	}
+	if req := s.fake.CallsTo("Files")[0].Args[0].(service.FilesRequest); req.Snapshot != "latest" || req.Path != "my docs/2026" {
+		t.Errorf("request = %+v", req)
+	}
+
+	// the restore link fills the form
+	s.do("GET", "/restore?include=%2Fmy+docs%2Fa.txt&snapshot="+id, nil).want(t, http.StatusOK, ">/my docs/a.txt</textarea>", `value="`+id+`"`)
+
+	s.do("GET", "/files?path=/nosuch", nil).want(t, http.StatusOK, "Snapshot aaaaaaaa has no /nosuch", "Find a file")
+	s.do("GET", "/snapshots", nil).want(t, http.StatusOK, `href="/files?snapshot=aaaaaaaa"`)
+}
+
+func TestFilesPageFindsAFile(t *testing.T) {
+	s := newSite(t, "")
+	newest := service.SnapshotRef{ID: strings.Repeat("n", 64), Time: t0.Add(-time.Hour)}
+	oldest := service.SnapshotRef{ID: strings.Repeat("o", 64), Time: t0.Add(-72 * time.Hour)}
+	s.fake.FindFn = func(_ context.Context, req service.FindRequest) (service.FindResult, error) {
+		if req.Pattern == "*" {
+			return service.FindResult{}, errors.New("the pattern matches too many files: narrow it or search a single snapshot")
+		}
+		if req.Pattern == "none" {
+			return service.FindResult{Searched: 7}, nil
+		}
+		return service.FindResult{Searched: 7, Versions: []service.FileVersion{
+			{File: service.File{Path: "/docs/a.txt", Type: "file", Size: 3 << 20, Mtime: t0}, Newest: newest, Oldest: oldest, Snapshots: 4},
+		}}, nil
+	}
+	s.login()
+
+	page := s.do("GET", "/files?snapshot=latest&q=a.txt&i=1", nil)
+	page.want(t, http.StatusOK, "/docs/a.txt", "3.0 MiB", "<code>nnnnnnnn</code>", "<code>oooooooo</code>", "Searched 7 snapshots",
+		// restored from the newest snapshot that has this state, and its folder there
+		`href="/restore?include=%2Fdocs%2Fa.txt&amp;snapshot=`+newest.ID+`"`, `href="/files?path=%2Fdocs&amp;snapshot=`+newest.ID+`"`,
+		`name="q" value="a.txt"`, `name="i" value="1" checked`)
+	if req := s.fake.CallsTo("Find")[0].Args[0].(service.FindRequest); req != (service.FindRequest{Pattern: "a.txt", IgnoreCase: true}) {
+		t.Errorf("request = %+v: all snapshots are searched unless asked otherwise", req)
+	}
+	if len(s.fake.CallsTo("Files")) != 0 {
+		t.Error("a search lists a directory as well")
+	}
+
+	s.do("GET", "/files?snapshot=abc&q=none&only=1", nil).want(t, http.StatusOK, "Nothing found in 7 snapshots")
+	if req := s.fake.CallsTo("Find")[1].Args[0].(service.FindRequest); req.Snapshot != "abc" {
+		t.Errorf("request = %+v", req)
+	}
+	s.do("GET", "/files?q=*", nil).want(t, http.StatusOK, "The pattern matches too many files")
 }
 
 func TestLocksAndLog(t *testing.T) {

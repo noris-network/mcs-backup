@@ -300,7 +300,7 @@ type restoreForm struct {
 func (h *Handler) restoreForm(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	h.render(w, r, "restore", "snapshots", restoreForm{
-		Snapshot: cmp.Or(q.Get("snapshot"), "latest"), Target: q.Get("target"), Include: q.Get("include"),
+		Snapshot: cmp.Or(q.Get("snapshot"), "latest"), Target: q.Get("target"), Include: strings.Join(includeLines(q["include"]), "\n"),
 		Merge: q.Get("mode") == string(service.ModeMerge),
 	})
 }
@@ -313,7 +313,7 @@ func restoreURL(req service.RestoreRequest) string {
 		q.Set("target", req.Target)
 	}
 	if len(req.Includes) > 0 {
-		q.Set("include", strings.Join(req.Includes, " "))
+		q["include"] = req.Includes
 	}
 	if req.Mode == service.ModeMerge {
 		q.Set("mode", string(req.Mode))
@@ -321,12 +321,26 @@ func restoreURL(req service.RestoreRequest) string {
 	return "/restore?" + q.Encode()
 }
 
+// includeLines reads include paths, one per line, so that a path may contain
+// spaces. The form sends them in one field, links and hidden fields one by one.
+func includeLines(values []string) []string {
+	var paths []string
+	for _, v := range values {
+		for line := range strings.Lines(v) {
+			if p := strings.TrimSpace(line); p != "" {
+				paths = append(paths, p)
+			}
+		}
+	}
+	return paths
+}
+
 // restoreRequest reads the restore fields of a form.
 func restoreRequest(r *http.Request) service.RestoreRequest {
 	req := service.RestoreRequest{
 		Snapshot: strings.TrimSpace(r.PostFormValue("snapshot")),
 		Target:   strings.TrimSpace(r.PostFormValue("target")),
-		Includes: strings.Fields(r.PostFormValue("include")),
+		Includes: includeLines(r.PostForm["include"]),
 		Mode:     service.ModeExact,
 	}
 	if r.PostFormValue("mode") == string(service.ModeMerge) {
@@ -342,7 +356,6 @@ type restoreCheckData struct {
 	Request service.RestoreRequest
 	Rows    []present.Row
 	Pre     service.RestorePreflight
-	Include string
 	Back    string
 }
 
@@ -365,7 +378,7 @@ func (h *Handler) restoreCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.render(w, r, "restore_check", "snapshots", restoreCheckData{
-		Request: req, Pre: pre, Rows: present.PreflightRows(pre, h.o.Now()), Include: strings.Join(req.Includes, " "),
+		Request: req, Pre: pre, Rows: present.PreflightRows(pre, h.o.Now()),
 		Back: restoreURL(req),
 	})
 }

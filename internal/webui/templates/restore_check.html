@@ -10,7 +10,8 @@
 <form method="post" action="/restore" class="stack">
   <input type="hidden" name="snapshot" value="{{.Data.Request.Snapshot}}">
   <input type="hidden" name="target" value="{{.Data.Request.Target}}">
-  <input type="hidden" name="include" value="{{.Data.Include}}">
+  {{range .Data.Request.Includes}}<input type="hidden" name="include" value="{{.}}">
+  {{end}}
   <input type="hidden" name="mode" value="{{.Data.Request.Mode}}">
   {{if .Data.Pre.SpaceWarning}}
   <label class="check"><input type="checkbox" name="ignore_space" value="1"> restore although the space looks too small</label>

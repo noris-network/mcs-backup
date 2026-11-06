@@ -118,6 +118,9 @@ tbody tr:hover { background: color-mix(in srgb, var(--accent-soft) 45%, transpar
 tr.bad td { background: var(--bad-bg); }
 .panel.table { overflow-x: auto; }
 td.num, td.origin, td.when { white-space: nowrap; }
+td.path { overflow-wrap: anywhere; }
+.crumbs { margin: 0; overflow-wrap: anywhere; }
+textarea { resize: vertical; font-family: ui-monospace, monospace; font-size: .9rem; }
 .row-actions { white-space: nowrap; text-align: right; }
 .row-actions > * { margin-left: .35rem; }
 
@@ -134,8 +137,8 @@ td.num, td.origin, td.when { white-space: nowrap; }
 .panel > form + form { margin-top: .9rem; }
 .hint { font-size: .85rem; }
 label.check { display: flex; gap: .5rem; align-items: center; }
-input, select { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: .45rem; padding: .4rem .6rem; width: 100%; }
-input:focus, select:focus, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+input, select, textarea { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: .45rem; padding: .4rem .6rem; width: 100%; }
+input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 input[type=checkbox] { width: auto; margin: 0; accent-color: var(--accent); }
 button { font: inherit; font-weight: 550; padding: .42rem .95rem; border-radius: .5rem; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; }
 button:hover { border-color: var(--accent); }
