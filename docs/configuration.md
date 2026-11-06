@@ -49,6 +49,15 @@ environment, not into a file that is checked into a repository.
 | `APPEND_ONLY` | `false` | The repository only accepts new data, see [append-only](append-only.md). |
 | `MCS_BACKUP_RESTIC` | `restic` | The restic executable. |
 
+Secrets are masked (`***`) in the log, in run results, in notifications and on
+the access page of the web UI. A variable holds a secret if its name contains
+`PASSWORD`, `PASSWD`, `PASSPHRASE`, `SECRET`, `TOKEN` or `WEBHOOK`, or has
+`PASS`, `PWD`, `KEY` or `SAS` as a later word (`RCLONE_CONFIG_PASS`,
+`MYSQL_PWD`, `B2_ACCOUNT_KEY`). Names that end in `_FILE`, `_COMMAND` or `_ID`
+and boolean values are not secrets. The password in a URL
+(`https://user:password@host`) is masked in every variable. Name the variables
+of your hooks and of the notification command the same way.
+
 A missing repository is created by the service on its first start (`restic init`).
 That includes the bucket (S3 and compatible servers) or container (Azure, Google Cloud
 Storage), as in 1.x, if the credentials may create it; without that right the service logs

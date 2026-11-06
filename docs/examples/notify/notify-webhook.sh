@@ -1,5 +1,6 @@
 #!/bin/sh
-# NOTIFY_COMMAND that posts to a web service. Set NOTIFY_WEBHOOK_URL next to it.
+# NOTIFY_COMMAND that posts to a web service. Set NOTIFY_WEBHOOK_URL next to it;
+# its value is masked in the log like a password.
 #
 # ntfy / Gotify style (plain text body, title in a header):
 set -eu
@@ -23,7 +24,7 @@ exec curl -fsS -m 20 \
 #
 # healthchecks.io: ping on success, signal a failure otherwise:
 #   case $MCS_BACKUP_EVENT in
-#   backup.succeeded) exec curl -fsS -m 20 "$HC_URL" ;;
-#   backup.failed | backup.suspicious) exec curl -fsS -m 20 "$HC_URL/fail" ;;
+#   backup.succeeded) exec curl -fsS -m 20 "$NOTIFY_WEBHOOK_URL" ;;
+#   backup.failed | backup.suspicious) exec curl -fsS -m 20 "$NOTIFY_WEBHOOK_URL/fail" ;;
 #   esac
-#   (with NOTIFY_ON=failure,warning,success)
+#   (with NOTIFY_WEBHOOK_URL=https://hc-ping.com/<uuid>, NOTIFY_ON=failure,warning,success)
