@@ -16,6 +16,11 @@ import (
 // killGrace is how long a script gets to react to SIGTERM before it is killed.
 const killGrace = 10 * time.Second
 
+// maxLine is the longest line of output passed on in one piece. A script that
+// prints without line breaks (a progress bar, binary data) must not fill the
+// memory: longer lines are passed on in pieces.
+const maxLine = 64 << 10
+
 // outputTail is how much of a script's output is kept for error messages.
 const outputTail = 4 << 10
 
@@ -149,11 +154,16 @@ func (w *lineWriter) Write(p []byte) (int, error) {
 	w.buf = append(w.buf, p...)
 	for {
 		i := bytes.IndexByte(w.buf, '\n')
-		if i < 0 {
+		switch {
+		case i >= 0:
+			w.fn(strings.TrimRight(string(w.buf[:i]), "\r"))
+			w.buf = w.buf[i+1:]
+		case len(w.buf) >= maxLine:
+			w.fn(string(w.buf[:maxLine]))
+			w.buf = w.buf[maxLine:]
+		default:
 			return len(p), nil
 		}
-		w.fn(strings.TrimRight(string(w.buf[:i]), "\r"))
-		w.buf = w.buf[i+1:]
 	}
 }
 

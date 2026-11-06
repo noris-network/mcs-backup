@@ -22,6 +22,12 @@ const interruptGrace = 15 * time.Second
 // stderrTail is how much of restic's stderr is kept for error messages.
 const stderrTail = 8 << 10
 
+// maxLine is the longest line of restic output handled in one piece. restic
+// writes one JSON message per line, far shorter than this; the limit only
+// keeps output without line breaks from filling the memory. A longer line is
+// handled in pieces, which the JSON parsers skip as unreadable.
+const maxLine = 1 << 20
+
 // Options configures a Repo.
 type Options struct {
 	// Bin is the restic executable, "restic" if empty.
@@ -175,13 +181,19 @@ func (w *lineWriter) Write(p []byte) (int, error) {
 	w.buf = append(w.buf, p...)
 	for {
 		i := bytes.IndexByte(w.buf, '\n')
-		if i < 0 {
+		var next int
+		switch {
+		case i >= 0:
+			next = i + 1
+		case len(w.buf) >= maxLine:
+			i, next = maxLine, maxLine
+		default:
 			return len(p), nil
 		}
 		if line := bytes.TrimSpace(w.buf[:i]); len(line) > 0 {
 			w.fn(line)
 		}
-		w.buf = w.buf[i+1:]
+		w.buf = w.buf[next:]
 	}
 }
 

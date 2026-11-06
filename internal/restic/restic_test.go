@@ -648,3 +648,22 @@ func TestConfigDoesNotMistakeOtherErrorsForAMissingBucket(t *testing.T) {
 		t.Errorf("Config() error = %v", err)
 	}
 }
+
+func TestLineWriterBoundsLinesWithoutBreaks(t *testing.T) {
+	var lines [][]byte
+	w := &lineWriter{fn: func(l []byte) { lines = append(lines, bytes.Clone(l)) }}
+	chunk := bytes.Repeat([]byte("x"), 64<<10)
+	for range 40 { // 2.5 MiB without a line break
+		if _, err := w.Write(chunk); err != nil {
+			t.Fatal(err)
+		}
+		if len(w.buf) > maxLine {
+			t.Fatalf("the buffer holds %d bytes", len(w.buf))
+		}
+	}
+	_, _ = w.Write([]byte("\n{\"a\":1}\n"))
+	w.flush()
+	if len(lines) != 4 || len(lines[0]) != maxLine || string(lines[3]) != `{"a":1}` {
+		t.Errorf("%d lines, want two full pieces, the rest and the line after them", len(lines))
+	}
+}
