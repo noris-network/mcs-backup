@@ -641,6 +641,9 @@ func (l *loader) notify() Notify {
 	return n
 }
 
+// minWebToken is the length below which the Basic Auth token earns a warning.
+const minWebToken = 16
+
 func (l *loader) server() Server {
 	s := Server{
 		HTTPPort: l.integer("BACKUP_HTTP_PORT", 9000, 1),
@@ -648,6 +651,9 @@ func (l *loader) server() Server {
 		StateDir: l.str("MCS_BACKUP_STATE_DIR", filepath.Join(os.TempDir(), "mcs-backup")),
 		WebAddr:  l.str("MCS_BACKUP_WEB_ADDR", ""),
 		WebToken: l.env["MCS_BACKUP_WEB_TOKEN"],
+	}
+	if t := s.WebToken; t != "" && len(t) < minWebToken {
+		l.warn(fmt.Sprintf("MCS_BACKUP_WEB_TOKEN is shorter than %d characters: it protects restores and can be guessed", minWebToken))
 	}
 	if s.HTTPPort > 65535 {
 		l.fail("BACKUP_HTTP_PORT", fmt.Errorf("port %d out of range", s.HTTPPort))

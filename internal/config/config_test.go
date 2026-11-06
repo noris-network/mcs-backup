@@ -316,6 +316,20 @@ func TestLoadWarnings(t *testing.T) {
 	}
 }
 
+func TestShortWebTokenWarns(t *testing.T) {
+	c := mustLoad(t, testEnv(t, "MCS_BACKUP_WEB_TOKEN=secret"))
+	if len(c.Warnings) != 1 || !strings.Contains(c.Warnings[0], "MCS_BACKUP_WEB_TOKEN") {
+		t.Errorf("warnings = %q", c.Warnings)
+	}
+	if strings.Contains(c.Warnings[0], "secret") {
+		t.Errorf("the warning shows the token: %q", c.Warnings[0])
+	}
+	c = mustLoad(t, testEnv(t, "MCS_BACKUP_WEB_TOKEN=0123456789abcdef"))
+	if len(c.Warnings) != 0 {
+		t.Errorf("warnings for a long token: %q", c.Warnings)
+	}
+}
+
 func TestLoadPruneInterval(t *testing.T) {
 	c := mustLoad(t, testEnv(t, "BACKUP_PRUNE_INTERVAL=0"))
 	if c.Schedule.Prune != "" {

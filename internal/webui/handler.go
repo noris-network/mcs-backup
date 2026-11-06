@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -137,9 +138,18 @@ func (h *Handler) authed(next http.HandlerFunc) http.Handler {
 			next(w, r)
 			return
 		}
-		if _, pass, ok := r.BasicAuth(); ok && h.auth.CheckToken(pass) {
-			next(w, r)
-			return
+		if _, pass, ok := r.BasicAuth(); ok {
+			ok, wait := h.auth.CheckToken(pass)
+			if ok {
+				next(w, r)
+				return
+			}
+			if wait > 0 {
+				h.o.Log.WarnContext(r.Context(), "web UI token locked after too many wrong tokens", "remote", r.RemoteAddr)
+				w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
+				http.Error(w, "too many wrong tokens, try again later", http.StatusTooManyRequests)
+				return
+			}
 		}
 		if h.auth.HasToken() {
 			w.Header().Set("WWW-Authenticate", `Basic realm="mcs-backup", charset="UTF-8"`)

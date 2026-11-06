@@ -13,6 +13,12 @@ const (
 	CodeTTL = 2 * time.Minute
 	// SessionIdle ends a session that was not used for this long.
 	SessionIdle = 12 * time.Hour
+	// TokenTries is how many wrong Basic Auth tokens in a row are answered
+	// before the token is locked for TokenLock.
+	TokenTries = 5
+	// TokenLock is how long Basic Auth is refused after too many wrong tokens.
+	// It limits guessing to a few thousand tries a day, whoever sends them.
+	TokenLock = 30 * time.Second
 )
 
 // Auth keeps the one-time login codes and the sessions. Everything is in
@@ -24,6 +30,8 @@ type Auth struct {
 	mu       sync.Mutex
 	codes    map[string]time.Time // code -> expires
 	sessions map[string]time.Time // session -> last used
+	misses   int                  // wrong tokens in a row
+	locked   time.Time            // Basic Auth is refused until then
 }
 
 // NewAuth creates an Auth. token is the optional fixed token for Basic Auth.
@@ -102,10 +110,27 @@ func (a *Auth) Reset() {
 func (a *Auth) HasToken() bool { return a.token != "" }
 
 // CheckToken compares a Basic Auth password with the token in constant time.
-func (a *Auth) CheckToken(password string) bool {
+// After TokenTries wrong tokens in a row it refuses every token, also the
+// right one, for TokenLock: wait is then how long the lock still lasts.
+// Sessions are not affected by the lock.
+func (a *Auth) CheckToken(password string) (ok bool, wait time.Duration) {
 	if a.token == "" {
-		return false
+		return false, 0
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	now := a.now()
+	if now.Before(a.locked) {
+		return false, a.locked.Sub(now)
 	}
 	want, got := sha256.Sum256([]byte(a.token)), sha256.Sum256([]byte(password))
-	return subtle.ConstantTimeCompare(want[:], got[:]) == 1
+	if subtle.ConstantTimeCompare(want[:], got[:]) == 1 {
+		a.misses = 0
+		return true, 0
+	}
+	if a.misses++; a.misses >= TokenTries {
+		a.misses = 0
+		a.locked = now.Add(TokenLock)
+	}
+	return false, 0
 }

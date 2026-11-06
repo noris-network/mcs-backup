@@ -207,6 +207,36 @@ func TestBasicAuthWithToken(t *testing.T) {
 	}
 }
 
+func TestWrongTokensLockBasicAuth(t *testing.T) {
+	s := newSite(t, "s3cret-token")
+	good := "Basic " + basic("admin", "s3cret-token")
+	bad := "Basic " + basic("admin", "guess")
+
+	for range webui.TokenTries - 1 {
+		s.do("GET", "/", nil, "Authorization", bad).want(t, http.StatusUnauthorized)
+	}
+	// the right token in between starts the count again
+	s.do("GET", "/", nil, "Authorization", good).want(t, http.StatusOK)
+	for range webui.TokenTries {
+		s.do("GET", "/", nil, "Authorization", bad).want(t, http.StatusUnauthorized)
+	}
+
+	// locked: not even the right token is looked at, a session still works
+	r := s.do("GET", "/", nil, "Authorization", good)
+	r.want(t, http.StatusTooManyRequests)
+	if r.header.Get("Retry-After") != "30" {
+		t.Errorf("Retry-After = %q", r.header.Get("Retry-After"))
+	}
+	s.do("GET", "/", nil).want(t, http.StatusUnauthorized)
+	s.login()
+	s.do("GET", "/", nil).want(t, http.StatusOK)
+
+	s.clock.t = s.clock.t.Add(webui.TokenLock)
+	if ok, wait := s.auth.CheckToken("s3cret-token"); !ok || wait != 0 {
+		t.Errorf("after the lock: ok = %v, wait = %v", ok, wait)
+	}
+}
+
 func basic(user, pass string) string {
 	return base64(user + ":" + pass)
 }
