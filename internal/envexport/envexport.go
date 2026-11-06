@@ -9,11 +9,12 @@ import (
 	"strings"
 
 	"github.com/noris-network/mcs-backup/v2/internal/config"
+	"github.com/noris-network/mcs-backup/v2/internal/redact"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
 
 // Mask replaces secret values unless they are revealed.
-const Mask = "***"
+const Mask = redact.Mask
 
 // Build describes the restic access in env (KEY=VALUE pairs of the restic
 // environment), args (global restic options) and the oldest supported restic
@@ -129,25 +130,11 @@ func variable(name, value string, reveal bool) service.EnvVar {
 		}
 		return v
 	}
-	v := service.EnvVar{Name: name, Value: value, Secret: isSecret(name)}
+	v := service.EnvVar{Name: name, Value: value, Secret: redact.Secret(name, value)}
 	if v.Secret && !reveal {
 		v.Value = Mask
 	}
 	return v
-}
-
-// isSecret reports whether the value of a variable must not be shown by
-// default. Variables that name a file or a command are not secret themselves.
-func isSecret(name string) bool {
-	if strings.HasSuffix(name, "_FILE") || strings.HasSuffix(name, "_COMMAND") || strings.HasSuffix(name, "_ID") {
-		return false
-	}
-	for _, part := range []string{"PASSWORD", "SECRET", "TOKEN", "_KEY", "_SAS"} {
-		if strings.Contains(name, part) {
-			return true
-		}
-	}
-	return false
 }
 
 // fileVars name files whose content restic reads.

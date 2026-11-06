@@ -127,6 +127,15 @@ func TestMasking(t *testing.T) {
 		}
 	}
 
+	// the same names as in the logs, see redact.Secret
+	rclone := envexport.Build([]string{"RESTIC_REPOSITORY=rclone:remote:app", "RCLONE_CONFIG_PASS=rclone-pass", "RCLONE_SFTP_KEY_USE_AGENT=true"}, nil, "0.17", false)
+	if v := rclone.Vars[1]; v.Name != "RCLONE_CONFIG_PASS" || v.Value != envexport.Mask || !v.Secret {
+		t.Errorf("%+v, want a masked secret", v)
+	}
+	if v := rclone.Vars[2]; v.Value != "true" || v.Secret {
+		t.Errorf("%+v, want plain", v)
+	}
+
 	rest := envexport.Build(cases["rest"].env, nil, "0.17", false)
 	if v := rest.Vars[0]; !v.Secret || strings.Contains(v.Value, "hunter2") {
 		t.Errorf("repository %+v leaks the password in its URL", v)

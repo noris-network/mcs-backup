@@ -26,6 +26,39 @@ func TestRedactor(t *testing.T) {
 	}
 }
 
+func TestSecret(t *testing.T) {
+	secret := []string{
+		"RESTIC_PASSWORD", "COPY_PASSWORD", "PGPASSWORD", "RCLONE_CONFIG_PASS", "RCLONE_SFTP_KEY_FILE_PASS", "SMTP_PASSWD",
+		"BORG_PASSPHRASE", "MYSQL_PWD", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "MCS_BACKUP_WEB_TOKEN", "B2_ACCOUNT_KEY",
+		"ST_KEY", "AZURE_ACCOUNT_KEY", "AZURE_ACCOUNT_SAS", "OS_APPLICATION_CREDENTIAL_SECRET", "NOTIFY_WEBHOOK_URL",
+	}
+	plain := []string{
+		"PATH", "PWD", "OLDPWD", "HOME", "RESTIC_PASSWORD_FILE", "RESTIC_PASSWORD_COMMAND", "AWS_ACCESS_KEY_ID",
+		"B2_ACCOUNT_ID", "GOOGLE_APPLICATION_CREDENTIALS", "AWS_WEB_IDENTITY_TOKEN_FILE", "FTP_PASSIVE", "KEYBOARD",
+	}
+	for _, name := range secret {
+		if !Secret(name, "value") {
+			t.Errorf("%s is a secret", name)
+		}
+	}
+	for _, name := range plain {
+		if Secret(name, "value") {
+			t.Errorf("%s is no secret", name)
+		}
+	}
+	for _, value := range []string{"true", "false", "1", "0"} {
+		if Secret("RCLONE_SFTP_KEY_USE_AGENT", value) {
+			t.Errorf("the boolean %q is no secret", value)
+		}
+	}
+
+	// a flag whose name looks like a secret must not hide every "true" in the log
+	r := New([]string{"AZURE_FORCE_CLI_CREDENTIAL=true", "RCLONE_SFTP_KEY_USE_AGENT=true", "RCLONE_CONFIG_PASS=rclone-pass"})
+	if got := r.String("ok=true pass=rclone-pass"); got != "ok=true pass=***" {
+		t.Errorf("String = %q", got)
+	}
+}
+
 func TestError(t *testing.T) {
 	r := New([]string{"RESTIC_PASSWORD=hunter2-secret"})
 	if r.Error(nil) != nil {

@@ -5,6 +5,7 @@ package redact
 import (
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -18,10 +19,32 @@ type Redactor struct {
 
 var urlPassword = regexp.MustCompile(`://[^/@:\s]+:([^/@\s]+)@`)
 
-// SecretName reports whether an environment variable holds a secret.
-func SecretName(name string) bool {
-	for _, marker := range []string{"PASSWORD", "SECRET", "TOKEN", "_KEY", "CREDENTIAL", "SAS"} {
+// Secret reports whether the environment variable name holds a secret, judged
+// by its name: PASSWORD, PASSWD, PASSPHRASE, SECRET, TOKEN or WEBHOOK anywhere
+// in it, or PASS, PWD, KEY or SAS as a later word (RCLONE_CONFIG_PASS,
+// MYSQL_PWD, B2_ACCOUNT_KEY, AZURE_ACCOUNT_SAS). A variable that names a file,
+// a command or an identifier is no secret itself, and neither is a boolean
+// value such as the true of RCLONE_SFTP_KEY_USE_AGENT.
+func Secret(name, value string) bool {
+	for _, suffix := range []string{"_FILE", "_COMMAND", "_ID"} {
+		if strings.HasSuffix(name, suffix) {
+			return false
+		}
+	}
+	if _, err := strconv.ParseBool(value); err == nil {
+		return false
+	}
+	for _, marker := range []string{"PASSWORD", "PASSWD", "PASSPHRASE", "SECRET", "TOKEN", "WEBHOOK"} {
 		if strings.Contains(name, marker) {
+			return true
+		}
+	}
+	// short markers only as whole words, and not as the first one: PWD is the
+	// working directory of the shell, FTP_PASSIVE is no password
+	words := strings.Split(name, "_")
+	for _, word := range words[1:] {
+		switch word {
+		case "PASS", "PWD", "KEY", "SAS":
 			return true
 		}
 	}
@@ -37,7 +60,7 @@ func New(environ []string) *Redactor {
 		if !ok {
 			continue
 		}
-		if SecretName(name) && len(value) >= 4 && !strings.ContainsAny(value, "\n") {
+		if Secret(name, value) && len(value) >= 4 && !strings.ContainsAny(value, "\n") {
 			seen[value] = true
 		}
 		for _, m := range urlPassword.FindAllStringSubmatch(value, -1) {
