@@ -8,6 +8,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/charmbracelet/x/term"
+
 	"github.com/noris-network/mcs-backup/v2/internal/api"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
@@ -91,10 +93,11 @@ func newApp() *app {
 	}
 }
 
-// isTerminal reports whether f is a character device, such as a terminal.
+// isTerminal reports whether f is a terminal. A character device is not
+// enough: /dev/null is one too, and an exec without a TTY leaves it as stdin,
+// where bubbletea cannot read keys.
 func isTerminal(f *os.File) bool {
-	fi, err := f.Stat()
-	return err == nil && fi.Mode()&os.ModeCharDevice != 0
+	return term.IsTerminal(f.Fd())
 }
 
 // run executes the CLI with args (without the program name) and returns the

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -35,6 +36,17 @@ func TestExitCode(t *testing.T) {
 				t.Errorf("exitCode() = %d, want %d", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestIsTerminal(t *testing.T) {
+	f, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if isTerminal(f) {
+		t.Error("/dev/null must not count as a terminal: a kubectl exec without -t leaves it as stdin, and the TUI cannot read keys from it")
 	}
 }
 
