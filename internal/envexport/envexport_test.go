@@ -143,6 +143,10 @@ func TestMasking(t *testing.T) {
 	if v := envexport.Build(cases["rest"].env, nil, "0.17", true).Vars[0]; !strings.Contains(v.Value, "hunter2") {
 		t.Errorf("revealed repository = %q", v.Value)
 	}
+	proxy := envexport.Build([]string{"RESTIC_REPOSITORY=s3:s3.example.com/bucket", "HTTPS_PROXY=http://user:hunter2@proxy:3128"}, nil, "0.17", false)
+	if v := proxy.Vars[1]; v.Value != "http://user:***@proxy:3128" || !v.Secret {
+		t.Errorf("%+v, want the password in the proxy URL masked", v)
+	}
 }
 
 func TestMaskedOutputHasNoSecrets(t *testing.T) {

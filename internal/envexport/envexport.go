@@ -121,18 +121,16 @@ func backendVar(name, scheme string) bool {
 	return slices.ContainsFunc(backendPrefixes[scheme], func(p string) bool { return strings.HasPrefix(name, p) })
 }
 
+// variable masks a secret, or only the password in a URL, as in the
+// repository of a rest-server or in a proxy.
 func variable(name, value string, reveal bool) service.EnvVar {
-	if name == "RESTIC_REPOSITORY" {
-		masked := config.MaskURL(value)
-		v := service.EnvVar{Name: name, Value: value, Secret: masked != value}
-		if v.Secret && !reveal {
-			v.Value = masked
-		}
-		return v
+	masked := config.MaskURL(value)
+	if redact.Secret(name, value) {
+		masked = Mask
 	}
-	v := service.EnvVar{Name: name, Value: value, Secret: redact.Secret(name, value)}
+	v := service.EnvVar{Name: name, Value: value, Secret: masked != value}
 	if v.Secret && !reveal {
-		v.Value = Mask
+		v.Value = masked
 	}
 	return v
 }
