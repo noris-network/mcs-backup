@@ -96,8 +96,9 @@ switches the schedule off.
 | `VERIFY_SCHEDULE` | `0 5 * * 6` | When the [restore test](#restore-test) runs. |
 | `BACKUP_CATCH_UP` | `true` | After a start, a suspend, or the end of a maintenance window: run one backup if the repository has no snapshot or the last scheduled time is newer than the last snapshot. Needs `CRON_SCHEDULE`. |
 
-If prune, check or verify is due while another operation runs, it waits for the
-slot (once). A due backup is skipped and logged.
+What is due while another operation runs waits for the slot (once): first the
+backup, then prune, check and verify. Only a backup that is due while a backup
+is still running is skipped and logged.
 
 ## Timeouts, retries, safety
 

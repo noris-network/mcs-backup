@@ -67,9 +67,10 @@ func (d *Daemon) schedulerHandler() schedule.Handler {
 	}
 }
 
-// handleDue starts a scheduled operation. A backup that is due while another
-// operation runs is skipped; the maintenance operations wait for the slot,
-// otherwise a long backup would push them out for good.
+// handleDue starts a scheduled operation. What is due while another operation
+// runs waits for the slot: otherwise a long prune would cost the backup of the
+// day, and a long backup would push the maintenance out for good. Only a
+// backup that is due while a backup runs is skipped.
 func (d *Daemon) handleDue(kind service.Kind, scheduled time.Time) {
 	ctx := service.WithSource(context.Background(), service.SourceSchedule)
 	switch kind {
@@ -81,7 +82,17 @@ func (d *Daemon) handleDue(kind service.Kind, scheduled time.Time) {
 			d.log.Info("scheduled backup skipped: backups are disabled or in maintenance", "scheduled", scheduled)
 			return
 		}
-		if _, err := d.startBackup(ctx, service.BackupRequest{Origin: service.OriginScheduled}, 1); err != nil {
+		_, err := d.startBackup(ctx, service.BackupRequest{Origin: service.OriginScheduled}, 1)
+		busy, isBusy := errors.AsType[*service.BusyError](err)
+		switch {
+		case isBusy && busy.Current.Kind != service.KindBackup:
+			d.mu.Lock()
+			d.backupDue = true
+			d.mu.Unlock()
+			d.log.Info("scheduled backup queued until the running operation is done", "running", busy.Current.Kind)
+		case isBusy:
+			d.log.Info("scheduled backup skipped: a backup is still running", "scheduled", scheduled)
+		case err != nil:
 			d.log.Warn("scheduled backup not started", "error", err)
 		}
 	case service.KindPrune, service.KindCheck, service.KindVerify:
@@ -114,8 +125,9 @@ func (d *Daemon) startMaintenance(ctx context.Context, kind service.Kind) {
 	}
 }
 
-// drain starts what is waiting for the slot: a retry first, then the queued
-// maintenance operations. It is called whenever the slot becomes free.
+// drain starts what is waiting for the slot: a retry first, then a backup that
+// was due, then the queued maintenance operations. It is called whenever the
+// slot becomes free.
 func (d *Daemon) drain() {
 	d.mu.Lock()
 	if d.op != nil || d.shuttingDown {
@@ -126,9 +138,12 @@ func (d *Daemon) drain() {
 	if d.retry != nil && d.retry.due {
 		retry = d.retry
 	}
+	// a retry is a backup already; a schedule switched off in the meantime drops it
+	backup := retry == nil && d.backupDue && d.backupsActiveLocked()
+	d.backupDue = false
 	var next service.Kind
 	for _, k := range []service.Kind{service.KindPrune, service.KindCheck, service.KindVerify} {
-		if d.queued[k] {
+		if !backup && retry == nil && d.queued[k] {
 			next = k
 			delete(d.queued, k)
 			break
@@ -140,6 +155,10 @@ func (d *Daemon) drain() {
 	switch {
 	case retry != nil:
 		d.startRetry(ctx)
+	case backup:
+		if _, err := d.startBackup(ctx, service.BackupRequest{Origin: service.OriginScheduled}, 1); err != nil {
+			d.log.WarnContext(ctx, "queued backup not started", "error", err)
+		}
 	case next != "":
 		d.startMaintenance(ctx, next)
 	}

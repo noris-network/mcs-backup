@@ -78,6 +78,7 @@ func (d *Daemon) startBackup(ctx context.Context, req service.BackupRequest, att
 	if attempt > 1 {
 		d.retry = nil // consumed
 	}
+	d.backupDue = false // any backup is the one that was due
 	op := r.snapshotOp()
 	d.mu.Unlock()
 	d.wg.Go(func() {

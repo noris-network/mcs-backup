@@ -156,7 +156,9 @@ type Daemon struct {
 	maintUntil time.Time
 	maintTimer *time.Timer
 	queued     map[service.Kind]bool
-	retry      *retryState
+	// backupDue: a scheduled backup fell due while another operation ran.
+	backupDue bool
+	retry     *retryState
 }
 
 // New creates a Daemon. Call Run to start it.

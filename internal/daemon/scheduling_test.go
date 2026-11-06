@@ -283,7 +283,70 @@ func TestBackupDueWhileBusyIsSkipped(t *testing.T) {
 		close(release)
 		synctest.Wait()
 		if d.eng.called("backup") != 1 {
-			t.Errorf("backups = %d: a due backup is skipped, not queued", d.eng.called("backup"))
+			t.Errorf("backups = %d: a backup due while a backup runs is skipped, not queued", d.eng.called("backup"))
+		}
+		stop()
+	})
+}
+
+func TestBackupDueDuringMaintenanceIsQueued(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		release := make(chan struct{})
+		d := newTestDaemon(t, func(f *fakeEngine) { f.backup = blockingBackup(release) })
+		ctx, stop := start(t, d)
+		synctest.Wait()
+
+		// the slot is held by something that is not a backup, as a prune would
+		held := make(chan struct{})
+		go func() {
+			_ = d.exclusive(ctx, service.KindPrune, "", func(context.Context) error { <-held; return nil })
+		}()
+		synctest.Wait()
+
+		d.handleDue(service.KindBackup, time.Now())
+		d.handleDue(service.KindBackup, time.Now())
+		d.handleDue(service.KindCheck, time.Now())
+		synctest.Wait()
+		if d.eng.called("backup") != 0 {
+			t.Fatal("the backup ran while the slot was taken")
+		}
+
+		close(held)
+		synctest.Wait()
+		if d.eng.called("backup") != 1 || d.eng.called("check") != 0 {
+			t.Fatalf("backups = %d, checks = %d: the due backup runs once and before the queued check",
+				d.eng.called("backup"), d.eng.called("check"))
+		}
+		if d.eng.backupReqs[0].Origin != service.OriginScheduled {
+			t.Errorf("origin = %q", d.eng.backupReqs[0].Origin)
+		}
+		close(release)
+		synctest.Wait()
+		if d.eng.called("backup") != 1 || d.eng.called("check") != 1 {
+			t.Errorf("backups = %d, checks = %d: the check follows the backup", d.eng.called("backup"), d.eng.called("check"))
+		}
+		stop()
+	})
+}
+
+func TestQueuedBackupIsDroppedWhenDisabled(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		d := newTestDaemon(t, nil)
+		ctx, stop := start(t, d)
+		synctest.Wait()
+		held := make(chan struct{})
+		go func() {
+			_ = d.exclusive(ctx, service.KindPrune, "", func(context.Context) error { <-held; return nil })
+		}()
+		synctest.Wait()
+		d.handleDue(service.KindBackup, time.Now())
+		if _, err := d.SetSchedule(ctx, service.ScheduleRequest{Action: service.ScheduleDisable}); err != nil {
+			t.Fatal(err)
+		}
+		close(held)
+		synctest.Wait()
+		if d.eng.called("backup") != 0 {
+			t.Error("a queued backup ran although backups were disabled in the meantime")
 		}
 		stop()
 	})
