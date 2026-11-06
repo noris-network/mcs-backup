@@ -44,6 +44,7 @@ func (a *app) newRootCmd() *cobra.Command {
 		a.newSnapshotsCmd(),
 		a.newLsCmd(),
 		a.newFindCmd(),
+		a.newDiffCmd(),
 		a.newBackupCmd(),
 		a.newRestoreCmd(),
 		a.newCancelCmd(),

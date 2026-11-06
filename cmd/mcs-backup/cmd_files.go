@@ -86,6 +86,47 @@ restore it with "mcs-backup restore <snapshot> --include <path>".`,
 	return cmd
 }
 
+func (a *app) newDiffCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "diff [<snapshot> [<older snapshot>]]",
+		Short: "Show what changed between two snapshots",
+		Long: `Show what a snapshot lost, gained and changed compared with an older one.
+Directories that were removed or added as a whole are listed once.
+
+Without arguments the newest snapshot is compared with the regular snapshot
+before it. That is the question behind a backup that was flagged as much
+smaller: look at what is gone, then accept it with "mcs-backup acknowledge" or
+restore what is missing. With one snapshot, it is compared with the regular
+snapshot before it.`,
+		Example: `  mcs-backup diff
+  mcs-backup diff 1a2b3c4d
+  mcs-backup diff latest 9f8e7d6c`,
+		Args: usageArgs(cobra.MaximumNArgs(2)),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var req service.DiffRequest
+			if len(args) > 0 {
+				req.To = args[0]
+			}
+			if len(args) > 1 {
+				req.From = args[1]
+			}
+			svc, closeSvc := a.service(cmd)
+			defer closeSvc()
+			res, err := svc.Diff(cmd.Context(), req)
+			if err != nil {
+				return err
+			}
+			if a.wantJSON(cmd) {
+				return a.printJSON(res)
+			}
+			for _, line := range present.DiffLines(res) {
+				fmt.Fprintln(a.stdout, line)
+			}
+			return nil
+		},
+	}
+}
+
 // fileName shows a directory with a trailing slash.
 func fileName(f service.File) string {
 	if f.Type == "dir" {

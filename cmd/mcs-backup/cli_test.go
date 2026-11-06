@@ -733,3 +733,32 @@ func TestFind(t *testing.T) {
 		t.Errorf("exit %d without a pattern", code)
 	}
 }
+
+func TestDiff(t *testing.T) {
+	c := newCLI(t)
+	c.fake.DiffFn = func(context.Context, service.DiffRequest) (service.DiffResult, error) {
+		return service.DiffResult{
+			From: service.Snapshot{ShortID: "aaaaaaaa", Time: cliNow.Add(-48 * time.Hour)}, To: service.Snapshot{ShortID: "bbbbbbbb", Time: cliNow},
+			Removed: service.DiffSide{Files: 3, Dirs: 1, Paths: []service.DiffPath{{Path: "/big/", Entries: 4}}},
+		}, nil
+	}
+	if code := c.run("diff"); code != 0 {
+		t.Fatal(code, c.err())
+	}
+	for _, want := range []string{"From snapshot aaaaaaaa", "removed  3 files, 1 directory", "/big/  (4 entries)"} {
+		if !strings.Contains(c.out(), want) {
+			t.Errorf("output lacks %q:\n%s", want, c.out())
+		}
+	}
+	if req := c.fake.CallsTo("Diff")[0].Args[0].(service.DiffRequest); req != (service.DiffRequest{}) {
+		t.Errorf("request = %+v: the service picks the snapshots", req)
+	}
+	c.run("diff", "new", "old", "--json")
+	if req := c.fake.CallsTo("Diff")[1].Args[0].(service.DiffRequest); req.To != "new" || req.From != "old" {
+		t.Errorf("request = %+v", req)
+	}
+	var got service.DiffResult
+	if err := json.Unmarshal(c.stdout.Bytes(), &got); err != nil || got.Removed.Files != 3 {
+		t.Errorf("JSON: %v %s", err, c.out())
+	}
+}
