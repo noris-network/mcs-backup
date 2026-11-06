@@ -51,6 +51,39 @@ func (s *Server) registerRead() {
 		return reply(r)
 	})
 
+	type filesIn struct {
+		Snapshot string `json:"snapshot,omitempty" jsonschema:"snapshot ID, or latest (the default)"`
+		Path     string `json:"path,omitempty" jsonschema:"directory in the snapshot, such as /docs; empty lists the top"`
+	}
+	mcp.AddTool(s.srv, &mcp.Tool{
+		Name:        "list_files",
+		Description: "The files and directories in one directory of a snapshot (not recursive). What lies in BACKUP_ROOT is found below / in a snapshot. Use the paths it returns as include paths of a restore.",
+		Annotations: readOnly,
+	}, func(c context.Context, _ *mcp.CallToolRequest, in filesIn) (*mcp.CallToolResult, any, error) {
+		l, err := s.svc.Files(ctx(c), service.FilesRequest{Snapshot: in.Snapshot, Path: in.Path})
+		if err != nil {
+			return nil, nil, explain(err)
+		}
+		return reply(l)
+	})
+
+	type findIn struct {
+		Pattern    string `json:"pattern" jsonschema:"glob matched against the file name and the whole path, such as invoice.pdf, *.sql or /docs/*"`
+		Snapshot   string `json:"snapshot,omitempty" jsonschema:"search only this snapshot (ID or latest); all snapshots if empty"`
+		IgnoreCase bool   `json:"ignore_case,omitempty"`
+	}
+	mcp.AddTool(s.srv, &mcp.Tool{
+		Name:        "find_files",
+		Description: "Search the snapshots for files by name. Every state of a file (size and modification time) is returned once, with the newest and the oldest snapshot that has it: to bring back a lost or damaged file, restore its path from the newest snapshot that still has the good version.",
+		Annotations: readOnly,
+	}, func(c context.Context, _ *mcp.CallToolRequest, in findIn) (*mcp.CallToolResult, any, error) {
+		r, err := s.svc.Find(ctx(c), service.FindRequest{Pattern: in.Pattern, Snapshot: in.Snapshot, IgnoreCase: in.IgnoreCase})
+		if err != nil {
+			return nil, nil, explain(err)
+		}
+		return reply(r)
+	})
+
 	type preflightIn struct {
 		Snapshot string   `json:"snapshot" jsonschema:"snapshot ID, or latest"`
 		Target   string   `json:"target,omitempty" jsonschema:"directory to restore to; empty means replacing the live data"`

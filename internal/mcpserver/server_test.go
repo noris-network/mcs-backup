@@ -91,7 +91,7 @@ func (a *agent) call(name string, args map[string]any) (string, bool) {
 }
 
 var (
-	readTools        = []string{"get_log", "get_operation", "get_restic_env", "get_restore_preflight", "get_retention", "get_status", "list_locks", "list_snapshots"}
+	readTools        = []string{"find_files", "get_log", "get_operation", "get_restic_env", "get_restore_preflight", "get_retention", "get_status", "list_files", "list_locks", "list_snapshots"}
 	writeTools       = []string{"cancel_operation", "keep_snapshot", "restore_to_directory", "set_schedule", "start_backup", "start_verify", "test_notification", "unkeep_snapshot", "unlock_stale_locks"}
 	destructiveTools = []string{"acknowledge_snapshot", "approve_forget", "restore_overwrite", "unlock_all_locks"}
 )
@@ -224,6 +224,21 @@ func TestReadTools(t *testing.T) {
 	text, isErr := a.call("get_restore_preflight", map[string]any{"snapshot": "latest"})
 	if isErr || !strings.Contains(text, `"in_place": true`) {
 		t.Errorf("preflight: %v\n%s", isErr, text)
+	}
+	a.fake.FilesFn = func(_ context.Context, r service.FilesRequest) (service.FileList, error) {
+		return service.FileList{Path: r.Path, Files: []service.File{{Path: r.Path + "/a.txt", Type: "file"}}}, nil
+	}
+	if text, isErr := a.call("list_files", map[string]any{"path": "/docs"}); isErr || !strings.Contains(text, `"/docs/a.txt"`) {
+		t.Errorf("list_files: %v\n%s", isErr, text)
+	}
+	a.fake.FindFn = func(_ context.Context, r service.FindRequest) (service.FindResult, error) {
+		return service.FindResult{Searched: 3, Versions: []service.FileVersion{{File: service.File{Path: "/" + r.Pattern}, Snapshots: 2}}}, nil
+	}
+	if text, isErr := a.call("find_files", map[string]any{"pattern": "x.sql", "ignore_case": true}); isErr || !strings.Contains(text, `"/x.sql"`) {
+		t.Errorf("find_files: %v\n%s", isErr, text)
+	}
+	if req := a.fake.CallsTo("Find")[0].Args[0].(service.FindRequest); !req.IgnoreCase {
+		t.Errorf("request = %+v", req)
 	}
 	if len(a.fake.CallsTo("StartRestore")) != 0 {
 		t.Error("a read tool started a restore")
