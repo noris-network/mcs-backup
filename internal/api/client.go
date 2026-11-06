@@ -156,6 +156,30 @@ func (c *Client) Locks(ctx context.Context) ([]service.Lock, error) {
 	return get[[]service.Lock](ctx, c, "/v1/locks")
 }
 
+// Files implements service.Service.
+func (c *Client) Files(ctx context.Context, req service.FilesRequest) (service.FileList, error) {
+	q := url.Values{}
+	if req.Snapshot != "" {
+		q.Set("snapshot", req.Snapshot)
+	}
+	if req.Path != "" {
+		q.Set("path", req.Path)
+	}
+	return get[service.FileList](ctx, c, "/v1/files?"+q.Encode())
+}
+
+// Find implements service.Service.
+func (c *Client) Find(ctx context.Context, req service.FindRequest) (service.FindResult, error) {
+	q := url.Values{"pattern": {req.Pattern}}
+	if req.Snapshot != "" {
+		q.Set("snapshot", req.Snapshot)
+	}
+	if req.IgnoreCase {
+		q.Set("ignore_case", "true")
+	}
+	return get[service.FindResult](ctx, c, "/v1/find?"+q.Encode())
+}
+
 // RestorePreflight implements service.Service.
 func (c *Client) RestorePreflight(ctx context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {
 	q := url.Values{"snapshot": {req.Snapshot}}

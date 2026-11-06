@@ -28,6 +28,7 @@ type fakeEngine struct {
 	openSecond func(call int) (engine.RepoInfo, error)
 	snapsErr   error
 	sizeErr    error
+	filesErr   error
 
 	backup  func(ctx context.Context, req service.BackupRequest, sink engine.Sink) engine.BackupResult
 	restore func(ctx context.Context, req service.RestoreRequest, sink engine.Sink) engine.RestoreResult
@@ -119,6 +120,14 @@ func (f *fakeEngine) Locks(context.Context) ([]service.Lock, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return slices.Clone(f.locks), nil
+}
+
+func (f *fakeEngine) Files(_ context.Context, req service.FilesRequest) (service.FileList, error) {
+	return service.FileList{Path: req.Path}, f.filesErr
+}
+
+func (f *fakeEngine) Find(context.Context, service.FindRequest) (service.FindResult, error) {
+	return service.FindResult{Searched: 1}, f.filesErr
 }
 
 func (f *fakeEngine) RestorePreflight(context.Context, service.RestoreRequest) (service.RestorePreflight, error) {

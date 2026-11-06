@@ -197,3 +197,13 @@ func readFile(t *testing.T, path string) string {
 	}
 	return string(data)
 }
+
+// findJSON is the output of restic find --json.
+func findJSON(t *testing.T, groups []restic.FindGroup) string {
+	t.Helper()
+	b, err := json.Marshal(groups)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}

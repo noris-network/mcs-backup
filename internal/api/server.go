@@ -42,6 +42,16 @@ func NewHandler(svc service.Service, log *slog.Logger) http.Handler {
 	mux.HandleFunc("GET /v1/snapshots", reply(s, func(r *http.Request) (any, error) { return s.svc.Snapshots(r.Context()) }))
 	mux.HandleFunc("GET /v1/retention", reply(s, func(r *http.Request) (any, error) { return s.svc.Retention(r.Context()) }))
 	mux.HandleFunc("GET /v1/locks", reply(s, func(r *http.Request) (any, error) { return s.svc.Locks(r.Context()) }))
+	mux.HandleFunc("GET /v1/files", reply(s, func(r *http.Request) (any, error) {
+		q := r.URL.Query()
+		return s.svc.Files(r.Context(), service.FilesRequest{Snapshot: q.Get("snapshot"), Path: q.Get("path")})
+	}))
+	mux.HandleFunc("GET /v1/find", reply(s, func(r *http.Request) (any, error) {
+		q := r.URL.Query()
+		return s.svc.Find(r.Context(), service.FindRequest{
+			Pattern: q.Get("pattern"), Snapshot: q.Get("snapshot"), IgnoreCase: q.Get("ignore_case") == "true",
+		})
+	}))
 	mux.HandleFunc("GET /v1/restore/preflight", reply(s, func(r *http.Request) (any, error) {
 		req, err := preflightRequest(r.URL.Query())
 		if err != nil {

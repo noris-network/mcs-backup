@@ -84,6 +84,28 @@ func TestRoundTrips(t *testing.T) {
 		t.Errorf("Locks() = %+v, %v", l, err)
 	}
 
+	fake.FilesFn = func(_ context.Context, req service.FilesRequest) (service.FileList, error) {
+		return service.FileList{Path: req.Path, Files: []service.File{{Path: req.Path + "/f", Type: "file", Size: 7, Mtime: started}}, Truncated: true}, nil
+	}
+	fl, err := c.Files(ctx, service.FilesRequest{Snapshot: "abc", Path: "/a b/ü&x"})
+	if err != nil || fl.Files[0].Path != "/a b/ü&x/f" || fl.Files[0].Size != 7 || !fl.Truncated {
+		t.Errorf("Files() = %+v, %v", fl, err)
+	}
+	if req := fake.CallsTo("Files")[0].Args[0].(service.FilesRequest); req.Snapshot != "abc" {
+		t.Errorf("request = %+v", req)
+	}
+
+	fake.FindFn = func(_ context.Context, req service.FindRequest) (service.FindResult, error) {
+		return service.FindResult{Searched: 4, Versions: []service.FileVersion{{File: service.File{Path: req.Pattern}, Newest: service.SnapshotRef{ID: "n"}, Snapshots: 2}}}, nil
+	}
+	fr, err := c.Find(ctx, service.FindRequest{Pattern: "*.sql?&", Snapshot: "latest", IgnoreCase: true})
+	if err != nil || fr.Searched != 4 || fr.Versions[0].Path != "*.sql?&" || fr.Versions[0].Newest.ID != "n" {
+		t.Errorf("Find() = %+v, %v", fr, err)
+	}
+	if req := fake.CallsTo("Find")[0].Args[0].(service.FindRequest); req.Snapshot != "latest" || !req.IgnoreCase {
+		t.Errorf("request = %+v", req)
+	}
+
 	fake.LogFn = func(_ context.Context, k service.Kind) (service.Log, error) {
 		return service.Log{Kind: k, Lines: []string{"a", "b"}}, nil
 	}

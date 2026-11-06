@@ -36,6 +36,8 @@ type Engine interface {
 	RepoSize(ctx context.Context) (restic.Stats, error)
 	Retention(ctx context.Context) (service.RetentionInfo, error)
 	Locks(ctx context.Context) ([]service.Lock, error)
+	Files(ctx context.Context, req service.FilesRequest) (service.FileList, error)
+	Find(ctx context.Context, req service.FindRequest) (service.FindResult, error)
 	RestorePreflight(ctx context.Context, req service.RestoreRequest) (service.RestorePreflight, error)
 	VerifyConfigured() bool
 	// RestoreNeedsConfirm: the restore replaces the live data.

@@ -29,6 +29,8 @@ type Fake struct {
 	SnapshotsFn        func(ctx context.Context) ([]service.Snapshot, error)
 	RetentionFn        func(ctx context.Context) (service.RetentionInfo, error)
 	LocksFn            func(ctx context.Context) ([]service.Lock, error)
+	FilesFn            func(ctx context.Context, req service.FilesRequest) (service.FileList, error)
+	FindFn             func(ctx context.Context, req service.FindRequest) (service.FindResult, error)
 	RestorePreflightFn func(ctx context.Context, req service.RestoreRequest) (service.RestorePreflight, error)
 	OperationFn        func(ctx context.Context) (*service.Operation, error)
 	LogFn              func(ctx context.Context, kind service.Kind) (service.Log, error)
@@ -109,6 +111,22 @@ func (f *Fake) Locks(ctx context.Context) ([]service.Lock, error) {
 		return f.LocksFn(ctx)
 	}
 	return nil, nil
+}
+
+func (f *Fake) Files(ctx context.Context, req service.FilesRequest) (service.FileList, error) {
+	f.record(ctx, "Files", req)
+	if f.FilesFn != nil {
+		return f.FilesFn(ctx, req)
+	}
+	return service.FileList{}, nil
+}
+
+func (f *Fake) Find(ctx context.Context, req service.FindRequest) (service.FindResult, error) {
+	f.record(ctx, "Find", req)
+	if f.FindFn != nil {
+		return f.FindFn(ctx, req)
+	}
+	return service.FindResult{}, nil
 }
 
 func (f *Fake) RestorePreflight(ctx context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {

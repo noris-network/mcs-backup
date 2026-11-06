@@ -266,6 +266,72 @@ type Lock struct {
 	Stale bool `json:"stale"`
 }
 
+// File is a file or directory in a snapshot.
+type File struct {
+	Path string `json:"path"`
+	// Type is "file", "dir", "symlink" or another type restic knows.
+	Type  string    `json:"type"`
+	Size  int64     `json:"size"`
+	Mtime time.Time `json:"mtime"`
+}
+
+// FilesRequest asks for the content of a directory in a snapshot.
+type FilesRequest struct {
+	// Snapshot is an ID, a prefix of one or "latest" (the default).
+	Snapshot string `json:"snapshot,omitempty"`
+	// Path is the directory or file to list, as it is in the snapshot: what
+	// lies in BACKUP_ROOT is found below "/" there ("docs" or "/docs" for
+	// BACKUP_ROOT/docs). The path in the file system works as well. Empty
+	// lists the top of the snapshot.
+	Path string `json:"path,omitempty"`
+}
+
+// FileList is the content of a directory in a snapshot.
+type FileList struct {
+	Snapshot Snapshot `json:"snapshot"`
+	// Path is the directory that was listed, as it is in the snapshot.
+	Path  string `json:"path"`
+	Files []File `json:"files"`
+	// Truncated: the directory has more entries than are shown.
+	Truncated bool `json:"truncated,omitzero"`
+}
+
+// FindRequest searches the snapshots of this instance for files.
+type FindRequest struct {
+	// Pattern is a glob that is matched against the name and the whole path,
+	// such as "invoice.pdf", "*.sql" or "/docs/*".
+	Pattern string `json:"pattern"`
+	// Snapshot restricts the search to one snapshot; all if empty.
+	Snapshot   string `json:"snapshot,omitempty"`
+	IgnoreCase bool   `json:"ignore_case,omitzero"`
+}
+
+// FileVersion is one state of a file and the snapshots that have it.
+type FileVersion struct {
+	File
+	// Newest and Oldest are the newest and the oldest snapshot with this
+	// version, the same if there is only one. Snapshots counts them.
+	Newest    SnapshotRef `json:"newest"`
+	Oldest    SnapshotRef `json:"oldest"`
+	Snapshots int         `json:"snapshots"`
+}
+
+// SnapshotRef names a snapshot.
+type SnapshotRef struct {
+	ID   string    `json:"id"`
+	Time time.Time `json:"time"`
+}
+
+// FindResult is what a search found: the versions of every matching path,
+// sorted by path, newest version first.
+type FindResult struct {
+	Versions []FileVersion `json:"versions"`
+	// Searched is the number of snapshots that were searched.
+	Searched int `json:"searched"`
+	// Truncated: there are more matches than are shown.
+	Truncated bool `json:"truncated,omitzero"`
+}
+
 // ScheduleAction is what a ScheduleRequest does.
 type ScheduleAction string
 
@@ -334,6 +400,10 @@ type Service interface {
 	Retention(ctx context.Context) (RetentionInfo, error)
 	// Locks lists the locks in the repository.
 	Locks(ctx context.Context) ([]Lock, error)
+	// Files lists a directory in a snapshot, Find searches the snapshots for
+	// files, to see what a restore would bring back and from which snapshot.
+	Files(ctx context.Context, req FilesRequest) (FileList, error)
+	Find(ctx context.Context, req FindRequest) (FindResult, error)
 	// RestorePreflight checks a restore without performing it.
 	RestorePreflight(ctx context.Context, req RestoreRequest) (RestorePreflight, error)
 	// Operation returns the running operation, nil if none.

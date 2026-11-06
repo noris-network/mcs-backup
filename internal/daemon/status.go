@@ -184,6 +184,18 @@ func (d *Daemon) Locks(ctx context.Context) ([]service.Lock, error) {
 	return locks, d.redact.Error(err)
 }
 
+// Files implements service.Service.
+func (d *Daemon) Files(ctx context.Context, req service.FilesRequest) (service.FileList, error) {
+	list, err := d.eng.Files(ctx, req)
+	return list, d.redact.Error(err)
+}
+
+// Find implements service.Service.
+func (d *Daemon) Find(ctx context.Context, req service.FindRequest) (service.FindResult, error) {
+	res, err := d.eng.Find(ctx, req)
+	return res, d.redact.Error(err)
+}
+
 // RestorePreflight implements service.Service.
 func (d *Daemon) RestorePreflight(ctx context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {
 	pre, err := d.eng.RestorePreflight(ctx, req)
