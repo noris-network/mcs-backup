@@ -18,7 +18,11 @@ import (
 // View implements tea.Model.
 func (m *Model) View() tea.View {
 	if d, ok := m.dlg.(plainDialog); ok && !m.quitting {
-		lines := strings.Split(d.view(m.width, m.height), "\n")
+		text := d.view(m.width, m.height)
+		if m.flash != "" { // there is no legend to show it in
+			text += "\n\n" + styleTitle.Render(m.flash)
+		}
+		lines := strings.Split(text, "\n")
 		v := tea.NewView(strings.Join(lines[:min(len(lines), max(m.height, 1))], "\n"))
 		v.AltScreen = true
 		v.WindowTitle = "mcs-backup"

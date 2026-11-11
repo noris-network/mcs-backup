@@ -140,7 +140,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case linkMsg:
 		if !m.fail("web UI", msg.err) {
 			m.webLink = msg.url
-			d := &linkDialog{url: msg.url}
+			d := &linkDialog{url: msg.url, canOpen: m.o.Open != nil}
 			if m.o.Hint != nil {
 				d.hint = m.o.Hint(msg.url)
 			}

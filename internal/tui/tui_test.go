@@ -589,6 +589,32 @@ func TestWebUILoginLink(t *testing.T) {
 	}
 }
 
+func TestWebUILoginLinkWithoutABrowser(t *testing.T) {
+	r := healthy(newRig(t))
+	r.m.o.Open = nil // in a container or an SSH session
+	r.load()
+	r.fake.WebUIFn = func(context.Context) (service.WebUIStatus, error) { return service.WebUIStatus{Enabled: true}, nil }
+	r.fake.LoginLinkFn = func(context.Context) (string, error) { return "http://127.0.0.1:8080/login?code=abc", nil }
+	r.press("w")
+	r.wantScreen("http://127.0.0.1:8080/login?code=abc", "kubectl port-forward", "d switch the web UI off")
+	r.wantNoScreen("o open here")
+	r.press("o")
+	if r.m.dlg == nil {
+		t.Error("o closed the dialog")
+	}
+}
+
+func TestPlainDialogsShowMessages(t *testing.T) {
+	r := healthy(newRig(t))
+	r.m.o.Open = func(string) error { return errors.New("no browser found") }
+	r.load()
+	r.fake.WebUIFn = func(context.Context) (service.WebUIStatus, error) { return service.WebUIStatus{Enabled: true}, nil }
+	r.fake.LoginLinkFn = func(context.Context) (string, error) { return "http://127.0.0.1:8080/login?code=abc", nil }
+	r.press("w", "o")
+	// the link stays, and the reason is on the screen with it
+	r.wantScreen("http://127.0.0.1:8080/login?code=abc", "open browser: no browser found")
+}
+
 func TestWebUIUnavailable(t *testing.T) {
 	r := healthy(newRig(t)).load()
 	r.fake.WebUIFn = func(context.Context) (service.WebUIStatus, error) {

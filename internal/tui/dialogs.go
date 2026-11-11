@@ -420,6 +420,9 @@ func (d *pasteDialog) view(width, _ int) string {
 
 type linkDialog struct {
 	url, hint string
+	// canOpen tells if this machine has a browser to open the link in: not
+	// in a container or an SSH session
+	canOpen bool
 }
 
 func (d *linkDialog) plain() {}
@@ -429,8 +432,7 @@ func (d *linkDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 	case "esc", "q", "enter", "ctrl+c":
 		return nil, true
 	case "o":
-		if m.o.Open == nil {
-			m.say("this machine cannot open a browser; open the link by hand")
+		if !d.canOpen || m.o.Open == nil {
 			return nil, false
 		}
 		return act("open browser", func() error { return m.o.Open(d.url) }), false
@@ -450,7 +452,11 @@ func (d *linkDialog) view(_, _ int) string {
 	if d.hint != "" {
 		text += "\n" + styleDim.Render("From another machine:") + "\n" + d.hint + "\n"
 	}
-	return text + "\n" + styleDim.Render("o open here · d switch the web UI off · esc close")
+	keys := "d switch the web UI off · esc close"
+	if d.canOpen {
+		keys = "o open here · " + keys
+	}
+	return text + "\n" + styleDim.Render(keys)
 }
 
 // ---- restore ----
