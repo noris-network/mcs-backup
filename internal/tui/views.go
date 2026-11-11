@@ -116,7 +116,7 @@ func (m *Model) footer() string {
 	if m.flash != "" {
 		return styleTitle.Render(m.flash)
 	}
-	return m.legend(m.tab, m.op != nil || m.retrying())
+	return m.legend(m.tab, m.op != nil || m.retrying(), m.showForget)
 }
 
 // footerHeight is the number of lines the legend needs on the tab that needs
@@ -124,21 +124,24 @@ func (m *Model) footer() string {
 func (m *Model) footerHeight() int {
 	h := 1
 	for t := range numTabs {
-		h = max(h, strings.Count(m.legend(t, true), "\n")+1)
+		h = max(h, strings.Count(m.legend(t, true, false), "\n")+1)
 	}
 	return h
 }
 
-// legend lists the keys that work on a tab.
-func (m *Model) legend(t tab, cancel bool) string {
+// legend lists the keys that work on a tab; forget is set while Snapshots
+// shows the forget preview instead of the list.
+func (m *Model) legend(t tab, cancel, forget bool) string {
 	common := []hint{{"b", "backup"}, {"v", "restore test"}, {"s", "schedule"}, {"l", "log"}, {"w", "web UI"}, {"r", "refresh"}, {"?", "help"}, {"q", "quit"}}
 	var keys []hint
-	switch t {
-	case tabSnapshots:
+	switch {
+	case t == tabSnapshots && forget:
+		keys = []hint{{"f", "back to the list"}}
+	case t == tabSnapshots:
 		keys = []hint{{"enter", "restore"}, {"t", "restore latest"}, {"o", "files"}, {"d", "what changed"}, {"K", "keep/unkeep"}, {"a", "acknowledge"}, {"f", "forget preview"}}
-	case tabLocks:
+	case t == tabLocks:
 		keys = []hint{{"u", "remove stale"}, {"U", "remove all"}}
-	case tabAccess:
+	case t == tabAccess:
 		keys = []hint{{"p", "show/hide secrets"}, {"y", "paste view"}}
 	}
 	if cancel {

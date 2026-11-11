@@ -342,6 +342,9 @@ func (m *Model) move(delta int) {
 	n := 0
 	switch m.tab {
 	case tabSnapshots:
+		if m.showForget { // the list is not in view
+			return
+		}
 		n = len(m.snapshots)
 	case tabLocks:
 		n = len(m.locks)
@@ -402,10 +405,18 @@ func (m *Model) overviewKey(s string) tea.Cmd {
 }
 
 func (m *Model) snapshotKey(s string) tea.Cmd {
+	if m.showForget {
+		// the preview hides the list: its keys must not act on a snapshot
+		// that cannot be seen
+		if s == "f" || s == "esc" {
+			m.showForget = false
+		}
+		return nil
+	}
 	snap, ok := m.selectedSnapshot()
 	switch s {
 	case "f":
-		m.showForget = !m.showForget
+		m.showForget = true
 		return nil
 	case "enter":
 		if ok {

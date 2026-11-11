@@ -319,7 +319,17 @@ func TestForgetPreviewAndApproval(t *testing.T) {
 	r.load()
 	r.wantScreen("F  approve the held forget")
 	r.press("2", "f")
-	r.wantScreen("would remove 2 snapshots", "aaaaaaaa", "held back until it is approved")
+	r.wantScreen("would remove 2 snapshots", "aaaaaaaa", "held back until it is approved", "f back to the list")
+	r.wantNoScreen("enter restore", "keep/unkeep")
+	// the keys of the list do nothing to the snapshots out of view
+	r.press("down", "K", "a", "d", "o", "t", "enter")
+	if r.m.dlg != nil || r.m.cursor[tabSnapshots] != 0 || len(r.fake.CallsTo("Keep"))+len(r.fake.CallsTo("Unkeep"))+len(r.fake.CallsTo("Diff")) != 0 {
+		t.Errorf("a key of the list acted in the forget preview: dialog %T, cursor %d, %v", r.m.dlg, r.m.cursor[tabSnapshots], r.fake)
+	}
+	r.press("f")
+	r.wantScreen("ORIGIN", "enter restore")
+	r.press("f", "esc")
+	r.wantScreen("ORIGIN")
 
 	r.press("1", "F")
 	r.wantScreen("Approve the held forget")
