@@ -347,6 +347,7 @@ func restoreRequest(r *http.Request) service.RestoreRequest {
 		req.Mode = service.ModeMerge
 	}
 	req.IgnoreSpaceWarning = r.PostFormValue("ignore_space") == "1"
+	req.Preview = r.PostFormValue("preview") == "1"
 	req.NoSafetySnapshot = r.PostFormValue("no_safety_snapshot") == "1"
 	req.Confirm = strings.TrimSpace(r.PostFormValue("confirm"))
 	return req

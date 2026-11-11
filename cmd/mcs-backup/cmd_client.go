@@ -213,6 +213,7 @@ func (a *app) newRestoreCmd() *cobra.Command {
 	var (
 		target    string
 		at        string
+		dryRun    bool
 		includes  []string
 		merge     bool
 		assumeYes bool
@@ -230,6 +231,9 @@ the restore script in pipe mode). That replaces the current data, so it needs
 confirmation, and a snapshot of the current data is taken first.
 
 Arguments after the snapshot are passed to the pre- and post-restore hooks.
+
+With --dry-run nothing is restored: the command shows how many files would be
+overwritten, deleted and created, and names the first of them.
 
 With --at the snapshot is chosen by time: the newest regular snapshot that was
 taken at or before it, for a state from before something went wrong. All
@@ -255,6 +259,7 @@ arguments are then hook arguments. A date without a time means its first minute.
 			}
 			req := service.RestoreRequest{
 				Snapshot: ref, Includes: includes, NoSafetySnapshot: noSafety, IgnoreSpaceWarning: force, HookArgs: hookArgs,
+				Preview: dryRun,
 			}
 			if merge {
 				req.Mode = service.ModeMerge
@@ -288,6 +293,14 @@ arguments are then hook arguments. A date without a time means its first minute.
 			if err != nil {
 				return err
 			}
+			if dryRun {
+				if a.wantJSON(cmd) {
+					return a.printJSON(pre)
+				}
+				a.renderPreflight(pre)
+				fmt.Fprintln(a.stdout, "\nThis was a dry run: nothing was restored.")
+				return nil
+			}
 			if !a.wantJSON(cmd) {
 				a.renderPreflight(pre)
 				fmt.Fprintln(a.stdout)
@@ -312,6 +325,7 @@ arguments are then hook arguments. A date without a time means its first minute.
 	f.StringVar(&target, "target", "", "restore into this directory instead of in place")
 	f.StringVar(&at, "at", "", "restore the newest regular snapshot at or before this time, such as \"2026-11-08 14:00\"")
 	f.StringArrayVar(&includes, "include", nil, "restore only this path of the snapshot (repeatable)")
+	f.BoolVar(&dryRun, "dry-run", false, "restore nothing: show what would be overwritten, deleted and created (reads the files in the target, which can take a while)")
 	f.BoolVar(&merge, "merge", false, "in place: keep files that are not in the snapshot instead of removing them")
 	f.BoolVar(&assumeYes, "confirm", false, "confirm an in-place restore without asking")
 	f.BoolVar(&noSafety, "no-safety-snapshot", false, "do not take a snapshot of the current data first")

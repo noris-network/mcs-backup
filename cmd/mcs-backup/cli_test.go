@@ -814,3 +814,31 @@ func TestRestoreAtATime(t *testing.T) {
 		t.Error("a restore started without a snapshot for the time")
 	}
 }
+
+func TestRestoreDryRun(t *testing.T) {
+	c := newCLI(t)
+	c.fake.RestorePreflightFn = func(_ context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {
+		p := service.RestorePreflight{Snapshot: service.Snapshot{ShortID: "aaaaaaaa"}, Target: "/data", InPlace: true}
+		if req.Preview {
+			p.Changes = &service.RestoreChanges{Overwritten: 3, Deleted: 1, DeletedPaths: []string{"/data/new.txt"}}
+		}
+		return p, nil
+	}
+	// in place and without a terminal: a dry run needs no confirmation, as it restores nothing
+	if code := c.run("restore", "latest", "--dry-run"); code != 0 {
+		t.Fatal(code, c.err())
+	}
+	for _, want := range []string{"3 overwritten, 1 deleted", "/data/new.txt", "nothing was restored"} {
+		if !strings.Contains(c.out(), want) {
+			t.Errorf("output lacks %q:\n%s", want, c.out())
+		}
+	}
+	if len(c.fake.CallsTo("StartRestore")) != 0 {
+		t.Error("a dry run started a restore")
+	}
+	c.run("restore", "--dry-run", "--json")
+	var got service.RestorePreflight
+	if err := json.Unmarshal(c.stdout.Bytes(), &got); err != nil || got.Changes == nil || got.Changes.Overwritten != 3 {
+		t.Errorf("JSON: %v %s", err, c.out())
+	}
+}

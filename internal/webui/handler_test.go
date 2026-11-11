@@ -585,6 +585,29 @@ func TestFilesPageBrowsesASnapshot(t *testing.T) {
 	s.do("GET", "/snapshots", nil).want(t, http.StatusOK, `href="/files?snapshot=aaaaaaaa"`)
 }
 
+func TestRestoreCheckCanShowWhatWouldChange(t *testing.T) {
+	s := newSite(t, "")
+	s.fake.RestorePreflightFn = func(_ context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {
+		p := service.RestorePreflight{Snapshot: service.Snapshot{ShortID: "aaaaaaaa", Time: t0}, Target: "/data", InPlace: true, Mode: req.Mode}
+		if req.Preview {
+			p.Changes = &service.RestoreChanges{Overwritten: 3, Deleted: 1, DeletedPaths: []string{"/data/<new>.txt"}}
+		}
+		return p, nil
+	}
+	s.login()
+	form := url.Values{"snapshot": {"aaaaaaaa"}, "mode": {"merge"}, "include": {"/a b"}}
+	s.do("POST", "/restore/check", form).want(t, http.StatusOK, "Show what would change", `name="preview" value="1"`)
+	form.Set("preview", "1")
+	page := s.do("POST", "/restore/check", form)
+	page.want(t, http.StatusOK, "3 overwritten, 1 deleted", "/data/&lt;new&gt;.txt", "Type <code>aaaaaaaa</code> to confirm", `name="include" value="/a b"`)
+	if strings.Contains(page.body, "Show what would change") {
+		t.Error("the preview is offered again although it is shown")
+	}
+	if req := s.fake.CallsTo("RestorePreflight")[1].Args[0].(service.RestoreRequest); !req.Preview || req.Mode != service.ModeMerge {
+		t.Errorf("request = %+v", req)
+	}
+}
+
 func TestDiffPage(t *testing.T) {
 	s := newSite(t, "")
 	s.fake.DiffFn = func(_ context.Context, req service.DiffRequest) (service.DiffResult, error) {

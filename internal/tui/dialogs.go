@@ -478,6 +478,13 @@ func (d *restoreDialog) previewKey(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) 
 		if d.pre.SpaceWarning {
 			d.ignore = !d.ignore
 		}
+	case "p":
+		if d.pre.Changes == nil && !d.pre.PipeMode {
+			req := d.req
+			req.Preview = true
+			d.err = "Working out what would change …"
+			return fetchPreflight(m.ctx, m.svc, req), false
+		}
 	case "enter":
 		if d.pre.SpaceWarning && !d.ignore {
 			d.err = "There is not enough free space. Press f to restore anyway."
@@ -540,7 +547,7 @@ func (d *restoreDialog) view(width int) string {
 			}
 			b.WriteString("\n" + mark + " restore although the space looks too small (f)\n")
 		}
-		hint = "enter continue · esc back"
+		hint = "enter continue · p what would change · esc back"
 	case stageConfirm:
 		b.WriteString(wrap("This replaces the current data. Type "+d.req.Snapshot+" to confirm.", boxText(width)) + "\n\n" + field(&d.confirm, width) + "\n")
 		hint = "enter restore · esc back"

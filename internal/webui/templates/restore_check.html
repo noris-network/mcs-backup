@@ -6,6 +6,16 @@
 {{end}}
 </dl>
 </section>
+{{if and (not .Data.Pre.Changes) (not .Data.Pre.PipeMode)}}
+<form method="post" action="/restore/check" class="back">
+  <input type="hidden" name="snapshot" value="{{.Data.Request.Snapshot}}">
+  <input type="hidden" name="target" value="{{.Data.Request.Target}}">
+  {{range .Data.Request.Includes}}<input type="hidden" name="include" value="{{.}}">
+  {{end}}<input type="hidden" name="mode" value="{{.Data.Request.Mode}}">
+  <input type="hidden" name="preview" value="1">
+  <button>Show what would change</button> <span class="dim">reads the files in the target, which can take a while</span>
+</form>
+{{end}}
 <section class="panel {{if .Data.Pre.InPlace}}danger-zone{{end}}">
 <form method="post" action="/restore" class="stack">
   <input type="hidden" name="snapshot" value="{{.Data.Request.Snapshot}}">

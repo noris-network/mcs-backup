@@ -146,3 +146,25 @@ func TestWhatChangedInASnapshot(t *testing.T) {
 		t.Error("a failed comparison opens a dialog")
 	}
 }
+
+func TestRestoreDialogShowsWhatWouldChange(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	r.fake.RestorePreflightFn = func(_ context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {
+		p := service.RestorePreflight{Snapshot: snap("cccccccc", time.Hour), Target: "/data", InPlace: true, Mode: req.Mode}
+		if req.Preview {
+			p.Changes = &service.RestoreChanges{Overwritten: 3, Deleted: 1, DeletedPaths: []string{"/data/new.txt"}}
+		}
+		return p, nil
+	}
+	r.press("2", "enter", "enter")
+	r.wantScreen("p what would change")
+	r.wantNoScreen("overwritten")
+	r.press("p")
+	r.wantScreen("3 overwritten, 1 deleted", "/data/new.txt")
+	r.press("p") // once is enough
+	if n := len(r.fake.CallsTo("RestorePreflight")); n != 2 {
+		t.Errorf("%d preflights, want 2", n)
+	}
+	r.press("enter")
+	r.wantScreen("Type cccccccc to confirm")
+}
