@@ -386,6 +386,29 @@ func TestForgetPreviewAndApproval(t *testing.T) {
 	}
 }
 
+func TestLockColumnsFitAPodName(t *testing.T) {
+	r := healthy(newRig(t))
+	r.fake.LocksFn = func(context.Context) ([]service.Lock, error) {
+		return []service.Lock{{ID: "1234567890", Hostname: "mcs-sim-files-7f5d9d7785-j9p79", PID: 37896}, {ID: "abcdefabcd", Hostname: "app", PID: 4242}}, nil
+	}
+	r.load()
+	r.press("3")
+	lines := strings.Split(r.screen(), "\n")
+	col := func(text string) int {
+		t.Helper()
+		for _, l := range lines {
+			if i := strings.Index(l, text); i >= 0 {
+				return len([]rune(l[:i]))
+			}
+		}
+		t.Fatalf("%q is not on the screen:\n%s", text, r.screen())
+		return -1
+	}
+	if pid, a, b := col("PID"), col("37896"), col("4242"); pid != a || a != b {
+		t.Errorf("the PID column is not aligned: %d %d %d\n%s", pid, a, b, r.screen())
+	}
+}
+
 func TestUnlock(t *testing.T) {
 	r := healthy(newRig(t))
 	r.fake.LocksFn = func(context.Context) ([]service.Lock, error) {

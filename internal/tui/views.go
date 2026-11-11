@@ -492,10 +492,15 @@ func (m *Model) locksPage() string {
 	if len(m.locks) == 0 {
 		return styleGood.Render("✓") + " The repository has no locks."
 	}
+	// a host is often the name of a pod, which is long
+	host := len("HOST")
+	for _, l := range m.locks {
+		host = max(host, len(l.Hostname))
+	}
 	var b strings.Builder
-	b.WriteString(styleDim.Render(fmt.Sprintf("  %-9s %-8s %-10s %-24s %-8s", "ID", "AGE", "EXCLUSIVE", "HOST", "PID")) + "\n")
+	b.WriteString(styleDim.Render(fmt.Sprintf("  %-9s %-8s %-10s %-*s %-8s", "ID", "AGE", "EXCLUSIVE", host, "HOST", "PID")) + "\n")
 	for i, l := range m.locks {
-		cols := fmt.Sprintf("%-9s %-8s %-10v %-24s %-8d", present.Short(l.ID), present.Duration(l.Age.Std()), l.Exclusive, l.Hostname, l.PID)
+		cols := fmt.Sprintf("%-9s %-8s %-10v %-*s %-8d", present.Short(l.ID), present.Duration(l.Age.Std()), l.Exclusive, host, l.Hostname, l.PID)
 		note := ""
 		if l.Stale {
 			note = "stale"
