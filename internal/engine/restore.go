@@ -130,7 +130,7 @@ func (e *Engine) previewChanges(ctx context.Context, p *restorePlan) {
 			}
 		case "deleted":
 			if c.Deleted++; len(c.DeletedPaths) < previewPaths {
-				c.DeletedPaths = append(c.DeletedPaths, item)
+				c.DeletedPaths = append(c.DeletedPaths, inTarget(p.Target, item))
 			}
 		case "unchanged":
 			c.Unchanged++
@@ -141,6 +141,17 @@ func (e *Engine) previewChanges(ctx context.Context, p *restorePlan) {
 		return
 	}
 	p.Changes = &c
+}
+
+// inTarget turns a path that restic reports in the target into the path in
+// the snapshot, the form it reports the other changes in: /data/files/a.txt
+// with the target /data/files is /a.txt.
+func inTarget(target, path string) string {
+	rel, err := filepath.Rel(target, filepath.FromSlash(path))
+	if err != nil || !filepath.IsLocal(rel) {
+		return path
+	}
+	return "/" + filepath.ToSlash(rel)
 }
 
 func (e *Engine) restoreOptions(plan restorePlan) restic.RestoreOptions {

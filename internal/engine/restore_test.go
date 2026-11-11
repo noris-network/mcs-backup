@@ -579,7 +579,8 @@ func TestRestorePreview(t *testing.T) {
 	for i := range previewPaths + 5 {
 		out.WriteString(item("updated", fmt.Sprintf("/docs/%02d", i)))
 	}
-	out.WriteString(item("deleted", "/mnt/new.txt"))
+	// restic names a deleted file by its path in the target
+	out.WriteString(item("deleted", "/mnt/new.txt") + item("deleted", filepath.Join(r.root, "docs", "old.txt")))
 	r.main.On(t, "restore", resticfake.Response{Stdout: out.String() + restoreSummary(3)})
 
 	// only when asked for: it reads the whole target
@@ -592,10 +593,10 @@ func TestRestorePreview(t *testing.T) {
 		t.Fatalf("preflight = %+v, %v", p, err)
 	}
 	c := p.Changes
-	if c.Created != 1 || c.Unchanged != 3 || c.Overwritten != previewPaths+5 || c.Deleted != 1 {
+	if c.Created != 1 || c.Unchanged != 3 || c.Overwritten != previewPaths+5 || c.Deleted != 2 {
 		t.Errorf("changes = %+v", c)
 	}
-	if len(c.OverwrittenPaths) != previewPaths || c.OverwrittenPaths[0] != "/docs/00" || !slices.Equal(c.DeletedPaths, []string{"/mnt/new.txt"}) {
+	if len(c.OverwrittenPaths) != previewPaths || c.OverwrittenPaths[0] != "/docs/00" || !slices.Equal(c.DeletedPaths, []string{"/mnt/new.txt", "/docs/old.txt"}) {
 		t.Errorf("paths = %q, %q", c.OverwrittenPaths, c.DeletedPaths)
 	}
 	// the same restore, but nothing is written

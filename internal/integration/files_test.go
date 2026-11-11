@@ -138,7 +138,7 @@ func TestRestorePreviewChangesNothing(t *testing.T) {
 	if c.Overwritten != 1 || !slices.Equal(c.OverwrittenPaths, []string{"/docs/a.txt"}) {
 		t.Errorf("overwritten = %d %q", c.Overwritten, c.OverwrittenPaths)
 	}
-	if c.Deleted != 1 || len(c.DeletedPaths) != 1 || !strings.HasSuffix(c.DeletedPaths[0], "/docs/new.txt") {
+	if c.Deleted != 1 || !slices.Equal(c.DeletedPaths, []string{"/docs/new.txt"}) {
 		t.Errorf("deleted = %d %q", c.Deleted, c.DeletedPaths)
 	}
 	// keep.txt comes back; the directories are there already
