@@ -50,7 +50,7 @@ func (e *Engine) forgetOptions(snaps []restic.Snapshot) restic.ForgetOptions {
 // forget applies the retention policy to the snapshots of this instance. Unless
 // force is set, it first asks restic what it would delete and holds back
 // drastic deletions.
-func (e *Engine) forget(ctx context.Context, repo *restic.Repo, appendOnly bool, force bool) (ForgetOutcome, error) {
+func (e *Engine) forget(ctx context.Context, repo *restic.Repo, appendOnly bool, force bool, sink Sink) (ForgetOutcome, error) {
 	var out ForgetOutcome
 	if appendOnly {
 		return out, ErrAppendOnly
@@ -79,7 +79,7 @@ func (e *Engine) forget(ctx context.Context, repo *restic.Repo, appendOnly bool,
 	}
 
 	var groups []restic.ForgetGroup
-	err = e.retryLocked(ctx, repo, appendOnly, Sink{}, func() error {
+	err = e.retryLocked(ctx, repo, appendOnly, sink, func() error {
 		var err error
 		groups, err = repo.Forget(ctx, opts)
 		return err
@@ -103,12 +103,13 @@ func (e *Engine) forgetPhase(ctx context.Context, repo *restic.Repo, name string
 	} else {
 		sink.phase("forget")
 	}
-	o, err := e.forget(ctx, repo, appendOnly, false)
+	o, err := e.forget(ctx, repo, appendOnly, false, sink)
 	*out = o
 	switch {
 	case err != nil:
 		out.Error = err.Error()
 		res.warn("forget on the %s repository failed: %v", name, err)
+		sink.logf("forget on the %s repository failed: %v", name, err)
 	case o.Held:
 		res.warn("forget on the %s repository is held back: it would remove %d of %d snapshots, approve it if that is intended",
 			name, o.Removed, o.Total)
@@ -136,13 +137,15 @@ func (e *Engine) ApproveForget(ctx context.Context, sink Sink) ApproveResult {
 	}
 	var errs []error
 	var err error
-	if res.Main, err = e.forget(ctx, e.main, e.cfg.AppendOnly, true); err != nil {
+	if res.Main, err = e.forget(ctx, e.main, e.cfg.AppendOnly, true, sink); err != nil {
+		sink.logf("forget on the main repository failed: %v", err)
 		res.Main.Error = err.Error()
 		errs = append(errs, fmt.Errorf("main repository: %w", err))
 	}
 	if e.second != nil && !e.cfg.Copy.AppendOnly {
 		var o ForgetOutcome
-		if o, err = e.forget(ctx, e.second, false, true); err != nil {
+		if o, err = e.forget(ctx, e.second, false, true, sink); err != nil {
+			sink.logf("forget on the secondary repository failed: %v", err)
 			o.Error = err.Error()
 			errs = append(errs, fmt.Errorf("secondary repository: %w", err))
 		}

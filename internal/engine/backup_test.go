@@ -94,6 +94,23 @@ func TestBackupForgetRemoves(t *testing.T) {
 	}
 }
 
+func TestBackupForgetFailureIsLogged(t *testing.T) {
+	r := newRig(t, false)
+	r.main.On(t, "snapshots", resticfake.Response{Stdout: snapsJSON(t)})
+	r.main.On(t, "backup", resticfake.Response{Stdout: summaryLine("new1", 3, 1000)})
+	r.main.On(t, "forget", resticfake.Response{Stdout: forgetJSON(t, 10, 1)},
+		resticfake.Response{Stderr: "unable to create lock in backend: repository is already locked by PID 7\n", Exit: 11})
+
+	res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
+	if res.Result != service.ResultWarning || len(res.Warnings) != 1 || !strings.Contains(res.Warnings[0], "forget on the main repository failed") {
+		t.Fatalf("result = %+v", res)
+	}
+	// the log has the reason in full, also where a result is shown cut short
+	if log := r.logText(); !strings.Contains(log, "forget on the main repository failed") || !strings.Contains(log, "already locked by PID 7") {
+		t.Errorf("log:\n%s", log)
+	}
+}
+
 func TestBackupLegacySnapshots(t *testing.T) {
 	r := newRig(t, false)
 	legacy := snap("legacy1", service.LegacyHost, 48*time.Hour, 3, 1000, rootPaths(r))
