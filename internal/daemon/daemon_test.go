@@ -283,6 +283,47 @@ func TestStatusWarnings(t *testing.T) {
 	})
 }
 
+func TestStatusWarnsOfRunsThatNeedALook(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		d := newTestDaemon(t, func(f *fakeEngine) {
+			f.backup = func(context.Context, service.BackupRequest, engine.Sink) engine.BackupResult {
+				return engine.BackupResult{Result: service.ResultWarning, Snapshot: "new1",
+					Warnings: []string{"forget on the main repository failed: repository is already locked"}}
+			}
+			f.prune = func(context.Context, engine.Sink) engine.MaintenanceResult {
+				return engine.MaintenanceResult{Result: service.ResultFailure, Error: "pack is damaged"}
+			}
+			f.check = func(context.Context, engine.Sink) engine.MaintenanceResult {
+				return engine.MaintenanceResult{Result: service.ResultFailure, Error: "tree is missing"}
+			}
+		})
+		ctx, stop := start(t, d)
+		synctest.Wait()
+		if _, err := d.StartBackup(ctx, service.BackupRequest{}); err != nil {
+			t.Fatal(err)
+		}
+		synctest.Wait()
+		for _, run := range []func(context.Context) (service.Operation, error){d.startPrune, d.startCheck} {
+			if _, err := run(ctx); err != nil {
+				t.Fatal(err)
+			}
+			synctest.Wait()
+		}
+		st, _ := d.Status(ctx)
+		for _, code := range []string{"backup_warning", "prune_failed", "check_failed"} {
+			if !hasWarning(st, code) {
+				t.Errorf("no %s warning: %+v", code, st.Warnings)
+			}
+		}
+		for _, w := range st.Warnings {
+			if w.Code == "backup_warning" && !strings.Contains(w.Message, "already locked") {
+				t.Errorf("the warning lacks the reason: %q", w.Message)
+			}
+		}
+		stop()
+	})
+}
+
 func TestSnapshotsListsOnlyOwnNewestFirst(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		d := newTestDaemon(t, func(f *fakeEngine) {

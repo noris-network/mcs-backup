@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/noris-network/mcs-backup/v2/internal/notify"
@@ -121,6 +122,26 @@ func (d *Daemon) warningsLocked(st service.Status, now time.Time) []service.Warn
 	}
 	if r, ok := st.LastRuns[service.KindBackup]; ok && (r.Result == service.ResultFailure || r.Result == service.ResultTimeout) && !r.WillRetry {
 		add("backup_failed", service.SeverityError, "the last backup failed: %s", r.Error)
+	}
+	if r, ok := st.LastRuns[service.KindBackup]; ok && r.Result == service.ResultWarning {
+		// a forget that failed, a file that could not be read: the snapshot
+		// is there, but something needs a look before it happens every time
+		var ws []string
+		for _, w := range r.Warnings {
+			if st.ForgetHeld && strings.Contains(w, "is held back") { // forget_held says it
+				continue
+			}
+			ws = append(ws, w)
+		}
+		if len(ws) > 0 {
+			add("backup_warning", service.SeverityWarning, "the last backup has a warning: %s", strings.Join(ws, "; "))
+		}
+	}
+	if r, ok := st.LastRuns[service.KindPrune]; ok && !r.Result.OK() && r.Result != service.ResultCancelled {
+		add("prune_failed", service.SeverityWarning, "the last prune failed: %s", r.Error)
+	}
+	if r, ok := st.LastRuns[service.KindCheck]; ok && !r.Result.OK() && r.Result != service.ResultCancelled {
+		add("check_failed", service.SeverityError, "the last check of the repository failed: %s", r.Error)
 	}
 	if r, ok := st.LastRuns[service.KindCopy]; ok && !r.Result.OK() {
 		add("copy_failed", service.SeverityWarning, "the last copy to the secondary repository failed: %s", r.Error)
