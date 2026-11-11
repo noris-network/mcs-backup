@@ -199,6 +199,23 @@ func TestLocks(t *testing.T) {
 	}
 }
 
+func TestReleaseStaleLocks(t *testing.T) {
+	r := newRig(t, true)
+	r.main.On(t, "unlock", resticfake.Response{})
+	r.second.On(t, "unlock", resticfake.Response{Stderr: "Fatal: unable to open repository\n", Exit: 1})
+	r.e.ReleaseStaleLocks(t.Context(), r.sink())
+	// only the stale locks, in both repositories: never the lock of a restic that runs
+	if got := r.main.CallsTo(t, "unlock"); len(got) != 1 || !slices.Equal(got[0], []string{"unlock"}) {
+		t.Errorf("main unlock = %q", got)
+	}
+	if got := r.second.CallsTo(t, "unlock"); len(got) != 1 || !slices.Equal(got[0], []string{"unlock"}) {
+		t.Errorf("second unlock = %q", got)
+	}
+	if log := r.logText(); !strings.Contains(log, "in the main repository") || !strings.Contains(log, "from the secondary repository failed") {
+		t.Errorf("log:\n%s", log)
+	}
+}
+
 func TestRetentionInfo(t *testing.T) {
 	r := newRig(t, false)
 	mine := snap("m1", "me", time.Hour, 1, 1, nil)

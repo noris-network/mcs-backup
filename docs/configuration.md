@@ -114,7 +114,7 @@ is still running is skipped and logged.
 | `ALLOW_EMPTY_SNAPSHOT` | `false` | An empty source is not an error. restic does not store empty snapshots anyway, the run then ends as `skipped`. |
 | `BACKUP_MAX_SHRINK` | `50%` | A backup that processed this much less data than the last regular snapshot is stored but tagged `suspicious`, and no `forget` runs until it is acknowledged. `0` = off. |
 | `FORGET_MAX_DELETE` | `25%` | A `forget` that would delete more than this share of the snapshots (and more than two) is held back until someone approves it (`approve-forget`). |
-| `AUTO_UNLOCK_AFTER` | `0` (off) | If a run finds the repository locked and **all** locks are older than this, they are removed and the run is repeated. Keep it above `10m`: restic refreshes the lock of a running process every 5 minutes. |
+| `AUTO_UNLOCK_AFTER` | `0` (off) | If a run finds the repository locked and **all** locks are older than this, they are removed and the run is repeated. Keep it above `10m`: restic refreshes the lock of a running process every 5 minutes. Independent of this setting, an operation that is cancelled or runs out of time removes the stale locks its restic may have left (`restic unlock` without `--remove-all`). |
 
 ## Secondary copy
 

@@ -45,6 +45,7 @@ func (d *Daemon) launch(ctx context.Context, kind service.Kind, detail string, r
 	d.mu.Unlock()
 	d.wg.Go(func() {
 		out := run(opCtx, d.sink(r))
+		d.releaseLocks(r, out.result)
 		res := service.RunResult{
 			ID: r.op.ID, Kind: kind, Result: out.result, Message: out.message, Error: out.err, Snapshot: out.snapshot,
 			Warnings: out.warnings, Source: r.op.Source, Started: r.op.Started, Duration: service.Duration(d.now().Sub(r.op.Started)),
@@ -83,9 +84,22 @@ func (d *Daemon) startBackup(ctx context.Context, req service.BackupRequest, att
 	d.mu.Unlock()
 	d.wg.Go(func() {
 		res := d.eng.Backup(opCtx, req, d.sink(r))
+		d.releaseLocks(r, res.Result)
 		d.finishBackup(r, req, attempt, res)
 	})
 	return op, nil
+}
+
+// releaseLocks removes the locks that restic may have left when the operation
+// was cancelled or ran out of time: restic stopped while it took its lock
+// leaves the lock behind, and every later forget and prune fails on it.
+func (d *Daemon) releaseLocks(r *running, result service.Result) {
+	if result != service.ResultCancelled && result != service.ResultTimeout {
+		return
+	}
+	ctx, cancel := context.WithTimeout(engine.WithHardStop(d.opsCtx, d.hardStop), time.Minute)
+	defer cancel()
+	d.eng.ReleaseStaleLocks(ctx, d.sink(r))
 }
 
 func (d *Daemon) finishBackup(r *running, req service.BackupRequest, attempt int, res engine.BackupResult) {

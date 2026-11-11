@@ -97,6 +97,10 @@ func TestCancel(t *testing.T) {
 		if names := d.notes.names(); len(names) != 0 {
 			t.Errorf("notifications = %q: a cancel is not an incident", names)
 		}
+		// restic stopped while taking its lock leaves it behind
+		if n := d.eng.called("release-locks"); n != 1 {
+			t.Errorf("stale locks released %d times after a cancel", n)
+		}
 		if err := d.Cancel(ctx); err != nil {
 			t.Errorf("cancel without an operation: %v", err)
 		}

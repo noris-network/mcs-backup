@@ -209,6 +209,10 @@ func (f *fakeEngine) Acknowledge(context.Context, string) (service.TagResult, er
 	return service.TagResult{ID: "acked"}, nil
 }
 
+func (f *fakeEngine) ReleaseStaleLocks(context.Context, engine.Sink) {
+	f.record("release-locks")
+}
+
 func (f *fakeEngine) Unlock(_ context.Context, all bool) error {
 	if all {
 		f.record("unlock-all")

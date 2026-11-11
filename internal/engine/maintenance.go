@@ -108,6 +108,29 @@ func (e *Engine) Locks(ctx context.Context) ([]service.Lock, error) {
 	return out, nil
 }
 
+// ReleaseStaleLocks removes the locks that a restic which was stopped may have
+// left behind: a restic stopped while it takes its lock can leave the lock in
+// the repository, and that lock blocks every forget and prune. restic unlock
+// removes stale locks only (of processes that are gone on this machine, or
+// older than 30 minutes), never the lock of a restic that runs. A failure is
+// only logged.
+func (e *Engine) ReleaseStaleLocks(ctx context.Context, sink Sink) {
+	repos := []struct {
+		name string
+		repo *restic.Repo
+	}{{"main", e.main}, {"secondary", e.second}}
+	for _, r := range repos {
+		if r.repo == nil {
+			continue
+		}
+		if err := r.repo.Unlock(ctx, false); err != nil {
+			sink.logf("removing stale locks from the %s repository failed: %v", r.name, err)
+			continue
+		}
+		sink.logf("removed the stale locks a stopped restic may have left in the %s repository", r.name)
+	}
+}
+
 // Unlock removes stale locks, or all locks if all is set.
 func (e *Engine) Unlock(ctx context.Context, all bool) error {
 	if all && e.cfg.AppendOnly {

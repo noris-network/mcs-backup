@@ -55,6 +55,7 @@ type Engine interface {
 	Unkeep(ctx context.Context, ref string) (service.TagResult, error)
 	Acknowledge(ctx context.Context, ref string) (service.TagResult, error)
 	Unlock(ctx context.Context, all bool) error
+	ReleaseStaleLocks(ctx context.Context, sink engine.Sink)
 }
 
 // Notifier delivers events to the operator; *notify.Notifier implements it.
