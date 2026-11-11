@@ -85,7 +85,7 @@ func resultClass(r service.Result) string {
 		return "ok"
 	case service.ResultWarning:
 		return "warn"
-	case service.ResultSkipped:
+	case service.ResultSkipped, service.ResultCancelled: // a cancel is no failure
 		return "skip"
 	}
 	return "bad"

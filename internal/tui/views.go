@@ -359,7 +359,7 @@ func (m *Model) lastRuns(st service.Status) string {
 			c = colGood
 		case service.ResultWarning:
 			c = colWarn
-		case service.ResultSkipped:
+		case service.ResultSkipped, service.ResultCancelled:
 			c = colMuted
 		}
 		line := fmt.Sprintf("%s %-8s %-10s %s %s", dot(c), k, r.Result, present.Stamp(r.Started), styleDim.Render("("+present.Duration(r.Duration.Std())+")"))
@@ -578,6 +578,8 @@ func (m *Model) operationPanel() string {
 					l, c = styleGood.Bold(true).Render(l), colGood
 				case m.lastResult.Result.OK():
 					l, c = styleWarn.Bold(true).Render(l), colWarn
+				case m.lastResult.Result == service.ResultCancelled: // stopped on purpose
+					l, c = styleTitle.Render(l), colMuted
 				default:
 					l = styleBad.Render(l)
 				}

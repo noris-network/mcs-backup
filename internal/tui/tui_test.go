@@ -762,6 +762,13 @@ func TestResultPanelWrapsTheReason(t *testing.T) {
 	}
 }
 
+func TestACancelledRunIsNoFailure(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	r.send(eventMsg{service.Event{Type: service.EventFinished, Result: &service.RunResult{Kind: service.KindBackup, Result: service.ResultCancelled, Source: "tui", Message: "backup failed", Error: "context canceled"}}})
+	r.wantScreen("backup: cancelled", "stopped by tui before it finished")
+	r.wantNoScreen("backup failed", "context canceled")
+}
+
 func TestPanelAndLegendStayAtTheBottom(t *testing.T) {
 	r := healthy(newRig(t)).load()
 	r.send(eventMsg{service.Event{Type: service.EventFinished, Result: &service.RunResult{Kind: service.KindRestore, Result: service.ResultSuccess, Snapshot: "dddddddd00", Duration: service.Duration(4 * time.Second)}}})

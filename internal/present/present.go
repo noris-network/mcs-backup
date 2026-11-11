@@ -308,6 +308,19 @@ func ResultLines(r service.RunResult) []string {
 			}
 		}
 	}
+	if r.Result == service.ResultCancelled {
+		// someone stopped it: "failed" and the error that the stop caused in
+		// restic would only alarm
+		note := "stopped before it finished"
+		if r.Source != "" {
+			note = "stopped by " + r.Source + " before it finished"
+		}
+		add(note)
+		for _, w := range r.Warnings {
+			add("warning: " + w)
+		}
+		return lines
+	}
 	if r.Snapshot != "" && !strings.Contains(r.Message, Short(r.Snapshot)) {
 		add("snapshot " + Short(r.Snapshot))
 	}

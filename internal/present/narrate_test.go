@@ -64,6 +64,14 @@ func TestResultLinesIndentTheLinesOfAnError(t *testing.T) {
 	}
 }
 
+func TestResultLinesOfACancelledRun(t *testing.T) {
+	r := service.RunResult{Kind: service.KindBackup, Result: service.ResultCancelled, Source: "tui", Message: "backup failed", Error: "context canceled\nrestic backup: exit code 130"}
+	got := ResultLines(r)
+	if len(got) != 2 || got[1] != "  stopped by tui before it finished" {
+		t.Errorf("lines = %q", got)
+	}
+}
+
 func TestCards(t *testing.T) {
 	now := time.Date(2026, 10, 29, 12, 0, 0, 0, time.Local)
 	st := service.Status{
