@@ -104,12 +104,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case statusMsg:
 		m.gotStatus(msg)
 	case snapshotsMsg:
-		if m.fail("snapshots", msg.err) {
-			break
+		if !m.fail("snapshots", msg.err) {
+			m.setSnapshots(msg.list)
 		}
-		m.snapshots = slices.Clone(msg.list)
-		slices.SortStableFunc(m.snapshots, func(a, b service.Snapshot) int { return b.Time.Compare(a.Time) })
-		m.clamp(tabSnapshots, len(m.snapshots))
 	case locksMsg:
 		if !m.fail("locks", msg.err) {
 			m.locks = msg.list
@@ -196,6 +193,30 @@ func describe(err error) string {
 		return "not possible, the repository is append-only"
 	}
 	return err.Error()
+}
+
+// setSnapshots replaces the list. The cursor stays on the snapshot it was on,
+// also when new snapshots come in above it: found by its ID, or by its time
+// and host when a change of its tags gave it a new ID. A snapshot that is
+// gone leaves the cursor on the same row.
+func (m *Model) setSnapshots(list []service.Snapshot) {
+	var prev *service.Snapshot
+	if c := m.cursor[tabSnapshots]; c < len(m.snapshots) {
+		prev = &m.snapshots[c]
+	}
+	sorted := slices.Clone(list)
+	slices.SortStableFunc(sorted, func(a, b service.Snapshot) int { return b.Time.Compare(a.Time) })
+	if prev != nil {
+		i := slices.IndexFunc(sorted, func(s service.Snapshot) bool { return s.ID == prev.ID })
+		if i < 0 {
+			i = slices.IndexFunc(sorted, func(s service.Snapshot) bool { return s.Time.Equal(prev.Time) && s.Host == prev.Host })
+		}
+		if i >= 0 {
+			m.cursor[tabSnapshots] = i
+		}
+	}
+	m.snapshots = sorted
+	m.clamp(tabSnapshots, len(m.snapshots))
 }
 
 func (m *Model) clamp(t tab, n int) {

@@ -55,6 +55,38 @@ func TestTabsAndSnapshotsNewestFirst(t *testing.T) {
 	r.wantScreen("ID", "ORIGIN")
 }
 
+func TestSnapshotCursorFollowsTheSnapshot(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	r.press("2", "down") // bbbbbbbb
+	selected := func() string {
+		t.Helper()
+		s, ok := r.m.selectedSnapshot()
+		if !ok {
+			t.Fatal("no snapshot selected")
+		}
+		return s.ShortID
+	}
+	list := func(snaps ...service.Snapshot) {
+		r.fake.SnapshotsFn = func(context.Context) ([]service.Snapshot, error) { return snaps, nil }
+		r.press("r")
+	}
+	// a new backup comes in above it
+	list(snap("aaaaaaaa", 48*time.Hour), snap("bbbbbbbb", 24*time.Hour), snap("cccccccc", time.Hour), snap("dddddddd", time.Minute))
+	if got := selected(); got != "bbbbbbbb" {
+		t.Errorf("after a new snapshot the cursor is on %s", got)
+	}
+	// keep rewrites it under a new ID, at the same time
+	list(snap("aaaaaaaa", 48*time.Hour), snap("eeeeeeee", 24*time.Hour, func(s *service.Snapshot) { s.Keep = true }), snap("cccccccc", time.Hour), snap("dddddddd", time.Minute))
+	if got := selected(); got != "eeeeeeee" {
+		t.Errorf("after a tag change the cursor is on %s", got)
+	}
+	// it is gone: the cursor stays on its row
+	list(snap("aaaaaaaa", 48*time.Hour), snap("cccccccc", time.Hour), snap("dddddddd", time.Minute))
+	if got := selected(); got != "aaaaaaaa" {
+		t.Errorf("after the snapshot went the cursor is on %s", got)
+	}
+}
+
 func TestAccessMasksSecrets(t *testing.T) {
 	r := healthy(newRig(t)).load()
 	r.press("4")
