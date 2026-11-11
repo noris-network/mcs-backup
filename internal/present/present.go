@@ -267,6 +267,23 @@ func PreflightRows(p service.RestorePreflight, now time.Time) []Row {
 	if len(p.Hooks) > 0 {
 		add("Hooks", "%s", strings.Join(p.Hooks, ", "))
 	}
+	if c := p.Changes; c != nil {
+		add("Changes", "%d overwritten, %d deleted, %d created, %d unchanged (files and directories)", c.Overwritten, c.Deleted, c.Created, c.Unchanged)
+		list := func(label string, paths []string, total int) {
+			if len(paths) == 0 {
+				return
+			}
+			// one row per path: the label stands in front of the first only
+			for i, path := range paths {
+				add(map[bool]string{true: label}[i == 0], "%s", path)
+			}
+			if more := total - len(paths); more > 0 {
+				add("", "… and %d more", more)
+			}
+		}
+		list("Deletes", c.DeletedPaths, c.Deleted)
+		list("Overwrites", c.OverwrittenPaths, c.Overwritten)
+	}
 	for _, warn := range p.Warnings {
 		rows = append(rows, Row{Label: "!", Text: warn, Severity: service.SeverityWarning})
 	}

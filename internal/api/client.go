@@ -210,6 +210,9 @@ func (c *Client) RestorePreflight(ctx context.Context, req service.RestoreReques
 	if req.IgnoreSpaceWarning {
 		q.Set("ignore_space_warning", "true")
 	}
+	if req.Preview {
+		q.Set("preview", "true")
+	}
 	return get[service.RestorePreflight](ctx, c, "/v1/restore/preflight?"+q.Encode())
 }
 

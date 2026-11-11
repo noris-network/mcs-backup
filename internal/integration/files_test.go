@@ -118,3 +118,36 @@ func TestDiffNamesWhatASuspiciousBackupLost(t *testing.T) {
 		t.Errorf("changed = %d %q", d.Changed, d.ChangedPaths)
 	}
 }
+
+// The preview of a restore counts what it would do and changes nothing.
+func TestRestorePreviewChangesNothing(t *testing.T) {
+	i := newInst(t)
+	i.write("docs/a.txt", "first")
+	i.write("docs/keep.txt", "same")
+	i.start()
+	i.mustBackup("", false)
+	i.write("docs/a.txt", "changed since")
+	i.write("docs/new.txt", "not in the snapshot")
+	i.remove("docs/keep.txt")
+
+	p, err := i.d.RestorePreflight(i.ctx(), service.RestoreRequest{Snapshot: "latest", Preview: true})
+	if err != nil || p.Changes == nil {
+		t.Fatalf("preflight = %+v, %v", p, err)
+	}
+	c := p.Changes
+	if c.Overwritten != 1 || !slices.Equal(c.OverwrittenPaths, []string{"/docs/a.txt"}) {
+		t.Errorf("overwritten = %d %q", c.Overwritten, c.OverwrittenPaths)
+	}
+	if c.Deleted != 1 || len(c.DeletedPaths) != 1 || !strings.HasSuffix(c.DeletedPaths[0], "/docs/new.txt") {
+		t.Errorf("deleted = %d %q", c.Deleted, c.DeletedPaths)
+	}
+	if c.Created < 1 {
+		t.Errorf("created = %d: keep.txt would come back", c.Created)
+	}
+	if i.read("docs/a.txt") != "changed since" || !i.exists("docs/new.txt") || i.exists("docs/keep.txt") {
+		t.Error("the preview changed the data")
+	}
+	if n := len(i.snapshots()); n != 1 {
+		t.Errorf("%d snapshots: a preview takes no safety snapshot", n)
+	}
+}

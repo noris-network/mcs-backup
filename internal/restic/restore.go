@@ -20,6 +20,11 @@ type RestoreOptions struct {
 	Delete bool
 	// Verify reads the restored files back and compares them.
 	Verify bool
+	// DryRun changes nothing and reports to OnItem what a restore would do
+	// with every file and directory: the action is "restored" (created),
+	// "updated" (overwritten), "unchanged" or "deleted".
+	DryRun bool
+	OnItem func(action, item string)
 	Extra  []string
 }
 
@@ -30,6 +35,9 @@ func (o RestoreOptions) args() []string {
 	}
 	if o.Verify {
 		args = append(args, "--verify")
+	}
+	if o.DryRun {
+		args = append(args, "--dry-run", "--verbose=2", "--no-lock")
 	}
 	for _, p := range o.Includes {
 		args = append(args, "--include", p)
@@ -58,6 +66,14 @@ func (r *Repo) Restore(ctx context.Context, o RestoreOptions, onStatus func(Rest
 			var st RestoreStatus
 			if onStatus != nil && json.Unmarshal(line, &st) == nil {
 				onStatus(st)
+			}
+		case "verbose_status":
+			var it struct {
+				Action string `json:"action"`
+				Item   string `json:"item"`
+			}
+			if o.OnItem != nil && json.Unmarshal(line, &it) == nil {
+				o.OnItem(it.Action, it.Item)
 			}
 		case "summary":
 			if json.Unmarshal(line, &sum) == nil {

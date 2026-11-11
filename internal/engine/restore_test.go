@@ -2,6 +2,7 @@ package engine
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -565,4 +566,58 @@ func TestRestoreIfEmpty(t *testing.T) {
 			t.Error("restic was called")
 		}
 	})
+}
+
+func TestRestorePreview(t *testing.T) {
+	item := func(action, path string) string {
+		return fmt.Sprintf(`{"message_type":"verbose_status","action":%q,"item":%q}`+"\n", action, path)
+	}
+	r := restoreRig(t)
+	var out strings.Builder
+	out.WriteString(item("restored", "/big") + item("unchanged", "/a") + item("unchanged", "/b"))
+	for i := range previewPaths + 5 {
+		out.WriteString(item("updated", fmt.Sprintf("/docs/%02d", i)))
+	}
+	out.WriteString(item("deleted", "/mnt/new.txt"))
+	r.main.On(t, "restore", resticfake.Response{Stdout: out.String() + restoreSummary(3)})
+
+	// only when asked for: it reads the whole target
+	p, err := r.e.RestorePreflight(t.Context(), service.RestoreRequest{Snapshot: "latest"})
+	if err != nil || p.Changes != nil || len(r.main.CallsTo(t, "restore")) != 0 {
+		t.Fatalf("a plain preflight previews: %+v, %v", p.Changes, err)
+	}
+	p, err = r.e.RestorePreflight(t.Context(), service.RestoreRequest{Snapshot: "latest", Preview: true, Includes: []string{"/docs"}})
+	if err != nil || p.Changes == nil {
+		t.Fatalf("preflight = %+v, %v", p, err)
+	}
+	c := p.Changes
+	if c.Created != 1 || c.Unchanged != 2 || c.Overwritten != previewPaths+5 || c.Deleted != 1 {
+		t.Errorf("changes = %+v", c)
+	}
+	if len(c.OverwrittenPaths) != previewPaths || c.OverwrittenPaths[0] != "/docs/00" || !slices.Equal(c.DeletedPaths, []string{"/mnt/new.txt"}) {
+		t.Errorf("paths = %q, %q", c.OverwrittenPaths, c.DeletedPaths)
+	}
+	// the same restore, but nothing is written
+	got := r.main.CallsTo(t, "restore")[0]
+	for _, want := range []string{"--dry-run", "--delete", "--include", "/docs", "snap1"} {
+		if !slices.Contains(got, want) {
+			t.Errorf("args = %q lack %s", got, want)
+		}
+	}
+
+	// the restore itself does not preview once more
+	res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "snap1", Confirm: "snap1", Preview: true}, r.sink())
+	if !res.Result.OK() {
+		t.Fatalf("restore: %+v", res)
+	}
+	if calls := r.main.CallsTo(t, "restore"); len(calls) != 2 || slices.Contains(calls[1], "--dry-run") {
+		t.Errorf("restic restore calls = %q", calls)
+	}
+
+	// a preview that fails is a warning, the preflight still answers
+	r.main.On(t, "restore", resticfake.Response{Stderr: "Fatal: boom\n", Exit: 1})
+	p, err = r.e.RestorePreflight(t.Context(), service.RestoreRequest{Snapshot: "latest", Preview: true})
+	if err != nil || p.Changes != nil || !slices.ContainsFunc(p.Warnings, func(w string) bool { return strings.Contains(w, "cannot work out") }) {
+		t.Errorf("preflight = %+v, %v", p, err)
+	}
 }

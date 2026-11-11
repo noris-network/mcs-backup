@@ -269,7 +269,7 @@ func preflightRequest(q url.Values) (service.RestoreRequest, error) {
 		Mode: service.RestoreMode(q.Get("mode")),
 	}
 	for name, dst := range map[string]*bool{
-		"no_safety_snapshot": &req.NoSafetySnapshot, "ignore_space_warning": &req.IgnoreSpaceWarning,
+		"no_safety_snapshot": &req.NoSafetySnapshot, "ignore_space_warning": &req.IgnoreSpaceWarning, "preview": &req.Preview,
 	} {
 		if v := q.Get(name); v != "" {
 			b, err := strconv.ParseBool(v)

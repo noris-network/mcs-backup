@@ -733,3 +733,22 @@ not json
 		t.Errorf("args = %q", got)
 	}
 }
+
+func TestRestoreDryRun(t *testing.T) {
+	f := resticfake.New(t)
+	f.On(t, "restore", resticfake.Response{Stdout: `{"message_type":"verbose_status","action":"updated","item":"/docs/d.txt","size":2}
+{"message_type":"verbose_status","action":"deleted","item":"/mnt/new.txt","size":0}
+{"message_type":"summary","total_files":8,"files_restored":8,"files_skipped":2,"files_deleted":2}
+`})
+	var items []string
+	_, err := newRepo(t, f).Restore(t.Context(), RestoreOptions{
+		Snapshot: "abc", Target: "/mnt", Delete: true, DryRun: true, OnItem: func(action, item string) { items = append(items, action+" "+item) },
+	}, nil)
+	if err != nil || !slices.Equal(items, []string{"updated /docs/d.txt", "deleted /mnt/new.txt"}) {
+		t.Fatalf("items = %q, %v", items, err)
+	}
+	want := []string{"restore", "--json", "--target", "/mnt", "--delete", "--dry-run", "--verbose=2", "--no-lock", "--", "abc"}
+	if got := f.CallsTo(t, "restore")[0]; !slices.Equal(got, want) {
+		t.Errorf("args = %q", got)
+	}
+}

@@ -194,6 +194,9 @@ type RestoreRequest struct {
 	NoSafetySnapshot bool `json:"no_safety_snapshot,omitzero"`
 	// IgnoreSpaceWarning restores although the free space looks too small.
 	IgnoreSpaceWarning bool `json:"ignore_space_warning,omitzero"`
+	// Preview makes the preflight work out what the restore would change in
+	// the target. That reads the files there and can take a while.
+	Preview bool `json:"preview,omitzero"`
 	// HookArgs are passed to the pre- and post-restore hooks.
 	HookArgs []string `json:"hook_args,omitempty"`
 	// Confirm must equal Snapshot for an in-place restore.
@@ -220,6 +223,21 @@ type RestorePreflight struct {
 	// Hooks lists the hooks that will run.
 	Hooks    []string `json:"hooks,omitempty"`
 	Warnings []string `json:"warnings,omitempty"`
+	// Changes is what the restore would do to the target, if a preview was
+	// asked for.
+	Changes *RestoreChanges `json:"changes,omitempty"`
+}
+
+// RestoreChanges counts what a restore would do to the files and directories
+// of its target.
+type RestoreChanges struct {
+	Created     int `json:"created"`
+	Overwritten int `json:"overwritten"`
+	Deleted     int `json:"deleted"`
+	Unchanged   int `json:"unchanged"`
+	// OverwrittenPaths and DeletedPaths are the first of them.
+	OverwrittenPaths []string `json:"overwritten_paths,omitempty"`
+	DeletedPaths     []string `json:"deleted_paths,omitempty"`
 }
 
 // VerifyRequest asks for a restore test.

@@ -67,6 +67,9 @@ func (e *Engine) planRestore(ctx context.Context, req service.RestoreRequest) (r
 		if len(req.Includes) > 0 || req.Target != "" {
 			return p, errors.New("a restore in pipe mode streams the whole snapshot: no target or include paths")
 		}
+		if req.Preview {
+			p.Warnings = append(p.Warnings, "a restore in pipe mode cannot be previewed: the data goes to the restore script")
+		}
 		p.pipeFile = "/" + e.cfg.Pipe.InFilename
 		if len(p.snap.Paths) == 1 {
 			p.pipeFile = p.snap.Paths[0]
@@ -95,7 +98,52 @@ func (e *Engine) planRestore(ctx context.Context, req service.RestoreRequest) (r
 	p.Hooks = e.restoreHooks()
 
 	e.checkSpace(ctx, &p)
+	if req.Preview {
+		e.previewChanges(ctx, &p)
+	}
 	return p, nil
+}
+
+// previewPaths is how many overwritten and deleted paths a preview lists.
+const previewPaths = 20
+
+// previewChanges works out what the restore would do to the target. It only
+// ever warns.
+func (e *Engine) previewChanges(ctx context.Context, p *restorePlan) {
+	var c service.RestoreChanges
+	opts := e.restoreOptions(*p)
+	opts.DryRun = true
+	opts.OnItem = func(action, item string) {
+		switch action {
+		case "restored":
+			c.Created++
+		case "updated":
+			if c.Overwritten++; len(c.OverwrittenPaths) < previewPaths {
+				c.OverwrittenPaths = append(c.OverwrittenPaths, item)
+			}
+		case "deleted":
+			if c.Deleted++; len(c.DeletedPaths) < previewPaths {
+				c.DeletedPaths = append(c.DeletedPaths, item)
+			}
+		case "unchanged":
+			c.Unchanged++
+		}
+	}
+	if _, err := e.main.Restore(ctx, opts, nil); err != nil {
+		p.Warnings = append(p.Warnings, fmt.Sprintf("cannot work out what the restore would change: %v", err))
+		return
+	}
+	p.Changes = &c
+}
+
+func (e *Engine) restoreOptions(plan restorePlan) restic.RestoreOptions {
+	return restic.RestoreOptions{
+		Snapshot: plan.snap.ID,
+		Target:   plan.Target,
+		Includes: plan.includes,
+		Delete:   plan.InPlace && plan.Mode == service.ModeExact,
+		Extra:    e.cfg.Restic.Restore,
+	}
 }
 
 func (e *Engine) restoreHooks() []string {
@@ -195,6 +243,7 @@ func (e *Engine) restore(ctx context.Context, req service.RestoreRequest, sink S
 	ctx, cancel := withTimeout(ctx, e.cfg.Timeouts.Restore)
 	defer cancel()
 
+	req.Preview = false // a preview belongs to the preflight, not to the restore itself
 	var res RestoreResult
 	began, err := e.restorePhases(ctx, req, sink, trusted, &res)
 	if err != nil {
@@ -278,13 +327,7 @@ func (e *Engine) restorePhases(ctx context.Context, req service.RestoreRequest, 
 }
 
 func (e *Engine) restoreFiles(ctx context.Context, plan restorePlan, sink Sink, res *RestoreResult) error {
-	opts := restic.RestoreOptions{
-		Snapshot: plan.snap.ID,
-		Target:   plan.Target,
-		Includes: plan.includes,
-		Delete:   plan.InPlace && plan.Mode == service.ModeExact,
-		Extra:    e.cfg.Restic.Restore,
-	}
+	opts := e.restoreOptions(plan)
 	return e.retryLocked(ctx, e.main, e.cfg.AppendOnly, sink, func() error {
 		sum, err := e.main.Restore(ctx, opts, func(s restic.RestoreStatus) {
 			sink.progress(service.Progress{Percent: s.PercentDone, FilesDone: s.FilesRestored, FilesTotal: s.TotalFiles, BytesDone: s.BytesRestored, BytesTotal: s.TotalBytes})

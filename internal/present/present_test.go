@@ -76,3 +76,19 @@ func TestDiffLines(t *testing.T) {
 		t.Errorf("no difference:\n%s", same)
 	}
 }
+
+func TestPreflightRowsShowTheChanges(t *testing.T) {
+	p := service.RestorePreflight{Target: "/mnt", InPlace: true, Changes: &service.RestoreChanges{
+		Created: 7, Overwritten: 3, Deleted: 1, Unchanged: 2, OverwrittenPaths: []string{"/docs/a", "/docs/b"}, DeletedPaths: []string{"/mnt/new.txt"},
+	}}
+	var text []string
+	for _, r := range present.PreflightRows(p, time.Now()) {
+		text = append(text, r.Label+"|"+r.Text)
+	}
+	got := strings.Join(text, "\n")
+	for _, want := range []string{"Changes|3 overwritten, 1 deleted, 7 created, 2 unchanged", "Deletes|/mnt/new.txt", "Overwrites|/docs/a\n|/docs/b\n|… and 1 more"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the rows lack %q:\n%s", want, got)
+		}
+	}
+}
