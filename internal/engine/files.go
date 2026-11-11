@@ -148,7 +148,7 @@ func fileVersions(groups []restic.FindGroup, snaps []restic.Snapshot) []service.
 			k := key{m.Path, m.Type, m.Size, m.Mtime.UnixNano()}
 			v := byKey[k]
 			if v == nil {
-				v = &service.FileVersion{File: service.File{Path: m.Path, Type: m.Type, Size: m.Size, Mtime: m.Mtime}, Newest: ref, Oldest: ref}
+				v = &service.FileVersion{Path: m.Path, Type: m.Type, Size: m.Size, Mtime: m.Mtime, Newest: ref, Oldest: ref}
 				byKey[k] = v
 			}
 			v.Snapshots++

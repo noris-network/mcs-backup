@@ -232,7 +232,7 @@ func TestReadTools(t *testing.T) {
 		t.Errorf("list_files: %v\n%s", isErr, text)
 	}
 	a.fake.FindFn = func(_ context.Context, r service.FindRequest) (service.FindResult, error) {
-		return service.FindResult{Searched: 3, Versions: []service.FileVersion{{File: service.File{Path: "/" + r.Pattern}, Snapshots: 2}}}, nil
+		return service.FindResult{Searched: 3, Versions: []service.FileVersion{{Path: "/" + r.Pattern, Snapshots: 2}}}, nil
 	}
 	if text, isErr := a.call("find_files", map[string]any{"pattern": "x.sql", "ignore_case": true}); isErr || !strings.Contains(text, `"/x.sql"`) {
 		t.Errorf("find_files: %v\n%s", isErr, text)

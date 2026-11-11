@@ -709,8 +709,8 @@ func TestFind(t *testing.T) {
 		newest := service.SnapshotRef{ID: "nnnnnnnnnnnn", Time: cliNow.Add(-time.Hour)}
 		oldest := service.SnapshotRef{ID: "oooooooooooo", Time: cliNow.Add(-72 * time.Hour)}
 		return service.FindResult{Searched: 5, Truncated: true, Versions: []service.FileVersion{
-			{File: service.File{Path: "/d/a.txt", Type: "file", Size: 3 << 20, Mtime: cliNow}, Newest: newest, Oldest: oldest, Snapshots: 4},
-			{File: service.File{Path: "/d/old", Type: "dir"}, Newest: oldest, Oldest: oldest, Snapshots: 1},
+			{Path: "/d/a.txt", Type: "file", Size: 3 << 20, Mtime: cliNow, Newest: newest, Oldest: oldest, Snapshots: 4},
+			{Path: "/d/old", Type: "dir", Newest: oldest, Oldest: oldest, Snapshots: 1},
 		}}, nil
 	}
 	if code := c.run("find", "-i", "--snapshot", "latest", "*.TXT"); code != 0 {

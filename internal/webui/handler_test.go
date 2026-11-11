@@ -639,7 +639,7 @@ func TestFilesPageFindsAFile(t *testing.T) {
 			return service.FindResult{Searched: 7}, nil
 		}
 		return service.FindResult{Searched: 7, Versions: []service.FileVersion{
-			{File: service.File{Path: "/docs/a.txt", Type: "file", Size: 3 << 20, Mtime: t0}, Newest: newest, Oldest: oldest, Snapshots: 4},
+			{Path: "/docs/a.txt", Type: "file", Size: 3 << 20, Mtime: t0, Newest: newest, Oldest: oldest, Snapshots: 4},
 		}}, nil
 	}
 	s.login()

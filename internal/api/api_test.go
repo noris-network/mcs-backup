@@ -96,7 +96,7 @@ func TestRoundTrips(t *testing.T) {
 	}
 
 	fake.FindFn = func(_ context.Context, req service.FindRequest) (service.FindResult, error) {
-		return service.FindResult{Searched: 4, Versions: []service.FileVersion{{File: service.File{Path: req.Pattern}, Newest: service.SnapshotRef{ID: "n"}, Snapshots: 2}}}, nil
+		return service.FindResult{Searched: 4, Versions: []service.FileVersion{{Path: req.Pattern, Newest: service.SnapshotRef{ID: "n"}, Snapshots: 2}}}, nil
 	}
 	fr, err := c.Find(ctx, service.FindRequest{Pattern: "*.sql?&", Snapshot: "latest", IgnoreCase: true})
 	if err != nil || fr.Searched != 4 || fr.Versions[0].Path != "*.sql?&" || fr.Versions[0].Newest.ID != "n" {

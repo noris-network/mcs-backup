@@ -70,7 +70,7 @@ func TestFindAFileInAllSnapshots(t *testing.T) {
 			return service.FindResult{}, errors.New("the pattern matches too many files: narrow it or search a single snapshot")
 		}
 		return service.FindResult{Searched: 3, Versions: []service.FileVersion{
-			{File: service.File{Path: "/my docs/a b.txt", Type: "file", Size: 3 << 20, Mtime: t0}, Newest: newest, Oldest: newest, Snapshots: 2},
+			{Path: "/my docs/a b.txt", Type: "file", Size: 3 << 20, Mtime: t0, Newest: newest, Oldest: newest, Snapshots: 2},
 		}}, nil
 	}
 	r.press("2", "o", "/")
