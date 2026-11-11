@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os/exec"
 	"slices"
 	"strings"
@@ -568,6 +569,66 @@ func TestHelpAndQuit(t *testing.T) {
 	if !r.quit {
 		t.Error("q did not quit")
 	}
+}
+
+func TestDialogsFitALowTerminal(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	r.m.width, r.m.height = 80, 24
+
+	r.press("?")
+	r.wantWholeDialog("any other key closes")
+	r.wantNoScreen("q quit", "test notification") // the legend gives the dialog its room
+	r.press("G")
+	r.wantScreen("test notification")
+	r.wantWholeDialog("any other key closes")
+	r.press("x")
+	r.wantNoScreen("Keys")
+
+	log := make([]string, 60)
+	for i := range log {
+		log[i] = fmt.Sprintf("log line %02d", i)
+	}
+	r.fake.LogFn = func(_ context.Context, kind service.Kind) (service.Log, error) {
+		return service.Log{Kind: kind, Lines: log}, nil
+	}
+	r.press("l")
+	r.wantWholeDialog("esc close")
+	r.wantScreen("log line 59", "of 60") // the end, where new lines come in
+	r.press("g")
+	r.wantScreen("log line 00", "lines 1-")
+	r.press("esc")
+
+	r.fake.FilesFn = func(context.Context, service.FilesRequest) (service.FileList, error) {
+		list := service.FileList{Snapshot: snap("cccccccc", time.Hour), Path: "/"}
+		for i := range 40 {
+			list.Files = append(list.Files, service.File{Path: fmt.Sprintf("/file-%02d", i), Type: "file", Size: 1, Mtime: t0})
+		}
+		return list, nil
+	}
+	r.press("2", "o")
+	r.wantWholeDialog("esc close")
+	r.press("pgdown", "pgdown", "pgdown", "pgdown")
+	r.wantScreen("> file-39")
+	r.wantWholeDialog("esc close")
+	r.press("esc")
+
+	r.fake.RestorePreflightFn = func(_ context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {
+		c := &service.RestoreChanges{Overwritten: 40, Deleted: 40}
+		for i := range 20 {
+			c.DeletedPaths = append(c.DeletedPaths, fmt.Sprintf("/data/deleted-%02d", i))
+			c.OverwrittenPaths = append(c.OverwrittenPaths, fmt.Sprintf("/data/overwritten-%02d", i))
+		}
+		return service.RestorePreflight{Snapshot: snap("cccccccc", time.Hour), Target: "/data", InPlace: true, Mode: req.Mode, Changes: c}, nil
+	}
+	r.press("enter", "enter") // the form for the newest snapshot, then its check
+	r.wantWholeDialog("esc back")
+	r.wantScreen("Deletes", "/data/deleted-00")
+	r.wantNoScreen("/data/overwritten-19", "p what would change") // what would change is in view already
+	r.press("G")
+	r.wantScreen("/data/overwritten-19")
+	r.wantWholeDialog("esc back")
+	r.press("enter") // the keys of the preview still work
+	r.wantScreen("Type cccccccc to confirm")
 }
 
 func TestDialogCapturesKeys(t *testing.T) {

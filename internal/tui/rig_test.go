@@ -87,6 +87,8 @@ var special = map[string]tea.KeyPressMsg{
 	"down":      {Code: tea.KeyDown},
 	"left":      {Code: tea.KeyLeft},
 	"right":     {Code: tea.KeyRight},
+	"pgup":      {Code: tea.KeyPgUp},
+	"pgdown":    {Code: tea.KeyPgDown},
 }
 
 // press sends keys: a name from special or a single character.
@@ -130,6 +132,19 @@ func (r *rig) wantNoScreen(parts ...string) {
 		if strings.Contains(s, p) {
 			r.t.Errorf("the screen shows %q:\n%s", p, s)
 		}
+	}
+}
+
+// wantWholeDialog checks that the screen is as high as the terminal and
+// that the dialog on it is whole: its frame is closed and its hint in view.
+func (r *rig) wantWholeDialog(hint string) {
+	r.t.Helper()
+	s := r.screen()
+	if n := len(strings.Split(s, "\n")); n != r.m.height {
+		r.t.Errorf("%d lines on a terminal of %d:\n%s", n, r.m.height, s)
+	}
+	if !strings.Contains(s, "╭") || strings.Count(s, "╭") != strings.Count(s, "╰") || !strings.Contains(s, hint) {
+		r.t.Errorf("the dialog is cut: its end or %q is missing:\n%s", hint, s)
 	}
 }
 

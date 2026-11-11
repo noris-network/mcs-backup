@@ -17,8 +17,8 @@ import (
 
 // View implements tea.Model.
 func (m *Model) View() tea.View {
-	if d, ok := m.dlg.(plainDialog); ok && !m.help && !m.quitting {
-		lines := strings.Split(d.view(m.width), "\n")
+	if d, ok := m.dlg.(plainDialog); ok && !m.quitting {
+		lines := strings.Split(d.view(m.width, m.height), "\n")
 		v := tea.NewView(strings.Join(lines[:min(len(lines), max(m.height, 1))], "\n"))
 		v.AltScreen = true
 		v.WindowTitle = "mcs-backup"
@@ -28,27 +28,29 @@ func (m *Model) View() tea.View {
 	// bottom, so that they do not move when the tab or the content changes.
 	top := strings.Split(m.header()+"\n", "\n")
 	bottom := []string{""}
-	if m.dlg == nil && !m.help && !m.quitting {
-		if panel := m.operationPanel(); panel != "" {
+	if m.dlg != nil {
+		// a dialog names its own keys: the legend would list keys that do not
+		// work in it, and the dialog gets the room. A message keeps its line.
+		bottom = append(bottom, styleTitle.Render(m.flash))
+	} else {
+		if panel := m.operationPanel(); panel != "" && !m.quitting {
 			bottom = append(bottom, strings.Split(panel, "\n")...)
 			bottom = append(bottom, "")
 		}
+		foot := strings.Split(m.footer(), "\n")
+		for len(foot) < m.footerHeight() { // the last line of the legend is the last line of the screen
+			foot = append([]string{""}, foot...)
+		}
+		bottom = append(bottom, foot...)
 	}
-	foot := strings.Split(m.footer(), "\n")
-	for len(foot) < m.footerHeight() { // the last line of the legend is the last line of the screen
-		foot = append([]string{""}, foot...)
-	}
-	bottom = append(bottom, foot...)
 	avail := max(m.height-len(top)-len(bottom), 3)
 
 	var body string
 	switch {
 	case m.quitting:
 		body = ""
-	case m.help:
-		body = box("Keys", helpText, "any key closes this help", m.width)
 	case m.dlg != nil:
-		body = m.dlg.view(m.width)
+		body = m.dlg.view(m.width, avail)
 	default:
 		body = m.page(avail)
 	}
@@ -609,7 +611,7 @@ func tail(lines []string, n int) []string {
 // window returns the part of a list of n rows that fits into size lines and
 // contains the cursor.
 func window(cursor, n, size int) (first, last int) {
-	size = max(size, 5)
+	size = max(size, 1)
 	if n <= size {
 		return 0, n
 	}

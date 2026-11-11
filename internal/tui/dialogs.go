@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -15,10 +16,53 @@ import (
 )
 
 // dialog is a modal box in front of the tabs. key returns true when the
-// dialog is done.
+// dialog is done. view gets the room there is: a dialog that can grow longer
+// than height lines scrolls or shortens its list to fit.
 type dialog interface {
 	key(m *Model, k tea.KeyPressMsg) (cmd tea.Cmd, closed bool)
-	view(width int) string
+	view(width, height int) string
+}
+
+// boxLines is how many lines box puts around a body: the frame, the title,
+// the hint and the blank lines after the title and before the hint.
+const boxLines = 6
+
+// scroll returns the part of lines that fits into room lines, starting at
+// *top, which it keeps in range. pos says which lines are in view, for the
+// hint of the dialog; it is empty when all of them fit.
+func scroll(lines []string, room int, top *int) (shown []string, pos string) {
+	room = max(room, 1)
+	if len(lines) <= room {
+		*top = 0
+		return lines, ""
+	}
+	*top = max(0, min(*top, len(lines)-room))
+	end := *top + room
+	return lines[*top:end], fmt.Sprintf("lines %d-%d of %d", *top+1, end, len(lines))
+}
+
+// scrollKey moves *top by a key that scrolls, with page lines in view, and
+// tells whether k was such a key. scroll keeps *top in range.
+func scrollKey(k string, top *int, page int) bool {
+	page = max(page, 1)
+	switch k {
+	case "up", "k":
+		*top--
+	case "down", "j":
+		*top++
+	case "pgup":
+		*top -= page
+	case "pgdown", "space":
+		*top += page
+	case "g", "home":
+		*top = 0
+	case "G", "end":
+		*top = math.MaxInt32
+	default:
+		return false
+	}
+	*top = max(*top, 0)
+	return true
 }
 
 func newInput(placeholder string) textinput.Model {
@@ -70,7 +114,7 @@ func (d *confirmDialog) key(_ *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 	return typing(&d.in, k), false
 }
 
-func (d *confirmDialog) view(width int) string {
+func (d *confirmDialog) view(width, _ int) string {
 	var b strings.Builder
 	b.WriteString(wrap(d.text, boxText(width)) + "\n\n" + field(&d.in, width) + "\n")
 	if d.err != "" {
@@ -110,7 +154,7 @@ func (d *promptDialog) key(_ *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 	return typing(&d.in, k), false
 }
 
-func (d *promptDialog) view(width int) string {
+func (d *promptDialog) view(width, _ int) string {
 	var b strings.Builder
 	b.WriteString(d.label + "\n\n" + field(&d.in, width) + "\n")
 	hint := "enter ok · esc cancel"
@@ -169,7 +213,7 @@ func (d *menuDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-func (d *menuDialog) view(width int) string {
+func (d *menuDialog) view(width, _ int) string {
 	var b strings.Builder
 	if d.text != "" {
 		b.WriteString(wrap(d.text, boxText(width)) + "\n\n")
@@ -240,11 +284,12 @@ type textDialog struct {
 	title  string
 	lines  []string
 	top    int
+	page   int  // lines in view at the last drawing
 	follow bool // new lines are appended and the end stays in view
 }
 
-func (d *textDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
-	page := max(3, m.height-10)
+func (d *textDialog) key(_ *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
+	page := max(3, d.page)
 	switch k.String() {
 	case "esc", "q", "ctrl+c", "enter":
 		return nil, true
@@ -264,25 +309,78 @@ func (d *textDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-func (d *textDialog) view(width int) string {
-	const height = 18
+func (d *textDialog) view(width, height int) string {
 	// a long line wraps, so that nothing of it is lost (an error of restic,
 	// for example); the scrolling goes by the lines on the screen
 	shown := make([]string, 0, len(d.lines))
 	for _, l := range d.lines {
 		shown = append(shown, strings.Split(ansi.Wrap(l, boxText(width), ""), "\n")...)
 	}
-	top := d.top
-	if d.follow || top > len(shown)-height {
-		top = max(0, len(shown)-height)
+	if d.follow {
+		d.top = len(shown) // scroll moves it back to the last page
 	}
-	d.top = top
-	end := min(len(shown), top+height)
+	lines, pos := scroll(shown, height-boxLines, &d.top)
+	d.page = len(lines)
 	body := "(the log is empty)"
 	if len(shown) > 0 {
-		body = strings.Join(shown[top:end], "\n")
+		body = strings.Join(lines, "\n")
 	}
-	return box(d.title, body, "↑↓ pgup pgdn scroll · G end · esc close", width)
+	hint := "↑↓ pgup pgdn scroll · G end · esc close"
+	if pos != "" {
+		hint = pos + " · " + hint
+	}
+	return box(d.title, body, hint, width)
+}
+
+// ---- the keys ----
+
+// helpLabel is the width of the labels in helpText.
+const helpLabel = 12
+
+// helpLines returns helpText with the lines that are longer than width
+// wrapped under the column of the keys.
+func helpLines(width int) []string {
+	var out []string
+	indent := strings.Repeat(" ", helpLabel)
+	for line := range strings.SplitSeq(helpText, "\n") {
+		if len([]rune(line)) <= width || len(line) <= helpLabel {
+			out = append(out, line)
+			continue
+		}
+		// Wordwrap keeps the two spaces after a key, and breaks at spaces only
+		for i, l := range strings.Split(ansi.Wordwrap(line[helpLabel:], width-helpLabel, ""), "\n") {
+			if i == 0 {
+				out = append(out, line[:helpLabel]+l)
+			} else {
+				out = append(out, indent+l)
+			}
+		}
+	}
+	return out
+}
+
+// helpDialog lists the keys. Any key closes it; only when the terminal is too
+// low for the whole list do the keys that scroll scroll it.
+type helpDialog struct {
+	top, page int
+	scrolls   bool
+}
+
+func (d *helpDialog) key(_ *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
+	if d.scrolls && scrollKey(k.String(), &d.top, d.page) {
+		return nil, false
+	}
+	return nil, true
+}
+
+func (d *helpDialog) view(width, height int) string {
+	lines, pos := scroll(helpLines(boxText(width)), height-boxLines, &d.top)
+	d.page, d.scrolls = len(lines), pos != ""
+	hint := "any key closes this help"
+	if d.scrolls {
+		hint = pos + " · ↑↓ scroll · any other key closes"
+	}
+	return box("Keys", strings.Join(lines, "\n"), hint, width)
 }
 
 // ---- screens for selecting and pasting ----
@@ -310,7 +408,7 @@ func (d *pasteDialog) key(_ *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-func (d *pasteDialog) view(width int) string {
+func (d *pasteDialog) view(width, _ int) string {
 	var b strings.Builder
 	b.WriteString(styleTitle.Render(d.title) + "\n" + styleDim.Render(wrap(d.intro, width)) + "\n\n")
 	b.WriteString(strings.Join(shellLines(d.text, width), "\n") + "\n\n")
@@ -347,7 +445,7 @@ func (d *linkDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 
 // view puts the link on a line of its own, so that a triple click selects
 // exactly the link.
-func (d *linkDialog) view(_ int) string {
+func (d *linkDialog) view(_, _ int) string {
 	text := styleTitle.Render("Web UI") + "\n" + styleDim.Render("Open this link in a browser. It works once and for two minutes:") + "\n\n" + d.url + "\n"
 	if d.hint != "" {
 		text += "\n" + styleDim.Render("From another machine:") + "\n" + d.hint + "\n"
@@ -377,6 +475,9 @@ type restoreDialog struct {
 	now     time.Time
 	confirm textinput.Model
 	err     string
+	// top and page scroll the preview: its lists of paths can be longer
+	// than the screen
+	top, page int
 	// picked is a path chosen in the file browser: it is one path, also if
 	// it contains spaces, as long as the field still holds it.
 	picked string
@@ -471,6 +572,9 @@ func (d *restoreDialog) formKey(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 }
 
 func (d *restoreDialog) previewKey(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
+	if scrollKey(k.String(), &d.top, d.page) {
+		return nil, false
+	}
 	switch k.String() {
 	case "esc":
 		d.stage, d.err = stageForm, ""
@@ -520,9 +624,13 @@ func (d *restoreDialog) confirmKey(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) 
 	return nil, false
 }
 
-func (d *restoreDialog) view(width int) string {
+func (d *restoreDialog) view(width, height int) string {
 	var b strings.Builder
 	hint := ""
+	problem := ""
+	if d.err != "" {
+		problem = "\n" + styleBad.Render(wrap(d.err, boxText(width))) + "\n"
+	}
 	switch d.stage {
 	case stageForm:
 		for i := range d.fields {
@@ -539,22 +647,29 @@ func (d *restoreDialog) view(width int) string {
 		b.WriteString("Mode when replacing the live data\n" + cursor + mode + "\n")
 		hint = "tab next field · ←→ change mode · enter check · esc cancel"
 	case stagePreview:
-		b.WriteString(rows(present.PreflightRows(*d.pre, d.now), boxText(width)) + "\n")
+		lines := strings.Split(rows(present.PreflightRows(*d.pre, d.now), boxText(width)), "\n")
 		if d.pre.SpaceWarning {
 			mark := "[ ]"
 			if d.ignore {
 				mark = "[x]"
 			}
-			b.WriteString("\n" + mark + " restore although the space looks too small (f)\n")
+			lines = append(lines, "", mark+" restore although the space looks too small (f)")
 		}
-		hint = "enter continue · p what would change · esc back"
+		lines, pos := scroll(lines, height-boxLines-strings.Count(problem, "\n"), &d.top)
+		d.page = len(lines)
+		b.WriteString(strings.Join(lines, "\n") + "\n")
+		hint = "enter continue · esc back"
+		if d.pre.Changes == nil && !d.pre.PipeMode {
+			hint = "enter continue · p what would change · esc back"
+		}
+		if pos != "" {
+			hint = pos + " · ↑↓ scroll · " + hint
+		}
 	case stageConfirm:
 		b.WriteString(wrap("This replaces the current data. Type "+d.req.Snapshot+" to confirm.", boxText(width)) + "\n\n" + field(&d.confirm, width) + "\n")
 		hint = "enter restore · esc back"
 	}
-	if d.err != "" {
-		b.WriteString("\n" + styleBad.Render(d.err) + "\n")
-	}
+	b.WriteString(problem)
 	return box("Restore", b.String(), hint, width)
 }
 

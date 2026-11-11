@@ -14,9 +14,6 @@ import (
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
 
-// filesRows is how many entries the file browser shows at once.
-const filesRows = 14
-
 type (
 	filesMsg struct {
 		list service.FileList
@@ -55,6 +52,7 @@ type filesDialog struct {
 	found    *service.FindResult // the result of a search, shown instead of the directory
 	pattern  string
 	cursor   int
+	page     int    // entries in view at the last drawing
 	busy     string // what is being fetched
 	err      string
 
@@ -155,9 +153,9 @@ func (d *filesDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 	case "down", "j":
 		d.cursor = max(0, min(d.rows()-1, d.cursor+1))
 	case "pgup":
-		d.cursor = max(0, d.cursor-filesRows)
+		d.cursor = max(0, d.cursor-max(d.page, 1))
 	case "pgdown", "space":
-		d.cursor = max(0, min(d.rows()-1, d.cursor+filesRows))
+		d.cursor = max(0, min(d.rows()-1, d.cursor+max(d.page, 1)))
 	case "/":
 		d.searching, d.input = true, newInput("a name or a pattern such as *.sql")
 		d.input.SetValue(d.pattern)
@@ -184,49 +182,60 @@ func (d *filesDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-func (d *filesDialog) view(width int) string {
+func (d *filesDialog) view(width, height int) string {
 	w := boxText(width)
-	var b strings.Builder
+	// above and below the entries: they get the room that is left
+	var head, tail strings.Builder
 	title := "Files"
+	var entry func(i int) string
+	n := 0
 	switch {
 	case d.found != nil:
 		title = fmt.Sprintf("Files matching %s in %d snapshots", d.pattern, d.found.Searched)
 		if len(d.found.Versions) == 0 {
-			b.WriteString("Nothing found.\n")
+			head.WriteString("Nothing found.\n")
 		}
-		first, last := window(d.cursor, len(d.found.Versions), filesRows)
-		for i := first; i < last; i++ {
+		n = len(d.found.Versions)
+		entry = func(i int) string {
 			v := d.found.Versions[i]
 			in := fmt.Sprintf("%s  in %d, newest %s %s", fileSize(v.File), v.Snapshots, present.Short(v.Newest.ID), present.Stamp(v.Newest.Time))
-			b.WriteString(d.row(i, fileName(v.File, v.Path), in, w) + "\n")
+			return d.row(i, fileName(v.File, v.Path), in, w)
 		}
 		if d.found.Truncated {
-			b.WriteString(styleDim.Render("There are more matches than are shown: narrow the pattern.") + "\n")
+			tail.WriteString(styleDim.Render("There are more matches than are shown: narrow the pattern.") + "\n")
 		}
 	case d.list != nil:
 		title = "Files in snapshot " + d.list.Snapshot.ShortID + " of " + present.Stamp(d.list.Snapshot.Time)
-		b.WriteString(styleDim.Render(truncate(d.list.Path, w)) + "\n\n")
+		head.WriteString(styleDim.Render(truncate(d.list.Path, w)) + "\n\n")
 		if len(d.list.Files) == 0 {
-			b.WriteString("The directory is empty.\n")
+			head.WriteString("The directory is empty.\n")
 		}
-		first, last := window(d.cursor, len(d.list.Files), filesRows)
-		for i := first; i < last; i++ {
+		n = len(d.list.Files)
+		entry = func(i int) string {
 			f := d.list.Files[i]
-			b.WriteString(d.row(i, fileName(f, path.Base(f.Path)), fileSize(f)+"  "+present.Stamp(f.Mtime), w) + "\n")
+			return d.row(i, fileName(f, path.Base(f.Path)), fileSize(f)+"  "+present.Stamp(f.Mtime), w)
 		}
 		if d.list.Truncated {
-			b.WriteString(styleDim.Render(fmt.Sprintf("Only the first %d entries are shown: search with /.", len(d.list.Files))) + "\n")
+			tail.WriteString(styleDim.Render(fmt.Sprintf("Only the first %d entries are shown: search with /.", len(d.list.Files))) + "\n")
 		}
 	}
 	if d.searching {
-		b.WriteString("\nFind in all snapshots (case is ignored)\n" + field(&d.input, width) + "\n")
+		tail.WriteString("\nFind in all snapshots (case is ignored)\n" + field(&d.input, width) + "\n")
 	}
 	if d.busy != "" {
-		b.WriteString("\n" + styleDim.Render(d.busy+" …") + "\n")
+		tail.WriteString("\n" + styleDim.Render(d.busy+" …") + "\n")
 	}
 	if d.err != "" {
-		b.WriteString("\n" + styleBad.Render(wrap(d.err, w)) + "\n")
+		tail.WriteString("\n" + styleBad.Render(wrap(d.err, w)) + "\n")
 	}
+	d.page = max(1, height-boxLines-strings.Count(head.String(), "\n")-strings.Count(tail.String(), "\n"))
+	var b strings.Builder
+	b.WriteString(head.String())
+	first, last := window(d.cursor, n, d.page)
+	for i := first; i < last; i++ {
+		b.WriteString(entry(i) + "\n")
+	}
+	b.WriteString(tail.String())
 	hint := "↑↓ move · enter open · ← up · / find · r restore · esc close"
 	switch {
 	case d.searching:

@@ -37,7 +37,6 @@ type Model struct {
 	tab           tab
 	cursor        [numTabs]int
 	showForget    bool // snapshots tab: the forget preview instead of the list
-	help          bool
 	quitting      bool
 
 	status    *service.Status
@@ -284,16 +283,12 @@ func (m *Model) key(k tea.KeyPressMsg) tea.Cmd {
 		return cmd
 	}
 	s := k.String()
-	if m.help {
-		m.help = false
-		return nil
-	}
 	switch s {
 	case "ctrl+c", "q":
 		m.quitting = true
 		return tea.Quit
 	case "?":
-		m.help = true
+		m.dlg = &helpDialog{}
 	case "tab", "right":
 		return m.switchTab((m.tab + 1) % numTabs)
 	case "shift+tab", "left":
@@ -561,6 +556,6 @@ func (m *Model) gotPreflight(msg preflightMsg) tea.Cmd {
 		d.err = describe(msg.err)
 		return nil
 	}
-	d.req, d.pre, d.stage, d.err, d.now = msg.req, &msg.pre, stagePreview, "", m.o.Now()
+	d.req, d.pre, d.stage, d.err, d.now, d.top = msg.req, &msg.pre, stagePreview, "", m.o.Now(), 0
 	return nil
 }
