@@ -143,7 +143,8 @@ func TestEventsAndLog(t *testing.T) {
 		for _, ev := range events {
 			types = append(types, ev.Type)
 		}
-		want := []service.EventType{service.EventStarted, service.EventPhase, service.EventLog, service.EventProgress, service.EventPhase, service.EventFinished}
+		// the last phase reads the repository again, after the work is done
+		want := []service.EventType{service.EventStarted, service.EventPhase, service.EventLog, service.EventProgress, service.EventPhase, service.EventPhase, service.EventFinished}
 		if !slices.Equal(types, want) {
 			t.Fatalf("event types = %v, want %v", types, want)
 		}
@@ -159,7 +160,10 @@ func TestEventsAndLog(t *testing.T) {
 		if events[4].Operation.Progress != nil {
 			t.Error("a new phase resets the progress")
 		}
-		if r := events[5].Result; r == nil || r.Result != service.ResultSuccess || r.Message != "done" || r.Snapshot != "new1" {
+		if events[5].Operation.Phase != "refresh" {
+			t.Errorf("last phase = %q", events[5].Operation.Phase)
+		}
+		if r := events[6].Result; r == nil || r.Result != service.ResultSuccess || r.Message != "done" || r.Snapshot != "new1" {
 			t.Errorf("result = %+v", r)
 		}
 

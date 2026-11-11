@@ -51,6 +51,7 @@ func (d *Daemon) launch(ctx context.Context, kind service.Kind, detail string, r
 			Warnings: out.warnings, Source: r.op.Source, Started: r.op.Started, Duration: service.Duration(d.now().Sub(r.op.Started)),
 		}
 		if out.refresh {
+			d.sink(r).Phase("refresh") // the operation is done, its panel must not say otherwise
 			ctx, cancel := context.WithTimeout(d.opsCtx, afterTimeout)
 			d.refresh(ctx, true)
 			cancel()
@@ -110,6 +111,7 @@ func (d *Daemon) finishBackup(r *running, req service.BackupRequest, attempt int
 	}
 
 	// bring the state up to date; statistics are never worth a failure
+	d.sink(r).Phase("refresh")
 	ctx, cancel := context.WithTimeout(d.opsCtx, afterTimeout)
 	d.refresh(ctx, false)
 	if res.Snapshot != "" || res.Forget.Ran {

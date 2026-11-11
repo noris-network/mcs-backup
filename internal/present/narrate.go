@@ -35,6 +35,8 @@ func PhaseTitle(phase string) string {
 		return "Pruning the repository"
 	case "check":
 		return "Checking the repository"
+	case "refresh":
+		return "Reading the new state of the repository"
 	}
 	if phase == "" {
 		return ""
