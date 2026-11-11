@@ -141,8 +141,9 @@ func TestRestorePreviewChangesNothing(t *testing.T) {
 	if c.Deleted != 1 || len(c.DeletedPaths) != 1 || !strings.HasSuffix(c.DeletedPaths[0], "/docs/new.txt") {
 		t.Errorf("deleted = %d %q", c.Deleted, c.DeletedPaths)
 	}
-	if c.Created < 1 {
-		t.Errorf("created = %d: keep.txt would come back", c.Created)
+	// keep.txt comes back; the directories are there already
+	if c.Created != 1 {
+		t.Errorf("created = %d: only keep.txt would come back", c.Created)
 	}
 	if i.read("docs/a.txt") != "changed since" || !i.exists("docs/new.txt") || i.exists("docs/keep.txt") {
 		t.Error("the preview changed the data")

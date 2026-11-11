@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -116,6 +117,12 @@ func (e *Engine) previewChanges(ctx context.Context, p *restorePlan) {
 	opts.OnItem = func(action, item string) {
 		switch action {
 		case "restored":
+			// restic also reports a directory that is already there as
+			// restored: only its metadata is set again
+			if _, err := os.Lstat(filepath.Join(p.Target, filepath.FromSlash(item))); err == nil {
+				c.Unchanged++
+				return
+			}
 			c.Created++
 		case "updated":
 			if c.Overwritten++; len(c.OverwrittenPaths) < previewPaths {

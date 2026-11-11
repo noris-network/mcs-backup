@@ -574,7 +574,8 @@ func TestRestorePreview(t *testing.T) {
 	}
 	r := restoreRig(t)
 	var out strings.Builder
-	out.WriteString(item("restored", "/big") + item("unchanged", "/a") + item("unchanged", "/b"))
+	// /data is already there: restic reports the directory as restored all the same
+	out.WriteString(item("restored", "/big") + item("restored", "/data") + item("unchanged", "/a") + item("unchanged", "/b"))
 	for i := range previewPaths + 5 {
 		out.WriteString(item("updated", fmt.Sprintf("/docs/%02d", i)))
 	}
@@ -591,7 +592,7 @@ func TestRestorePreview(t *testing.T) {
 		t.Fatalf("preflight = %+v, %v", p, err)
 	}
 	c := p.Changes
-	if c.Created != 1 || c.Unchanged != 2 || c.Overwritten != previewPaths+5 || c.Deleted != 1 {
+	if c.Created != 1 || c.Unchanged != 3 || c.Overwritten != previewPaths+5 || c.Deleted != 1 {
 		t.Errorf("changes = %+v", c)
 	}
 	if len(c.OverwrittenPaths) != previewPaths || c.OverwrittenPaths[0] != "/docs/00" || !slices.Equal(c.DeletedPaths, []string{"/mnt/new.txt"}) {
