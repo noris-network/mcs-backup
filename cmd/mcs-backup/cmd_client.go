@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -211,6 +212,7 @@ func (a *app) scheduleCommand(cmd *cobra.Command, svc service.Service, enable, d
 func (a *app) newRestoreCmd() *cobra.Command {
 	var (
 		target    string
+		at        string
 		includes  []string
 		merge     bool
 		assumeYes bool
@@ -227,13 +229,29 @@ Without --target the data is restored in place into BACKUP_ROOT (or streamed to
 the restore script in pipe mode). That replaces the current data, so it needs
 confirmation, and a snapshot of the current data is taken first.
 
-Arguments after the snapshot are passed to the pre- and post-restore hooks.`,
+Arguments after the snapshot are passed to the pre- and post-restore hooks.
+
+With --at the snapshot is chosen by time: the newest regular snapshot that was
+taken at or before it, for a state from before something went wrong. All
+arguments are then hook arguments. A date without a time means its first minute.`,
+		Example: `  mcs-backup restore
+  mcs-backup restore 1a2b3c4d --target /tmp/out --include /docs
+  mcs-backup restore --at "2026-11-08 14:00"
+  mcs-backup restore latest -- --maintenance on`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ref := "latest"
 			var hookArgs []string
 			if len(args) > 0 {
 				ref, hookArgs = args[0], args[1:]
+			}
+			var when time.Time
+			if at != "" {
+				var err error
+				if when, err = parseTime(at, time.Local); err != nil {
+					return usageError(err)
+				}
+				hookArgs = args
 			}
 			req := service.RestoreRequest{
 				Snapshot: ref, Includes: includes, NoSafetySnapshot: noSafety, IgnoreSpaceWarning: force, HookArgs: hookArgs,
@@ -252,6 +270,20 @@ Arguments after the snapshot are passed to the pre- and post-restore hooks.`,
 			svc, closeSvc := a.service(cmd)
 			defer closeSvc()
 			ctx := cmd.Context()
+			if at != "" {
+				snaps, err := svc.Snapshots(ctx)
+				if err != nil {
+					return err
+				}
+				snap, err := snapshotAt(snaps, when)
+				if err != nil {
+					return err
+				}
+				ref, req.Snapshot = snap.ShortID, snap.ShortID
+				if !a.wantJSON(cmd) {
+					fmt.Fprintf(a.stdout, "Snapshot %s of %s is the newest at or before %s.\n\n", snap.ShortID, present.Stamp(snap.Time), present.Stamp(when))
+				}
+			}
 			pre, err := svc.RestorePreflight(ctx, req)
 			if err != nil {
 				return err
@@ -278,6 +310,7 @@ Arguments after the snapshot are passed to the pre- and post-restore hooks.`,
 	}
 	f := cmd.Flags()
 	f.StringVar(&target, "target", "", "restore into this directory instead of in place")
+	f.StringVar(&at, "at", "", "restore the newest regular snapshot at or before this time, such as \"2026-11-08 14:00\"")
 	f.StringArrayVar(&includes, "include", nil, "restore only this path of the snapshot (repeatable)")
 	f.BoolVar(&merge, "merge", false, "in place: keep files that are not in the snapshot instead of removing them")
 	f.BoolVar(&assumeYes, "confirm", false, "confirm an in-place restore without asking")
@@ -285,6 +318,47 @@ Arguments after the snapshot are passed to the pre- and post-restore hooks.`,
 	f.BoolVar(&force, "force", false, "restore even if the free space looks too small")
 	f.BoolVar(&noWait, "no-wait", false, "return as soon as the restore has started")
 	return cmd
+}
+
+// parseTime reads a point in time as people write it. Without a zone it is
+// local time, without a time of day the first minute of the day.
+func parseTime(s string, loc *time.Location) (time.Time, error) {
+	s = strings.TrimSpace(s)
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t, nil
+	}
+	for _, layout := range []string{"2006-01-02 15:04:05", "2006-01-02T15:04:05", "2006-01-02 15:04", "2006-01-02T15:04", time.DateOnly} {
+		if t, err := time.ParseInLocation(layout, s, loc); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("cannot read the time %q: write it like 2026-11-08, \"2026-11-08 14:00\" or 2026-11-08T14:00:00+01:00", s)
+}
+
+// snapshotAt returns the newest regular snapshot taken at or before when.
+// Suspicious snapshots and the safety snapshots of restores do not count,
+// the same as for "latest".
+func snapshotAt(snaps []service.Snapshot, when time.Time) (service.Snapshot, error) {
+	var best, oldest *service.Snapshot
+	for i := range snaps {
+		s := &snaps[i]
+		if s.Suspicious || s.PreRestore {
+			continue
+		}
+		if oldest == nil || s.Time.Before(oldest.Time) {
+			oldest = s
+		}
+		if !s.Time.After(when) && (best == nil || s.Time.After(best.Time)) {
+			best = s
+		}
+	}
+	switch {
+	case best != nil:
+		return *best, nil
+	case oldest != nil:
+		return service.Snapshot{}, fmt.Errorf("there is no regular snapshot at or before %s: the oldest is %s of %s", present.Stamp(when), oldest.ShortID, present.Stamp(oldest.Time))
+	}
+	return service.Snapshot{}, errors.New("there is no regular snapshot yet")
 }
 
 func (a *app) newCancelCmd() *cobra.Command {

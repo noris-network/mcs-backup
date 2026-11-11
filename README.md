@@ -78,7 +78,7 @@ one.
 | `ls [<snapshot> [<path>]]` | What a snapshot holds in a directory. |
 | `find <pattern> [--snapshot …] [-i]` | Which snapshots have a file, and in which versions: the way to the snapshot to restore a lost file from. |
 | `diff [<snapshot> [<older>]]` | What a snapshot lost, gained and changed. Without arguments: what the newest backup lost against the last regular one. |
-| `restore [<snapshot>] [--target dir] [--include path] [--merge]` | Restore. Without `--target` it replaces the data in place, asks for confirmation and takes a safety snapshot first. |
+| `restore [<snapshot>] [--target dir] [--include path] [--merge]` | Restore. Without `--target` it replaces the data in place, asks for confirmation and takes a safety snapshot first. `--at "2026-11-08 14:00"` picks the newest regular snapshot from before that time. |
 | `restore-if-empty` | Disaster recovery for init containers: restores only into an empty `BACKUP_ROOT`, and does not contact the repository otherwise. |
 | `verify [--full]` | The restore test. Runs weekly by default. |
 | `keep` / `unkeep <snapshot>` | Protect a snapshot from the retention or release it. |

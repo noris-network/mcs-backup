@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"iter"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -760,5 +761,56 @@ func TestDiff(t *testing.T) {
 	var got service.DiffResult
 	if err := json.Unmarshal(c.stdout.Bytes(), &got); err != nil || got.Removed.Files != 3 {
 		t.Errorf("JSON: %v %s", err, c.out())
+	}
+}
+
+func TestRestoreAtATime(t *testing.T) {
+	c := newCLI(t)
+	day := func(d, h int) time.Time { return time.Date(2026, 3, d, h, 0, 0, 0, time.Local) }
+	c.fake.SnapshotsFn = func(context.Context) ([]service.Snapshot, error) {
+		return []service.Snapshot{
+			{ID: "aaaaaaaaaaaa", ShortID: "aaaaaaaa", Time: day(1, 2)},
+			{ID: "bbbbbbbbbbbb", ShortID: "bbbbbbbb", Time: day(2, 2)},
+			{ID: "ssssssssssss", ShortID: "ssssssss", Time: day(2, 12), Suspicious: true},
+			{ID: "pppppppppppp", ShortID: "pppppppp", Time: day(2, 13), PreRestore: true},
+			{ID: "cccccccccccc", ShortID: "cccccccc", Time: day(3, 2)},
+		}, nil
+	}
+	c.fake.RestorePreflightFn = func(_ context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {
+		return service.RestorePreflight{Snapshot: service.Snapshot{ShortID: req.Snapshot}, Target: req.Target}, nil
+	}
+	// the newest regular snapshot before the time; the arguments go to the hooks
+	if code := c.run("restore", "--at", "2026-03-02 14:00", "--target", t.TempDir(), "--no-wait", "--", "--maintenance", "on"); code != 0 {
+		t.Fatal(code, c.err())
+	}
+	req := c.fake.CallsTo("StartRestore")[0].Args[0].(service.RestoreRequest)
+	if req.Snapshot != "bbbbbbbb" || !slices.Equal(req.HookArgs, []string{"--maintenance", "on"}) {
+		t.Errorf("request = %+v", req)
+	}
+	if !strings.Contains(c.out(), "Snapshot bbbbbbbb of 2026-03-02 02:00:00 is the newest at or before 2026-03-02 14:00:00") {
+		t.Errorf("output = %q", c.out())
+	}
+
+	for at, want := range map[string]string{
+		"2026-03-02":           "aaaaaaaa", // a date is its first minute
+		"2026-03-02T02:00":     "bbbbbbbb", // at the time counts
+		"2026-03-09T00:00:00Z": "cccccccc",
+	} {
+		c.run("restore", "--at", at, "--target", t.TempDir(), "--no-wait")
+		calls := c.fake.CallsTo("StartRestore")
+		if got := calls[len(calls)-1].Args[0].(service.RestoreRequest).Snapshot; got != want {
+			t.Errorf("--at %s restores %s, want %s", at, got, want)
+		}
+	}
+
+	n := len(c.fake.CallsTo("StartRestore"))
+	if code := c.run("restore", "--at", "2026-02-01", "--target", t.TempDir()); code != 1 || !strings.Contains(c.err(), "the oldest is aaaaaaaa") {
+		t.Errorf("exit %d, %q", code, c.err())
+	}
+	if code := c.run("restore", "--at", "yesterday"); code != 2 || !strings.Contains(c.err(), "cannot read the time") {
+		t.Errorf("exit %d, %q", code, c.err())
+	}
+	if len(c.fake.CallsTo("StartRestore")) != n {
+		t.Error("a restore started without a snapshot for the time")
 	}
 }
