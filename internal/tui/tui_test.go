@@ -204,6 +204,51 @@ func TestRestoreToAnotherDirectory(t *testing.T) {
 	}
 }
 
+func TestRestoreThatCannotStartKeepsTheDialog(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	r.fake.RestorePreflightFn = func(_ context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {
+		inPlace := req.Target == ""
+		return service.RestorePreflight{Snapshot: snap("cccccccc", time.Hour), Target: req.Target, InPlace: inPlace, Mode: service.ModeMerge, TargetEmpty: true}, nil
+	}
+	busy := true
+	r.fake.StartRestoreFn = func(context.Context, service.RestoreRequest) (service.Operation, error) {
+		if busy {
+			return service.Operation{}, &service.BusyError{Current: service.Operation{Kind: service.KindBackup, Started: t0}}
+		}
+		return service.Operation{Kind: service.KindRestore}, nil
+	}
+
+	// to another directory: it starts from the preview
+	r.press("2", "t", "down")
+	r.typeText("/tmp/out")
+	r.press("enter", "enter")
+	r.wantScreen("Restore", "another operation is running (backup)", "Press enter to try", "/tmp/out")
+	busy = false
+	r.press("enter")
+	if calls := r.fake.CallsTo("StartRestore"); len(calls) != 2 || calls[1].Args[0].(service.RestoreRequest).Target != "/tmp/out" {
+		t.Fatalf("StartRestore calls: %v", r.fake)
+	}
+	if r.m.dlg != nil {
+		t.Errorf("the dialog stays after the restore started:\n%s", r.screen())
+	}
+	r.wantScreen("restore started")
+
+	// in place: it starts from the typed confirmation, which stays typed
+	busy = true
+	r.press("enter", "enter", "enter")
+	r.typeText("cccccccc")
+	r.press("enter")
+	r.wantScreen("another operation is running (backup)", "> cccccccc")
+	busy = false
+	r.press("enter")
+	if calls := r.fake.CallsTo("StartRestore"); len(calls) != 4 || calls[3].Args[0].(service.RestoreRequest).Confirm != "cccccccc" {
+		t.Fatalf("StartRestore calls: %v", r.fake)
+	}
+	if r.m.dlg != nil {
+		t.Errorf("the dialog stays after the restore started:\n%s", r.screen())
+	}
+}
+
 func TestRestoreSpaceWarning(t *testing.T) {
 	r := healthy(newRig(t)).load()
 	r.fake.RestorePreflightFn = func(_ context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {

@@ -41,6 +41,8 @@ type (
 		pre service.RestorePreflight
 		err error
 	}
+	// restoreStartMsg says whether a restore started.
+	restoreStartMsg struct{ err error }
 	// doneMsg reports that an action finished; note replaces the default
 	// confirmation.
 	doneMsg struct {

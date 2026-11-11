@@ -125,6 +125,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case preflightMsg:
 		return m, m.gotPreflight(msg)
+	case restoreStartMsg:
+		return m, m.restoreStarted(msg)
 	case filesMsg:
 		m.gotFiles(msg)
 	case diffMsg:
@@ -543,7 +545,28 @@ func (m *Model) retryWithoutSafety() tea.Cmd {
 
 func (m *Model) startRestore(req service.RestoreRequest) tea.Cmd {
 	m.lastRestore = &req
-	return m.start("restore", func() (service.Operation, error) { return m.svc.StartRestore(m.ctx, req) })
+	return func() tea.Msg {
+		_, err := m.svc.StartRestore(m.ctx, req)
+		return restoreStartMsg{err}
+	}
+}
+
+// restoreStarted closes the restore dialog once the restore runs. When it
+// could not start, because a scheduled backup runs at that moment for
+// example, the dialog stays with all that was entered and says why.
+func (m *Model) restoreStarted(msg restoreStartMsg) tea.Cmd {
+	if d, ok := m.dlg.(*restoreDialog); ok {
+		d.starting = false
+		if msg.err != nil {
+			d.err = describe(msg.err)
+			if _, busy := errors.AsType[*service.BusyError](msg.err); busy {
+				d.err += ". Press enter to try again."
+			}
+			return nil
+		}
+		m.dlg = nil
+	}
+	return m.done(doneMsg{what: "restore", note: "restore started", err: msg.err})
 }
 
 // gotPreflight moves the restore dialog on to the preview.

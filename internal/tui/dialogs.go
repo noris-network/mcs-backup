@@ -475,6 +475,8 @@ type restoreDialog struct {
 	now     time.Time
 	confirm textinput.Model
 	err     string
+	// starting is set while the restore is asked to start
+	starting bool
 	// top and page scroll the preview: its lists of paths can be longer
 	// than the screen
 	top, page int
@@ -598,7 +600,7 @@ func (d *restoreDialog) previewKey(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) 
 		req.IgnoreSpaceWarning = d.ignore
 		d.req = req
 		if !d.pre.InPlace {
-			return m.startRestore(req), true
+			return d.start(m, req), false
 		}
 		d.stage, d.err = stageConfirm, ""
 		d.confirm = newInput(req.Snapshot)
@@ -617,11 +619,21 @@ func (d *restoreDialog) confirmKey(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) 
 		}
 		req := d.req
 		req.Confirm = d.confirm.Value()
-		return m.startRestore(req), true
+		return d.start(m, req), false
 	default:
 		return typing(&d.confirm, k), false
 	}
 	return nil, false
+}
+
+// start asks for the restore. The dialog stays until it is known whether it
+// started (see restoreStarted): if not, what was entered is still there.
+func (d *restoreDialog) start(m *Model, req service.RestoreRequest) tea.Cmd {
+	if d.starting {
+		return nil
+	}
+	d.starting, d.err = true, ""
+	return m.startRestore(req)
 }
 
 func (d *restoreDialog) view(width, height int) string {
