@@ -585,6 +585,25 @@ func TestFilesPageBrowsesASnapshot(t *testing.T) {
 	s.do("GET", "/snapshots", nil).want(t, http.StatusOK, `href="/files?snapshot=aaaaaaaa"`)
 }
 
+func TestDiffPage(t *testing.T) {
+	s := newSite(t, "")
+	s.fake.DiffFn = func(_ context.Context, req service.DiffRequest) (service.DiffResult, error) {
+		if req.To == "old" {
+			return service.DiffResult{}, errors.New("there is no regular snapshot before old to compare it with")
+		}
+		return service.DiffResult{From: service.Snapshot{ShortID: "aaaaaaaa", Time: t0}, To: service.Snapshot{ShortID: "bbbbbbbb", Time: t0, Suspicious: true},
+			Removed: service.DiffSide{Files: 3, Dirs: 1, Paths: []service.DiffPath{{Path: "/<b>big/", Entries: 4}}}}, nil
+	}
+	s.login()
+	page := s.do("GET", "/diff?to=bbbbbbbb", nil)
+	page.want(t, http.StatusOK, "From snapshot aaaaaaaa", "removed  3 files, 1 directory", "/&lt;b&gt;big/  (4 entries)", "acknowledge it on the snapshots page")
+	if req := s.fake.CallsTo("Diff")[0].Args[0].(service.DiffRequest); req.To != "bbbbbbbb" || req.From != "" {
+		t.Errorf("request = %+v", req)
+	}
+	s.do("GET", "/diff?to=old", nil).want(t, http.StatusOK, "There is no regular snapshot before old")
+	s.do("GET", "/snapshots", nil).want(t, http.StatusOK, `href="/diff?to=`+strings.Repeat("b", 64)+`"`)
+}
+
 func TestFilesPageFindsAFile(t *testing.T) {
 	s := newSite(t, "")
 	newest := service.SnapshotRef{ID: strings.Repeat("n", 64), Time: t0.Add(-time.Hour)}

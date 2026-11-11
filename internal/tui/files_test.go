@@ -128,3 +128,21 @@ func TestFileBrowserShowsWhatIsWrong(t *testing.T) {
 	r.press("o")
 	r.wantScreen("Only the first 1 entries")
 }
+
+func TestWhatChangedInASnapshot(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	r.fake.DiffFn = func(_ context.Context, req service.DiffRequest) (service.DiffResult, error) {
+		if !strings.HasPrefix(req.To, "cccccccc") {
+			return service.DiffResult{}, errors.New("there is no regular snapshot before aaaaaaaa to compare it with")
+		}
+		return service.DiffResult{From: snap("bbbbbbbb", 24*time.Hour), To: snap("cccccccc", time.Hour),
+			Removed: service.DiffSide{Files: 3, Dirs: 1, Paths: []service.DiffPath{{Path: "/big/", Entries: 4}}}}, nil
+	}
+	r.press("2", "d")
+	r.wantScreen("What changed", "From snapshot bbbbbbbb", "/big/  (4 entries)")
+	r.press("esc", "down", "down", "d") // the oldest snapshot
+	r.wantScreen("no regular snapshot before aaaaaaaa")
+	if r.m.dlg != nil {
+		t.Error("a failed comparison opens a dialog")
+	}
+}

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/noris-network/mcs-backup/v2/internal/present"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
 
@@ -115,4 +116,25 @@ func (h *Handler) search(r *http.Request, d *filesData) {
 			Restore:     restoreURL(service.RestoreRequest{Snapshot: v.Newest.ID, Includes: []string{v.Path}}),
 		})
 	}
+}
+
+// diffData is the page that tells what a snapshot lost, gained and changed.
+type diffData struct {
+	Lines []string
+	// Suspicious: the snapshot waits for its acknowledgement.
+	Suspicious bool
+	Error      string
+}
+
+func (h *Handler) diff(w http.ResponseWriter, r *http.Request) {
+	r = h.ctx(r)
+	q := r.URL.Query()
+	var d diffData
+	res, err := h.svc.Diff(r.Context(), service.DiffRequest{To: q.Get("to"), From: q.Get("from")})
+	if err != nil {
+		d.Error = describe(err)
+	} else {
+		d.Lines, d.Suspicious = present.DiffLines(res), res.To.Suspicious
+	}
+	h.render(w, r, "diff", "snapshots", d)
 }

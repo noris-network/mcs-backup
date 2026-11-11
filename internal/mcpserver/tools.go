@@ -84,6 +84,22 @@ func (s *Server) registerRead() {
 		return reply(r)
 	})
 
+	type diffIn struct {
+		Snapshot string `json:"snapshot,omitempty" jsonschema:"the newer snapshot (ID or latest); empty is the newest snapshot, also a suspicious one"`
+		Older    string `json:"older,omitempty" jsonschema:"the snapshot to compare with; empty is the regular snapshot before the newer one"`
+	}
+	mcp.AddTool(s.srv, &mcp.Tool{
+		Name:        "get_snapshot_diff",
+		Description: "What a snapshot lost, gained and changed compared with an older one. Directories removed or added as a whole are listed once, the largest first. Without arguments it tells what the newest backup lost against the last regular one: the way to judge a snapshot that is flagged suspicious before it is acknowledged.",
+		Annotations: readOnly,
+	}, func(c context.Context, _ *mcp.CallToolRequest, in diffIn) (*mcp.CallToolResult, any, error) {
+		d, err := s.svc.Diff(ctx(c), service.DiffRequest{To: in.Snapshot, From: in.Older})
+		if err != nil {
+			return nil, nil, explain(err)
+		}
+		return reply(d)
+	})
+
 	type preflightIn struct {
 		Snapshot string   `json:"snapshot" jsonschema:"snapshot ID, or latest"`
 		Target   string   `json:"target,omitempty" jsonschema:"directory to restore to; empty means replacing the live data"`

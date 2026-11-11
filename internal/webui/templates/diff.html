@@ -1,0 +1,9 @@
+{{define "content"}}
+<h1>What changed</h1>
+{{if .Data.Error}}<p class="flash bad" role="status">{{.Data.Error}}</p>{{else}}
+<section class="panel"><pre class="log">{{range .Data.Lines}}{{.}}
+{{end}}</pre></section>
+{{if .Data.Suspicious}}<p class="dim">This snapshot is flagged as much smaller than the one before. If what is gone is meant to be gone, acknowledge it on the snapshots page; otherwise restore what is missing from the older snapshot.</p>{{end}}
+{{end}}
+<p class="back"><a href="/snapshots" class="btn">Snapshots</a></p>
+{{end}}

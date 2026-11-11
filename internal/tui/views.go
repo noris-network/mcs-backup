@@ -135,7 +135,7 @@ func (m *Model) legend(t tab, cancel bool) string {
 	var keys []hint
 	switch t {
 	case tabSnapshots:
-		keys = []hint{{"enter", "restore"}, {"t", "restore latest"}, {"o", "files"}, {"K", "keep/unkeep"}, {"a", "acknowledge"}, {"f", "forget preview"}}
+		keys = []hint{{"enter", "restore"}, {"t", "restore latest"}, {"o", "files"}, {"d", "what changed"}, {"K", "keep/unkeep"}, {"a", "acknowledge"}, {"f", "forget preview"}}
 	case tabLocks:
 		keys = []hint{{"u", "remove stale"}, {"U", "remove all"}}
 	case tabAccess:
@@ -619,6 +619,7 @@ Move        ↑ ↓  or  j k
 Backup      b  start a backup (with a note)
 Restore     in Snapshots: enter restores the selected snapshot, t the latest
 Files       in Snapshots: o  browse the selected snapshot, / finds a file in all
+Changes     in Snapshots: d  what the selected snapshot lost, gained and changed
 Cancel      c  stop the running operation or the pending retry
 Verify      v  restore a sample of the latest snapshot and check it
 Keep        in Snapshots: K  keep / unkeep the selected snapshot

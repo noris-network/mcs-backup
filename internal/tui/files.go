@@ -22,6 +22,10 @@ type (
 		list service.FileList
 		err  error
 	}
+	diffMsg struct {
+		diff service.DiffResult
+		err  error
+	}
 	findMsg struct {
 		pattern string
 		res     service.FindResult

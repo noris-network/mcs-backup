@@ -79,7 +79,7 @@ func NewHandler(svc service.Service, auth *Auth, o Options) http.Handler {
 			return ""
 		},
 	}
-	for _, name := range []string{"overview", "snapshots", "locks", "access", "log", "restore", "restore_check", "files", "login_failed", "off"} {
+	for _, name := range []string{"overview", "snapshots", "locks", "access", "log", "restore", "restore_check", "files", "diff", "login_failed", "off"} {
 		h.pages[name] = template.Must(template.New("").Funcs(funcs).ParseFS(assets, "templates/layout.html", "templates/live.html", "templates/"+name+".html"))
 	}
 	h.routes()
@@ -99,6 +99,7 @@ func (h *Handler) routes() {
 	auth("GET /access", h.access)
 	auth("GET /log/{kind}", h.logPage)
 	auth("GET /files", h.files)
+	auth("GET /diff", h.diff)
 	auth("GET /restore", h.restoreForm)
 	auth("POST /restore/check", h.restoreCheck)
 

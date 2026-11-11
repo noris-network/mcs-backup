@@ -131,6 +131,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.gotPreflight(msg)
 	case filesMsg:
 		m.gotFiles(msg)
+	case diffMsg:
+		if !m.fail("diff", msg.err) {
+			m.dlg = &textDialog{title: "What changed", lines: present.DiffLines(msg.diff)}
+		}
 	case findMsg:
 		m.gotFind(msg)
 	case pasteMsg:
@@ -390,6 +394,15 @@ func (m *Model) snapshotKey(s string) tea.Cmd {
 	case "t":
 		m.dlg = newRestoreDialog("latest")
 		return nil
+	case "d":
+		req := service.DiffRequest{}
+		if ok {
+			req.To = snap.ID
+		}
+		return func() tea.Msg {
+			d, err := m.svc.Diff(m.ctx, req)
+			return diffMsg{d, err}
+		}
 	case "o":
 		if ok {
 			return m.openFiles(snap.ShortID)
