@@ -297,17 +297,28 @@ func ResultLines(r service.RunResult) []string {
 		head += fmt.Sprintf(" (%s)", Duration(r.Duration.Std()))
 	}
 	lines := []string{head}
+	// a text of several lines, such as an error of restic, keeps its further
+	// lines under its first
+	add := func(text string) {
+		for i, l := range strings.Split(strings.TrimRight(text, "\n"), "\n") {
+			if i == 0 {
+				lines = append(lines, "  "+l)
+			} else {
+				lines = append(lines, "    "+l)
+			}
+		}
+	}
 	if r.Snapshot != "" && !strings.Contains(r.Message, Short(r.Snapshot)) {
-		lines = append(lines, "  snapshot "+Short(r.Snapshot))
+		add("snapshot " + Short(r.Snapshot))
 	}
 	if r.Message != "" {
-		lines = append(lines, "  "+r.Message)
+		add(r.Message)
 	}
 	if r.Error != "" {
-		lines = append(lines, "  error: "+r.Error)
+		add("error: " + r.Error)
 	}
 	for _, w := range r.Warnings {
-		lines = append(lines, "  warning: "+w)
+		add("warning: " + w)
 	}
 	if r.WillRetry {
 		lines = append(lines, "  the backup will be retried")

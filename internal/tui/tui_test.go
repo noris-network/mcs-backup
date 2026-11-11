@@ -740,6 +740,28 @@ func TestLongValuesWrapUnderTheirColumn(t *testing.T) {
 	}
 }
 
+func TestResultPanelWrapsTheReason(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	r.m.width = 80
+	long := "forget on the main repository failed: restic forget: exit code 11: unable to create lock in backend: repository is already locked by PID 37896 on host-a by user (UID 1000)"
+	r.send(eventMsg{service.Event{Type: service.EventFinished, Result: &service.RunResult{Kind: service.KindBackup, Result: service.ResultWarning, Snapshot: "dddddddd00", Message: "snapshot dddddddd created", Warnings: []string{long}}}})
+	r.wantScreen("locked by PID 37896", "(UID 1000)")
+	r.wantNoScreen("…")
+
+	// a very long reason ends after a few lines
+	r.send(eventMsg{service.Event{Type: service.EventFinished, Result: &service.RunResult{Kind: service.KindBackup, Result: service.ResultFailure, Error: strings.Repeat("restic said something long ", 40)}}})
+	r.wantScreen("…")
+	n := 0
+	for l := range strings.SplitSeq(r.screen(), "\n") {
+		if strings.Contains(l, "restic said") {
+			n++
+		}
+	}
+	if n >= maxResultLines {
+		t.Errorf("%d lines of the result", n)
+	}
+}
+
 func TestPanelAndLegendStayAtTheBottom(t *testing.T) {
 	r := healthy(newRig(t)).load()
 	r.send(eventMsg{service.Event{Type: service.EventFinished, Result: &service.RunResult{Kind: service.KindRestore, Result: service.ResultSuccess, Snapshot: "dddddddd00", Duration: service.Duration(4 * time.Second)}}})

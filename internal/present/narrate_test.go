@@ -56,6 +56,14 @@ func TestResultLinesDoNotRepeatTheSnapshot(t *testing.T) {
 	}
 }
 
+func TestResultLinesIndentTheLinesOfAnError(t *testing.T) {
+	r := service.RunResult{Kind: service.KindBackup, Result: service.ResultFailure, Error: "context canceled\nrestic backup: exit code 130\n"}
+	got := ResultLines(r)
+	if len(got) != 3 || got[1] != "  error: context canceled" || got[2] != "    restic backup: exit code 130" {
+		t.Errorf("lines = %q", got)
+	}
+}
+
 func TestCards(t *testing.T) {
 	now := time.Date(2026, 10, 29, 12, 0, 0, 0, time.Local)
 	st := service.Status{

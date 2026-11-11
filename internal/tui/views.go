@@ -561,7 +561,17 @@ func (m *Model) operationPanel() string {
 	case m.lastResult != nil:
 		var b strings.Builder
 		c := colBad
-		for i, l := range present.ResultLines(*m.lastResult) {
+		// the reason of a failure or a warning is wrapped, not cut: it is
+		// what the user has to read. A very long one ends after a few lines,
+		// the attention notes and the log have it in full.
+		var lines []string
+		for _, l := range present.ResultLines(*m.lastResult) {
+			lines = append(lines, wrapIndented(l, m.width-6)...)
+		}
+		if len(lines) > maxResultLines {
+			lines = append(lines[:maxResultLines-1], styleDim.Render("…"))
+		}
+		for i, l := range lines {
 			if i == 0 {
 				switch {
 				case m.lastResult.Result == service.ResultSuccess:
@@ -572,7 +582,7 @@ func (m *Model) operationPanel() string {
 					l = styleBad.Render(l)
 				}
 			}
-			b.WriteString(truncate(l, m.width-6) + "\n")
+			b.WriteString(l + "\n")
 		}
 		if r := m.lastResult; r.Kind == service.KindRestore && !r.Result.OK() && m.lastRestore != nil && !m.lastRestore.NoSafetySnapshot && m.lastRestore.Target == "" {
 			b.WriteString(styleWarn.Render("x  repeat the restore without the safety snapshot") + "\n")
@@ -586,6 +596,26 @@ func (m *Model) operationPanel() string {
 		return m.retryLine()
 	}
 	return ""
+}
+
+// maxResultLines limits the result in the panel, so that the content above
+// keeps its room.
+const maxResultLines = 6
+
+// wrapIndented wraps a line at width and puts the lines it adds two columns
+// further in than the line itself.
+func wrapIndented(line string, width int) []string {
+	text := strings.TrimLeft(line, " ")
+	indent := line[:len(line)-len(text)]
+	parts := strings.Split(wrap(text, width-len(indent)-2), "\n")
+	for i := range parts {
+		if i == 0 {
+			parts[i] = indent + parts[i]
+		} else {
+			parts[i] = indent + "  " + parts[i]
+		}
+	}
+	return parts
 }
 
 func (m *Model) retrying() bool { return m.op == nil && m.status != nil && m.status.Retry != nil }
