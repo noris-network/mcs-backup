@@ -260,8 +260,12 @@ func PreflightRows(p service.RestorePreflight, now time.Time) []Row {
 	}
 	if !p.PipeMode {
 		add("Mode", "%s", p.Mode)
-		if p.NeedBytes > 0 || p.FreeBytes > 0 {
-			add("Space", "about %s needed, %s free", Bytes(p.NeedBytes), Bytes(p.FreeBytes))
+		// the need is what comes on top of what the target holds now
+		switch {
+		case p.NeedBytes > 0:
+			add("Space", "about %s more needed, %s free", Bytes(p.NeedBytes), Bytes(p.FreeBytes))
+		case p.FreeBytes > 0:
+			add("Space", "no extra space needed, %s free", Bytes(p.FreeBytes))
 		}
 	}
 	if p.SafetySnapshot {

@@ -88,6 +88,23 @@ func TestPreflightRowsNameTheIncludedPaths(t *testing.T) {
 	}
 }
 
+func TestPreflightRowsSayTheExtraSpace(t *testing.T) {
+	space := func(need, free int64) string {
+		for _, r := range present.PreflightRows(service.RestorePreflight{Target: "/data", NeedBytes: need, FreeBytes: free}, time.Now()) {
+			if r.Label == "Space" {
+				return r.Text
+			}
+		}
+		return ""
+	}
+	if got := space(0, 3<<30); got != "no extra space needed, 3.0 GiB free" {
+		t.Errorf("space = %q", got)
+	}
+	if got := space(2<<20, 3<<30); got != "about 2.0 MiB more needed, 3.0 GiB free" {
+		t.Errorf("space = %q", got)
+	}
+}
+
 func TestPreflightRowsShowTheChanges(t *testing.T) {
 	p := service.RestorePreflight{Target: "/mnt", InPlace: true, Changes: &service.RestoreChanges{
 		Created: 7, Overwritten: 3, Deleted: 1, Unchanged: 2, OverwrittenPaths: []string{"/docs/a", "/docs/b"}, DeletedPaths: []string{"/mnt/new.txt"},
