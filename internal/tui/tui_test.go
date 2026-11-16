@@ -634,6 +634,21 @@ func TestLogDialog(t *testing.T) {
 	r.wantNoScreen("first line")
 }
 
+func TestLogSkipsQuickRunsAndSwitches(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	r.fake.LogFn = func(_ context.Context, kind service.Kind) (service.Log, error) {
+		return service.Log{Kind: kind, Lines: []string{"a line of " + string(kind)}}, nil
+	}
+	// after a keep the log of the backup is what is worth reading
+	r.send(eventMsg{service.Event{Type: service.EventFinished, Result: &service.RunResult{Kind: service.KindTag, Result: service.ResultSuccess}}})
+	r.press("l")
+	r.wantScreen("Log of the last backup run", "a line of backup", "b p c v r other logs")
+	r.press("p")
+	r.wantScreen("Log of the last prune run", "a line of prune")
+	r.press("esc")
+	r.wantNoScreen("a line of")
+}
+
 func TestSchedule(t *testing.T) {
 	r := healthy(newRig(t)).load()
 	r.press("s")

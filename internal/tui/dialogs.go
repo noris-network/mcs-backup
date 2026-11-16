@@ -286,10 +286,17 @@ type textDialog struct {
 	top    int
 	page   int  // lines in view at the last drawing
 	follow bool // new lines are appended and the end stays in view
+	log    bool // the log of a run: a key opens the log of another kind
 }
 
-func (d *textDialog) key(_ *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
+// logKeys open the log of another kind of run from the log dialog.
+var logKeys = map[string]service.Kind{"b": service.KindBackup, "p": service.KindPrune, "c": service.KindCheck, "v": service.KindVerify, "r": service.KindRestore}
+
+func (d *textDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 	page := max(3, d.page)
+	if kind, ok := logKeys[k.String()]; ok && d.log {
+		return m.wait("reading the log", fetchLog(m.ctx, m.svc, kind)), false
+	}
 	switch k.String() {
 	case "esc", "q", "ctrl+c", "enter":
 		return nil, true
@@ -326,6 +333,9 @@ func (d *textDialog) view(width, height int) string {
 		body = strings.Join(lines, "\n")
 	}
 	hint := "↑↓ pgup pgdn scroll · G end · esc close"
+	if d.log {
+		hint = "b p c v r other logs · ↑↓ scroll · G end · esc close"
+	}
 	if pos != "" {
 		hint = pos + " · " + hint
 	}

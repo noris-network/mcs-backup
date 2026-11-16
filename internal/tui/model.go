@@ -143,7 +143,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case logMsg:
 		m.arrived()
 		if !m.fail("log", msg.err) {
-			m.dlg = &textDialog{title: "Log of the last " + string(msg.log.Kind) + " run", lines: msg.log.Lines, follow: true}
+			m.dlg = &textDialog{title: "Log of the last " + string(msg.log.Kind) + " run", lines: msg.log.Lines, follow: true, log: true}
 		}
 	case preflightMsg:
 		return m, m.gotPreflight(msg)
@@ -393,12 +393,14 @@ func (m *Model) move(delta int) {
 	m.cursor[m.tab] = max(0, min(m.cursor[m.tab]+delta, n-1))
 }
 
-// logKind picks the log to show: the running or last operation, else the backup.
+// logKind picks the log to show: the running or last operation, else the
+// backup. A tag change and an unlock have no log worth showing.
 func (m *Model) logKind() service.Kind {
+	quick := func(k service.Kind) bool { return k == service.KindTag || k == service.KindUnlock }
 	switch {
-	case m.op != nil:
+	case m.op != nil && !quick(m.op.Kind):
 		return m.op.Kind
-	case m.lastResult != nil:
+	case m.lastResult != nil && !quick(m.lastResult.Kind):
 		return m.lastResult.Kind
 	}
 	return service.KindBackup

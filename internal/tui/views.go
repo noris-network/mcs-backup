@@ -716,7 +716,7 @@ Acknowledge in Snapshots: a  accept a much smaller snapshot
 Forget      in Snapshots: f  what the retention would delete
 Locks       in Locks: u  remove stale locks, U  remove all
 Schedule    s  enable, disable or pause scheduled backups
-Log         l  log of the last run
+Log         l  log of the last run, in it b p c v r the log of another kind
 Web UI      w  switch it on and show a one-time login link
 Access      in Access: p  show or hide the secrets, y  export lines to paste
 Other       n  test notification · r  refresh · q  quit`
