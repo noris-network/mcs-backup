@@ -52,6 +52,7 @@ func (e *Engine) planRestore(ctx context.Context, req service.RestoreRequest) (r
 	}
 	p.Snapshot = service.FromRestic(p.snap)
 	p.includes = req.Includes
+	p.Includes = req.Includes
 	p.PipeMode = e.cfg.PipeMode()
 	p.Target = e.cfg.Root
 	if req.Target != "" {

@@ -77,6 +77,17 @@ func TestDiffLines(t *testing.T) {
 	}
 }
 
+func TestPreflightRowsNameTheIncludedPaths(t *testing.T) {
+	p := service.RestorePreflight{Target: "/data", InPlace: true, Includes: []string{"/docs/a.md", "/etc/app"}}
+	var text []string
+	for _, r := range present.PreflightRows(p, time.Now()) {
+		text = append(text, r.Label+"|"+r.Text)
+	}
+	if got := strings.Join(text, "\n"); !strings.Contains(got, "Target|/data (in place, replaces the current data)\nOnly|/docs/a.md\n|/etc/app") {
+		t.Errorf("rows:\n%s", got)
+	}
+}
+
 func TestPreflightRowsShowTheChanges(t *testing.T) {
 	p := service.RestorePreflight{Target: "/mnt", InPlace: true, Changes: &service.RestoreChanges{
 		Created: 7, Overwritten: 3, Deleted: 1, Unchanged: 2, OverwrittenPaths: []string{"/docs/a", "/docs/b"}, DeletedPaths: []string{"/mnt/new.txt"},

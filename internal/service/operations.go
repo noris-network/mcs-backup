@@ -207,6 +207,8 @@ type RestoreRequest struct {
 type RestorePreflight struct {
 	Snapshot Snapshot `json:"snapshot"`
 	Target   string   `json:"target,omitempty"`
+	// Includes are the paths of the snapshot to restore, empty for all.
+	Includes []string `json:"include,omitempty"`
 	// InPlace: the restore replaces the live data (BACKUP_ROOT or the database).
 	InPlace bool `json:"in_place"`
 	// PipeMode: the snapshot is streamed to PIPE_OUT_SCRIPT.

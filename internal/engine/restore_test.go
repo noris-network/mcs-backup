@@ -589,7 +589,7 @@ func TestRestorePreview(t *testing.T) {
 		t.Fatalf("a plain preflight previews: %+v, %v", p.Changes, err)
 	}
 	p, err = r.e.RestorePreflight(t.Context(), service.RestoreRequest{Snapshot: "latest", Preview: true, Includes: []string{"/docs"}})
-	if err != nil || p.Changes == nil {
+	if err != nil || p.Changes == nil || !slices.Equal(p.Includes, []string{"/docs"}) {
 		t.Fatalf("preflight = %+v, %v", p, err)
 	}
 	c := p.Changes

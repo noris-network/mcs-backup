@@ -253,6 +253,11 @@ func PreflightRows(p service.RestorePreflight, now time.Time) []Row {
 	default:
 		add("Target", "%s", p.Target)
 	}
+	// a restore of a few paths leaves the rest of the target alone: the
+	// target line alone would sound as if all of it were replaced
+	for i, path := range p.Includes {
+		add(map[bool]string{true: "Only"}[i == 0], "%s", path)
+	}
 	if !p.PipeMode {
 		add("Mode", "%s", p.Mode)
 		if p.NeedBytes > 0 || p.FreeBytes > 0 {
