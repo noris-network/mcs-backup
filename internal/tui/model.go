@@ -492,10 +492,11 @@ func (m *Model) snapshotKey(s string) tea.Cmd {
 	}
 	switch s {
 	case "K":
+		change, what := m.svc.Keep, "kept"
 		if snap.Keep {
-			return act("unkeep", func() error { _, err := m.svc.Unkeep(m.ctx, snap.ID); return err })
+			change, what = m.svc.Unkeep, "no longer kept"
 		}
-		return act("keep", func() error { _, err := m.svc.Keep(m.ctx, snap.ID); return err })
+		return m.retag(snap, what, change)
 	case "a":
 		if !snap.Suspicious {
 			m.say("snapshot %s is not marked suspicious", snap.ShortID)
@@ -507,6 +508,19 @@ func (m *Model) snapshotKey(s string) tea.Cmd {
 			})
 	}
 	return nil
+}
+
+// retag changes the tags of a snapshot and says so. restic gives the snapshot a
+// new ID for that, which the message names: the old one is gone from the list.
+func (m *Model) retag(snap service.Snapshot, what string, change func(context.Context, string) (service.TagResult, error)) tea.Cmd {
+	return func() tea.Msg {
+		res, err := change(m.ctx, snap.ID)
+		note := fmt.Sprintf("snapshot %s is %s", snap.ShortID, what)
+		if res.ID != "" && res.ID != snap.ID {
+			note += "; restic gave it the new ID " + present.Short(res.ID)
+		}
+		return doneMsg{what: "keep", note: note, err: err}
+	}
 }
 
 func (m *Model) lockKey(s string) tea.Cmd {

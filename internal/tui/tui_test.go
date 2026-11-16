@@ -403,6 +403,11 @@ func TestKeepAndAcknowledge(t *testing.T) {
 	if len(r.fake.CallsTo("Keep")) != 1 {
 		t.Errorf("K should keep the snapshot: %v", r.fake)
 	}
+	r.fake.KeepFn = func(context.Context, string) (service.TagResult, error) {
+		return service.TagResult{ID: "eeeeeeee" + strings.Repeat("0", 56)}, nil
+	}
+	r.press("K")
+	r.wantScreen("snapshot bbbbbbbb is kept; restic gave it the new ID eeeeeeee")
 	r.press("down", "a")
 	r.wantScreen("is not marked suspicious")
 }
