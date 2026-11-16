@@ -90,24 +90,36 @@ func (m *Model) health() (string, color.Color) {
 }
 
 func (m *Model) header() string {
-	var tabs []string
-	for i, n := range tabNames {
-		label := strconv.Itoa(i+1) + " " + n
-		if tab(i) == m.tab {
-			tabs = append(tabs, styleTabOn.Render(label))
-		} else {
-			tabs = append(tabs, styleTab.Render(label))
+	tabs := func(short bool) string {
+		var out []string
+		for i, n := range tabNames {
+			label := strconv.Itoa(i+1) + " " + n
+			switch {
+			case tab(i) == m.tab:
+				out = append(out, styleTabOn.Render(label))
+			case short:
+				out = append(out, styleTab.Render(strconv.Itoa(i+1)))
+			default:
+				out = append(out, styleTab.Render(label))
+			}
 		}
+		return strings.Join(out, "")
 	}
-	left := styleBadge.Render("mcs-backup") + " " + strings.Join(tabs, "")
+	badge := styleBadge.Render("mcs-backup") + " "
 	text, c := m.health()
-	right := dot(c) + " " + lipgloss.NewStyle().Foreground(c).Render(text)
+	health := dot(c) + " " + lipgloss.NewStyle().Foreground(c).Render(text)
+	withHost := health
 	if m.status != nil {
-		right = styleDim.Render(m.status.Host) + "  " + right
+		withHost = styleDim.Render(m.status.Host) + "  " + health
 	}
-	line := left
-	if gap := m.width - lipgloss.Width(left) - lipgloss.Width(right) - 1; gap >= 1 {
-		line = left + strings.Repeat(" ", gap) + right
+	// on a narrow terminal the host goes first, then the badge, then the
+	// names of the other tabs: the health stays in view
+	line := tabs(true)
+	for _, v := range [][2]string{{badge + tabs(false), withHost}, {badge + tabs(false), health}, {tabs(false), health}, {tabs(true), health}} {
+		if gap := m.width - lipgloss.Width(v[0]) - lipgloss.Width(v[1]) - 1; gap >= 1 {
+			line = v[0] + strings.Repeat(" ", gap) + v[1]
+			break
+		}
 	}
 	h := line + "\n" + rule(m.width)
 	if m.connErr != "" {

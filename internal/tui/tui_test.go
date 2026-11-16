@@ -104,6 +104,20 @@ func TestSnapshotNotesKeepTheirRoom(t *testing.T) {
 	r.wantNoScreen("…")
 }
 
+func TestHeaderKeepsTheHealthOnANarrowTerminal(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	for _, w := range []int{120, 70, 60, 45, 36} {
+		r.m.width = w
+		head := strings.Split(r.screen(), "\n")[0]
+		if !strings.Contains(head, "healthy") || !strings.Contains(head, "Overview") {
+			t.Errorf("width %d: the header lacks the health or the tab: %q", w, head)
+		}
+		if len([]rune(head)) > w {
+			t.Errorf("width %d: the header is %d wide", w, len([]rune(head)))
+		}
+	}
+}
+
 func TestAccessMasksSecrets(t *testing.T) {
 	r := healthy(newRig(t)).load()
 	r.press("4")
