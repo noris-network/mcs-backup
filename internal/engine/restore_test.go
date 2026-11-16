@@ -568,6 +568,19 @@ func TestRestoreIfEmpty(t *testing.T) {
 	})
 }
 
+func TestRestoreSaysWhereTo(t *testing.T) {
+	r := restoreRig(t)
+	res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "snap1", Confirm: "snap1", NoSafetySnapshot: true}, r.sink())
+	if want := "snapshot snap1 restored over the live data in " + r.root + ": 3 files, 10 B"; res.Message != want {
+		t.Errorf("message = %q, want %q", res.Message, want)
+	}
+	target := filepath.Join(t.TempDir(), "out")
+	res = r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "snap1", Target: target}, r.sink())
+	if want := "snapshot snap1 restored to " + target + ": 3 files, 10 B"; res.Message != want {
+		t.Errorf("message = %q, want %q", res.Message, want)
+	}
+}
+
 func TestRestorePreview(t *testing.T) {
 	item := func(action, path string) string {
 		return fmt.Sprintf(`{"message_type":"verbose_status","action":%q,"item":%q}`+"\n", action, path)

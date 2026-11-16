@@ -144,6 +144,27 @@ func (e *Engine) previewChanges(ctx context.Context, p *restorePlan) {
 	p.Changes = &c
 }
 
+// restoredMessage says what a restore did, and where to: the target is the
+// first thing to check after a restore into a directory.
+func restoredMessage(plan restorePlan, sum restic.RestoreSummary) string {
+	msg := "snapshot " + short(plan.snap.ID) + " restored"
+	switch {
+	case plan.PipeMode:
+		return msg + " through the restore script"
+	case plan.InPlace:
+		msg += " over the live data in " + plan.Target
+	default:
+		msg += " to " + plan.Target
+	}
+	if sum.TotalFiles > 0 {
+		msg += fmt.Sprintf(": %d %s, %s", sum.FilesRestored, plural(int(sum.FilesRestored), "file"), formatBytes(sum.BytesRestored))
+		if sum.FilesSkipped > 0 {
+			msg += fmt.Sprintf(", %d unchanged", sum.FilesSkipped)
+		}
+	}
+	return msg
+}
+
 // inTarget turns a path that restic reports in the target into the path in
 // the snapshot, the form it reports the other changes in: /data/files/a.txt
 // with the target /data/files is /a.txt.
@@ -341,7 +362,7 @@ func (e *Engine) restorePhases(ctx context.Context, req service.RestoreRequest, 
 	if err != nil {
 		return true, err
 	}
-	res.Message = fmt.Sprintf("snapshot %s restored", short(plan.snap.ID))
+	res.Message = restoredMessage(plan, res.Summary)
 	return true, nil
 }
 
