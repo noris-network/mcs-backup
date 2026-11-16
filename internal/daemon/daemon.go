@@ -214,6 +214,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	d.started = d.now()
 	d.mu.Unlock()
 	d.loadState()
+	d.loadRuns()
 
 	v, err := d.eng.CheckVersion(ctx)
 	if err != nil {

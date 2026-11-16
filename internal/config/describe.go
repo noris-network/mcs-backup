@@ -116,7 +116,7 @@ func (c *Config) Describe() []Setting {
 
 	add("BACKUP_HTTP_PORT", strconv.Itoa(c.Server.HTTPPort), "metrics and probes")
 	add("MCS_BACKUP_SOCKET", c.Server.Socket, "")
-	add("MCS_BACKUP_STATE_DIR", c.Server.StateDir, "holds maintenance windows")
+	add("MCS_BACKUP_STATE_DIR", c.Server.StateDir, "holds maintenance windows and the last runs with their logs")
 	web := "off"
 	if c.Server.WebAddr != "" {
 		web = "on at " + c.Server.WebAddr

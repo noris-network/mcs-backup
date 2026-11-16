@@ -177,7 +177,7 @@ you select; see [hooks.md](hooks.md#notifications) and the examples for
 | --- | --- | --- |
 | `BACKUP_HTTP_PORT` | `9000` | `/metrics`, `/healthz`, `/readyz`. Nothing else is served here. |
 | `MCS_BACKUP_SOCKET` | `<tmp>/mcs-backup.sock` | Control socket (mode 0660, no authentication). The CLI, TUI and MCP server use it; `--socket` overrides it per command. |
-| `MCS_BACKUP_STATE_DIR` | `<tmp>/mcs-backup` | Where maintenance windows are stored so that they survive a restart. |
+| `MCS_BACKUP_STATE_DIR` | `<tmp>/mcs-backup` | Where maintenance windows and the result and log of the last run of each kind are stored, so that they survive a restart. Put it on a volume for that. |
 | `MCS_BACKUP_WEB_ADDR` | – (off) | `host:port` of the web UI. It can also be switched on at runtime (`mcs-backup web`). |
 | `MCS_BACKUP_WEB_TOKEN` | – | Optional fixed token for HTTP Basic Auth (any user name), for use behind an ingress. Use a long random one: a token below 16 characters earns a warning. After 5 wrong tokens in a row Basic Auth is refused for 30 seconds (status 429); sessions keep working. |
 | `METRICS_LABELS` | – | YAML or JSON map of constant labels added to every metric; `$VAR` is expanded. |

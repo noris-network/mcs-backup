@@ -2,8 +2,10 @@ package daemon
 
 import (
 	"encoding/json/v2"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/noris-network/mcs-backup/v2/internal/metrics"
@@ -13,13 +15,89 @@ import (
 
 // persisted is the small amount of state that survives a restart: a
 // maintenance window has an end, so forgetting it would start backups in the
-// middle of the maintenance. Everything else is rebuilt from the repository.
+// middle of the maintenance. The repository has the rest, except what the
+// last runs said, which runs.json keeps.
 type persisted struct {
 	MaintenanceUntil time.Time `json:"maintenance_until,omitzero"`
 }
 
+// persistedRuns is the result and the log of the last run of each kind: a
+// restart, such as a new version being deployed, must not lose what the last
+// backup, prune or check said.
+type persistedRuns struct {
+	LastRuns map[service.Kind]service.RunResult `json:"last_runs"`
+	Logs     map[service.Kind]persistedLog      `json:"logs"`
+}
+
+type persistedLog struct {
+	Start   time.Time `json:"start"`
+	Lines   []string  `json:"lines"`
+	Dropped int       `json:"dropped,omitzero"`
+}
+
 func (d *Daemon) stateFile() string {
 	return filepath.Join(d.cfg.Server.StateDir, "state.json")
+}
+
+func (d *Daemon) runsFile() string {
+	return filepath.Join(d.cfg.Server.StateDir, "runs.json")
+}
+
+// loadRuns restores the last runs and their logs.
+func (d *Daemon) loadRuns() {
+	data, err := os.ReadFile(d.runsFile())
+	if err != nil {
+		if !os.IsNotExist(err) {
+			d.log.Warn("cannot read the last runs", "error", err)
+		}
+		return
+	}
+	var p persistedRuns
+	if err := json.Unmarshal(data, &p); err != nil {
+		d.log.Warn("ignoring an unreadable file of the last runs", "error", err)
+		return
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for kind, res := range p.LastRuns {
+		d.lastRuns[kind] = res
+	}
+	for kind, l := range p.Logs {
+		d.logs[kind] = &runLog{start: l.Start, lines: l.Lines, dropped: l.Dropped}
+	}
+}
+
+// saveRuns writes the last runs and their logs; it is called when a run ends.
+// The texts are stored as clients see them, with the secrets hidden.
+func (d *Daemon) saveRuns() {
+	d.mu.Lock()
+	p := persistedRuns{LastRuns: maps.Clone(d.lastRuns), Logs: map[service.Kind]persistedLog{}}
+	for kind, l := range d.logs {
+		if d.op != nil && d.op.op.Kind == kind {
+			continue // still being written
+		}
+		p.Logs[kind] = persistedLog{Start: l.start, Lines: slices.Clone(l.lines), Dropped: l.dropped}
+	}
+	d.mu.Unlock()
+	data, err := json.Marshal(p)
+	if err == nil {
+		err = writeFile(d.runsFile(), data)
+	}
+	if err != nil {
+		d.log.Warn("cannot save the last runs, a restart will forget them", "error", err)
+	}
+}
+
+// writeFile replaces a file of the state directory in one step.
+func writeFile(path string, data []byte) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
 }
 
 // loadState restores a maintenance window that is still open.
@@ -58,13 +136,7 @@ func (d *Daemon) saveState(p persisted) {
 	}
 	data, err := json.Marshal(p)
 	if err == nil {
-		err = os.MkdirAll(filepath.Dir(path), 0o700)
-	}
-	if err == nil {
-		tmp := path + ".tmp"
-		if err = os.WriteFile(tmp, data, 0o600); err == nil {
-			err = os.Rename(tmp, path)
-		}
+		err = writeFile(path, data)
 	}
 	if err != nil {
 		d.log.Warn("cannot save the state, a maintenance window will not survive a restart", "error", err)
@@ -88,7 +160,7 @@ func (d *Daemon) backupsActiveLocked() bool {
 
 // metricsState builds the snapshot the Prometheus collector reads. Only what
 // is known is filled in: right after a restart the last success comes from the
-// repository, and the result of the last run stays absent until a run happens.
+// repository, and the results of the last runs from runs.json.
 func (d *Daemon) metricsState() metrics.State {
 	d.mu.Lock()
 	defer d.mu.Unlock()

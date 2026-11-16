@@ -496,6 +496,38 @@ func TestMaintenanceWindowSurvivesARestart(t *testing.T) {
 	})
 }
 
+func TestLastRunsSurviveARestart(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		first := newTestDaemon(t, func(f *fakeEngine) {
+			f.backup = func(_ context.Context, _ service.BackupRequest, sink engine.Sink) engine.BackupResult {
+				sink.Log("forget on the main repository failed: locked")
+				return engine.BackupResult{Result: service.ResultWarning, Snapshot: "new1", Warnings: []string{"forget on the main repository failed: locked"}}
+			}
+		})
+		ctx, stop := start(t, first)
+		synctest.Wait()
+		if _, err := first.StartBackup(ctx, service.BackupRequest{}); err != nil {
+			t.Fatal(err)
+		}
+		synctest.Wait()
+		stop()
+
+		// a new version is deployed: same state directory, new process
+		second := newTestDaemon(t, nil, "MCS_BACKUP_STATE_DIR="+first.stateDir)
+		ctx, stop = start(t, second)
+		synctest.Wait()
+		st, _ := second.Status(ctx)
+		if r := st.LastRuns[service.KindBackup]; r.Result != service.ResultWarning || r.Snapshot != "new1" || !hasWarning(st, "backup_warning") {
+			t.Errorf("last runs after the restart = %+v", st.LastRuns)
+		}
+		log, _ := second.Log(ctx, service.KindBackup)
+		if !slices.Contains(log.Lines, "forget on the main repository failed: locked") {
+			t.Errorf("log after the restart = %q", log.Lines)
+		}
+		stop()
+	})
+}
+
 func TestDisableDoesNotSurviveARestart(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		first := newTestDaemon(t, nil)

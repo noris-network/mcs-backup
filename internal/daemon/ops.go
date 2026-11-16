@@ -75,6 +75,7 @@ func (d *Daemon) end(r *running, res service.RunResult) {
 	d.lastRuns[res.Kind] = res
 	d.publishLocked(service.Event{Type: service.EventFinished, Result: &res})
 	d.mu.Unlock()
+	d.saveRuns()
 	d.log.Info("operation finished", "kind", res.Kind, "result", res.Result, "duration", res.Duration.Std().Round(time.Millisecond),
 		"id", res.ID, "error", res.Error)
 	r.cancel()
@@ -86,8 +87,9 @@ func (d *Daemon) end(r *running, res service.RunResult) {
 func (d *Daemon) record(res service.RunResult) {
 	res = d.redactResult(res)
 	d.mu.Lock()
-	defer d.mu.Unlock()
 	d.lastRuns[res.Kind] = res
+	d.mu.Unlock()
+	d.saveRuns()
 }
 
 // redactResult hides the secrets in the texts of a result, which quote the
