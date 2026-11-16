@@ -35,6 +35,10 @@ func PhaseTitle(phase string) string {
 		return "Pruning the repository"
 	case "check":
 		return "Checking the repository"
+	case "tag":
+		return "Changing the tags of a snapshot"
+	case "unlock":
+		return "Removing locks"
 	case "refresh":
 		return "Reading the new state of the repository"
 	}
@@ -44,6 +48,18 @@ func PhaseTitle(phase string) string {
 	return strings.ToUpper(phase[:1]) + phase[1:]
 }
 
+// KindName names a kind of operation in words: the kinds are identifiers of
+// the API and the command line, which say verify for the restore test.
+func KindName(k service.Kind) string {
+	switch k {
+	case service.KindVerify:
+		return "restore test"
+	case service.KindTag:
+		return "tag change"
+	}
+	return string(k)
+}
+
 // OperationTitle says in words what a running operation does now.
 func OperationTitle(op service.Operation) string {
 	return cmp.Or(PhaseTitle(op.Phase), PhaseTitle(string(op.Kind)))
@@ -51,7 +67,7 @@ func OperationTitle(op service.Operation) string {
 
 // OperationMeta says which operation runs, who started it and for how long.
 func OperationMeta(now time.Time, op service.Operation) string {
-	return fmt.Sprintf("%s, started by %s, running for %s", op.Kind, op.Source, Duration(now.Sub(op.Started)))
+	return fmt.Sprintf("%s, started by %s, running for %s", KindName(op.Kind), op.Source, Duration(now.Sub(op.Started)))
 }
 
 var (

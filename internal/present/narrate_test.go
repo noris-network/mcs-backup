@@ -72,6 +72,17 @@ func TestResultLinesOfACancelledRun(t *testing.T) {
 	}
 }
 
+func TestKindsAreNamedInWords(t *testing.T) {
+	r := service.RunResult{Kind: service.KindVerify, Result: service.ResultSuccess}
+	if got := ResultLines(r)[0]; got != "restore test: success" {
+		t.Errorf("head = %q", got)
+	}
+	op := service.Operation{Kind: service.KindTag, Source: "tui", Started: time.Now()}
+	if got := OperationTitle(op) + " · " + OperationMeta(time.Now(), op); got != "Changing the tags of a snapshot · tag change, started by tui, running for 0s" {
+		t.Errorf("operation = %q", got)
+	}
+}
+
 func TestCards(t *testing.T) {
 	now := time.Date(2026, 10, 29, 12, 0, 0, 0, time.Local)
 	st := service.Status{

@@ -306,7 +306,7 @@ func PreflightRows(p service.RestorePreflight, now time.Time) []Row {
 
 // ResultLines describes the outcome of an operation.
 func ResultLines(r service.RunResult) []string {
-	head := fmt.Sprintf("%s: %s", r.Kind, r.Result)
+	head := fmt.Sprintf("%s: %s", KindName(r.Kind), r.Result)
 	if r.Duration > 0 {
 		head += fmt.Sprintf(" (%s)", Duration(r.Duration.Std()))
 	}

@@ -395,7 +395,7 @@ func (m *Model) lastRuns(st service.Status) []string {
 		case service.ResultSkipped, service.ResultCancelled:
 			c = colMuted
 		}
-		line := fmt.Sprintf("%s %-8s %-10s %s %s", dot(c), k, r.Result, present.Stamp(r.Started), styleDim.Render("("+present.Duration(r.Duration.Std())+")"))
+		line := fmt.Sprintf("%s %-12s %-10s %s %s", dot(c), present.KindName(k), r.Result, present.Stamp(r.Started), styleDim.Render("("+present.Duration(r.Duration.Std())+")"))
 		if r.Snapshot != "" {
 			line += styleDim.Render("  snapshot ") + present.Short(r.Snapshot)
 		}
@@ -710,7 +710,7 @@ Restore     in Snapshots: enter restores the selected snapshot, t the latest
 Files       in Snapshots: o  browse the selected snapshot, / finds a file in all
 Changes     in Snapshots: d  what the selected snapshot lost, gained and changed
 Cancel      c  stop the running operation or the pending retry
-Verify      v  restore a sample of the latest snapshot and check it
+Test        v  restore test: restore a sample of the latest snapshot and check it
 Keep        in Snapshots: K  keep / unkeep the selected snapshot
 Acknowledge in Snapshots: a  accept a much smaller snapshot
 Forget      in Snapshots: f  what the retention would delete
