@@ -177,6 +177,19 @@ func TestMessagesLeaveTheLegendAndGoWithTheirRun(t *testing.T) {
 	r.wantScreen("nothing to cancel")
 }
 
+func TestSlowAnswersShowThatTheyAreComing(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	r.fake.DiffFn = func(context.Context, service.DiffRequest) (service.DiffResult, error) {
+		time.Sleep(300 * time.Millisecond) // longer than the rig waits
+		return service.DiffResult{}, nil
+	}
+	r.press("2", "d")
+	r.wantScreen("working out what changed …")
+	r.send(diffMsg{diff: service.DiffResult{From: snap("bbbbbbbb", 24*time.Hour), To: snap("cccccccc", time.Hour)}})
+	r.wantScreen("What changed")
+	r.wantNoScreen("working out what changed")
+}
+
 func TestBusy(t *testing.T) {
 	r := healthy(newRig(t)).load()
 	r.fake.StartBackupFn = func(context.Context, service.BackupRequest) (service.Operation, error) {

@@ -55,6 +55,8 @@ type Model struct {
 	flashAt time.Time
 	// flashRun: the flash says that an operation started, it goes when it ends
 	flashRun bool
+	// waiting: the flash says what is being fetched, it goes when it arrives
+	waiting bool
 
 	op          *service.Operation
 	log         []string
@@ -84,7 +86,22 @@ func (m *Model) refresh() tea.Cmd {
 func (m *Model) appendOnly() bool { return m.status != nil && m.status.AppendOnly }
 
 func (m *Model) say(format string, args ...any) {
-	m.flash, m.flashAt, m.flashRun = fmt.Sprintf(format, args...), m.o.Now(), false
+	m.flash, m.flashAt, m.flashRun, m.waiting = fmt.Sprintf(format, args...), m.o.Now(), false, false
+}
+
+// wait says what is being fetched, until it arrives: diff, log and the login
+// link take a moment, and a key that seems to do nothing gets pressed again.
+func (m *Model) wait(what string, cmd tea.Cmd) tea.Cmd {
+	m.say("%s …", what)
+	m.waiting = true
+	return cmd
+}
+
+// arrived ends the note of wait.
+func (m *Model) arrived() {
+	if m.waiting {
+		m.flash, m.waiting = "", false
+	}
 }
 
 // Update implements tea.Model.
@@ -124,6 +141,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.env, m.revealed = &msg.info, msg.revealed
 		}
 	case logMsg:
+		m.arrived()
 		if !m.fail("log", msg.err) {
 			m.dlg = &textDialog{title: "Log of the last " + string(msg.log.Kind) + " run", lines: msg.log.Lines, follow: true}
 		}
@@ -134,6 +152,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case filesMsg:
 		m.gotFiles(msg)
 	case diffMsg:
+		m.arrived()
 		if !m.fail("diff", msg.err) {
 			m.dlg = &textDialog{title: "What changed", lines: present.DiffLines(msg.diff)}
 		}
@@ -142,6 +161,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case pasteMsg:
 		m.dlg = &pasteDialog{title: "restic environment", intro: "These lines set up restic for this repository and contain the secrets. Select them with the mouse, copy them and paste them into a shell.", text: msg.text}
 	case linkMsg:
+		m.arrived()
 		if !m.fail("web UI", msg.err) {
 			m.webLink = msg.url
 			d := &linkDialog{url: msg.url, canOpen: m.o.Open != nil}
@@ -328,13 +348,13 @@ func (m *Model) key(k tea.KeyPressMsg) tea.Cmd {
 			return m.svc.StartVerify(m.ctx, service.VerifyRequest{})
 		})
 	case "l":
-		return fetchLog(m.ctx, m.svc, m.logKind())
+		return m.wait("reading the log", fetchLog(m.ctx, m.svc, m.logKind()))
 	case "s":
 		m.dlg = newScheduleDialog(m.status, m.o.Now())
 	case "n":
 		return act("test notification", func() error { return m.svc.NotifyTest(m.ctx) })
 	case "w":
-		return m.openWeb()
+		return m.wait("switching the web UI on and asking for a login link", m.openWeb())
 	case "x":
 		return m.retryWithoutSafety()
 	default:
@@ -452,10 +472,10 @@ func (m *Model) snapshotKey(s string) tea.Cmd {
 		if ok {
 			req.To = snap.ID
 		}
-		return func() tea.Msg {
+		return m.wait("working out what changed", func() tea.Msg {
 			d, err := m.svc.Diff(m.ctx, req)
 			return diffMsg{d, err}
-		}
+		})
 	case "o":
 		if ok {
 			return m.openFiles(snap.ShortID)
