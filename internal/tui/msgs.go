@@ -44,11 +44,13 @@ type (
 	// restoreStartMsg says whether a restore started.
 	restoreStartMsg struct{ err error }
 	// doneMsg reports that an action finished; note replaces the default
-	// confirmation.
+	// confirmation. started: the action started an operation, and the note
+	// is out of date once it finished.
 	doneMsg struct {
-		what string
-		note string
-		err  error
+		what    string
+		note    string
+		err     error
+		started bool
 	}
 	linkMsg struct {
 		url string

@@ -42,6 +42,8 @@ func (m *Model) View() tea.View {
 			bottom = append(bottom, strings.Split(panel, "\n")...)
 			bottom = append(bottom, "")
 		}
+		// a message takes the blank line above the legend, which stays
+		bottom[len(bottom)-1] = styleTitle.Render(m.flash)
 		foot := strings.Split(m.footer(), "\n")
 		for len(foot) < m.footerHeight() { // the last line of the legend is the last line of the screen
 			foot = append([]string{""}, foot...)
@@ -132,9 +134,6 @@ func (m *Model) header() string {
 type hint struct{ key, text string }
 
 func (m *Model) footer() string {
-	if m.flash != "" {
-		return styleTitle.Render(m.flash)
-	}
 	return m.legend(m.tab, m.op != nil || m.retrying(), m.showForget)
 }
 

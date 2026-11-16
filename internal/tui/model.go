@@ -51,6 +51,8 @@ type Model struct {
 	connErr string
 	flash   string
 	flashAt time.Time
+	// flashRun: the flash says that an operation started, it goes when it ends
+	flashRun bool
 
 	op          *service.Operation
 	log         []string
@@ -80,7 +82,7 @@ func (m *Model) refresh() tea.Cmd {
 func (m *Model) appendOnly() bool { return m.status != nil && m.status.AppendOnly }
 
 func (m *Model) say(format string, args ...any) {
-	m.flash, m.flashAt = fmt.Sprintf(format, args...), m.o.Now()
+	m.flash, m.flashAt, m.flashRun = fmt.Sprintf(format, args...), m.o.Now(), false
 }
 
 // Update implements tea.Model.
@@ -233,6 +235,7 @@ func (m *Model) done(msg doneMsg) tea.Cmd {
 	} else {
 		m.say("%s: done", msg.what)
 	}
+	m.flashRun = msg.started
 	return m.refresh()
 }
 
@@ -257,6 +260,9 @@ func (m *Model) event(ev service.Event) tea.Cmd {
 		}
 	case service.EventFinished:
 		m.op = nil
+		if m.flashRun { // "… started" is over: the panel has the result
+			m.flash, m.flashRun = "", false
+		}
 		if ev.Result != nil {
 			m.lastResult = ev.Result
 		}
@@ -372,7 +378,7 @@ func (m *Model) cancel() tea.Cmd {
 func (m *Model) start(what string, fn func() (service.Operation, error)) tea.Cmd {
 	return func() tea.Msg {
 		_, err := fn()
-		return doneMsg{what: what, note: what + " started", err: err}
+		return doneMsg{what: what, note: what + " started", err: err, started: true}
 	}
 }
 
@@ -566,7 +572,7 @@ func (m *Model) restoreStarted(msg restoreStartMsg) tea.Cmd {
 		}
 		m.dlg = nil
 	}
-	return m.done(doneMsg{what: "restore", note: "restore started", err: msg.err})
+	return m.done(doneMsg{what: "restore", note: "restore started", err: msg.err, started: true})
 }
 
 // gotPreflight moves the restore dialog on to the preview.

@@ -161,6 +161,22 @@ func TestBackupWithNoteAndKeep(t *testing.T) {
 	r.wantScreen("backup started")
 }
 
+func TestMessagesLeaveTheLegendAndGoWithTheirRun(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	r.press("b", "enter")
+	r.wantScreen("backup started", "q quit") // the legend stays in view
+	r.send(eventMsg{service.Event{Type: service.EventStarted, Operation: &service.Operation{Kind: service.KindBackup, Started: t0}}})
+	r.wantScreen("backup started")
+	r.send(eventMsg{service.Event{Type: service.EventFinished, Result: &service.RunResult{Kind: service.KindBackup, Result: service.ResultSuccess, Snapshot: "dddddddd00"}}})
+	r.wantScreen("backup: success")
+	r.wantNoScreen("backup started")
+
+	// a message that is no start stays its time
+	r.press("c")
+	r.send(eventMsg{service.Event{Type: service.EventFinished, Result: &service.RunResult{Kind: service.KindBackup, Result: service.ResultSuccess}}})
+	r.wantScreen("nothing to cancel")
+}
+
 func TestBusy(t *testing.T) {
 	r := healthy(newRig(t)).load()
 	r.fake.StartBackupFn = func(context.Context, service.BackupRequest) (service.Operation, error) {
