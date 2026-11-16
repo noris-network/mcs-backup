@@ -249,6 +249,25 @@ func TestRestoreThatCannotStartKeepsTheDialog(t *testing.T) {
 	}
 }
 
+func TestRestoreDialogShowsItsWorkAsWork(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	slow := false
+	r.fake.RestorePreflightFn = func(_ context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {
+		if slow {
+			time.Sleep(300 * time.Millisecond) // longer than the rig waits: the answer is still out
+		}
+		return service.RestorePreflight{Snapshot: snap("cccccccc", time.Hour), Target: "/data", InPlace: true, Mode: req.Mode}, nil
+	}
+	r.press("2", "enter", "enter")
+	slow = true
+	r.press("p")
+	r.wantScreen("Working out what would change")
+	red, _, _ := strings.Cut(styleBad.Render("x"), "x")
+	if strings.Contains(r.m.View().Content, red+"Working out") {
+		t.Error("the work in progress looks like an error")
+	}
+}
+
 func TestRestoreSpaceWarning(t *testing.T) {
 	r := healthy(newRig(t)).load()
 	r.fake.RestorePreflightFn = func(_ context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {

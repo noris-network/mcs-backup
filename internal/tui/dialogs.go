@@ -481,6 +481,7 @@ type restoreDialog struct {
 	now     time.Time
 	confirm textinput.Model
 	err     string
+	busy    string // what is being worked out, while it is
 	// starting is set while the restore is asked to start
 	starting bool
 	// top and page scroll the preview: its lists of paths can be longer
@@ -569,7 +570,7 @@ func (d *restoreDialog) formKey(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 		if d.merge {
 			req.Mode = service.ModeMerge
 		}
-		d.err = ""
+		d.err, d.busy = "", "Checking the restore …"
 		return fetchPreflight(m.ctx, m.svc, req), false
 	default:
 		if d.at < 3 {
@@ -594,7 +595,7 @@ func (d *restoreDialog) previewKey(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) 
 		if d.pre.Changes == nil && !d.pre.PipeMode {
 			req := d.req
 			req.Preview = true
-			d.err = "Working out what would change …"
+			d.err, d.busy = "", "Working out what would change: restic reads the files in the target …"
 			return fetchPreflight(m.ctx, m.svc, req), false
 		}
 	case "enter":
@@ -646,7 +647,10 @@ func (d *restoreDialog) view(width, height int) string {
 	var b strings.Builder
 	hint := ""
 	problem := ""
-	if d.err != "" {
+	switch {
+	case d.busy != "":
+		problem = "\n" + styleDim.Render(wrap(d.busy, boxText(width))) + "\n"
+	case d.err != "":
 		problem = "\n" + styleBad.Render(wrap(d.err, boxText(width))) + "\n"
 	}
 	switch d.stage {

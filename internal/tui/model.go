@@ -575,6 +575,7 @@ func (m *Model) gotPreflight(msg preflightMsg) tea.Cmd {
 	if !ok {
 		return nil
 	}
+	d.busy = ""
 	if msg.err != nil {
 		d.err = describe(msg.err)
 		return nil
