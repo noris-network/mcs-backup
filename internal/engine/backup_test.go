@@ -111,6 +111,23 @@ func TestBackupForgetFailureIsLogged(t *testing.T) {
 	}
 }
 
+func TestBackupLogsTheSummary(t *testing.T) {
+	r := newRig(t, false)
+	r.main.On(t, "snapshots", resticfake.Response{Stdout: snapsJSON(t)})
+	r.main.On(t, "backup", resticfake.Response{Stdout: `{"message_type":"summary","snapshot_id":"abcdef0123456789","files_new":2,"files_changed":1,"files_unmodified":40,` +
+		`"data_added":2048,"data_added_packed":1024,"total_files_processed":43,"total_bytes_processed":4096,"total_duration":4.2}` + "\n"})
+	r.main.On(t, "forget", resticfake.Response{Stdout: forgetJSON(t, 10, 0)})
+	if res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink()); res.Result != service.ResultSuccess {
+		t.Fatalf("result = %+v", res)
+	}
+	log := r.logText()
+	for _, want := range []string{"snapshot abcdef01 saved", "files: 2 new, 1 changed, 40 unmodified", "2.0 KiB added to the repository (1.0 KiB stored), 43 files and 4.0 KiB processed in 4s"} {
+		if !strings.Contains(log, want) {
+			t.Errorf("the log lacks %q:\n%s", want, log)
+		}
+	}
+}
+
 func TestBackupLegacySnapshots(t *testing.T) {
 	r := newRig(t, false)
 	legacy := snap("legacy1", service.LegacyHost, 48*time.Hour, 3, 1000, rootPaths(r))

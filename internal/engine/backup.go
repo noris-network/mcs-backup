@@ -155,6 +155,15 @@ func (e *Engine) runBackup(ctx context.Context, snaps []restic.Snapshot, origin 
 	for _, msg := range sum.Errors {
 		sink.logf("warning: %s", msg)
 	}
+	if sum.SnapshotID != "" {
+		// what restic prints at the end of a backup, for the log
+		sink.logf("snapshot %s saved", short(sum.SnapshotID))
+		sink.logf("files: %d new, %d changed, %d unmodified; directories: %d new, %d changed, %d unmodified",
+			sum.FilesNew, sum.FilesChanged, sum.FilesUnmodified, sum.DirsNew, sum.DirsChanged, sum.DirsUnmodified)
+		sink.logf("%s added to the repository (%s stored), %d files and %s processed in %s",
+			formatBytes(sum.DataAdded), formatBytes(sum.DataAddedPacked), sum.TotalFilesProcessed, formatBytes(sum.TotalBytesProcessed),
+			time.Duration(sum.TotalDuration*float64(time.Second)).Round(time.Second))
+	}
 	return sum, err
 }
 
