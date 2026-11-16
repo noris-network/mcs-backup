@@ -882,6 +882,39 @@ func TestOverviewNeverCutsAFrame(t *testing.T) {
 	}
 }
 
+func TestOverviewShortensTheLastRunsBeforeDroppingThem(t *testing.T) {
+	r := healthy(newRig(t))
+	status := r.fake.StatusFn
+	r.fake.StatusFn = func(ctx context.Context) (service.Status, error) {
+		st, _ := status(ctx)
+		st.LastRuns = map[service.Kind]service.RunResult{}
+		for _, k := range []service.Kind{service.KindUnlock, service.KindTag, service.KindRestore, service.KindVerify, service.KindPrune, service.KindBackup} {
+			st.LastRuns[k] = service.RunResult{Kind: k, Result: service.ResultSuccess, Started: t0.Add(-time.Hour)}
+		}
+		st.Warnings = []service.Warning{{Code: "maintenance", Severity: service.SeverityInfo, Message: "scheduled backups are paused"}}
+		return st, nil
+	}
+	r.load()
+	r.m.width = 120
+	full := len(strings.Split(r.screen(), "\n"))
+	for h := full; h > 20; h-- {
+		r.m.height = h
+		s := r.screen()
+		if !strings.Contains(s, "Last runs") {
+			break
+		}
+		if !strings.Contains(s, "● backup") {
+			t.Fatalf("height %d: the backup left the last runs before the others:\n%s", h, s)
+		}
+	}
+	// with one line too few, the runs lose their last line, not the whole list
+	r.m.height = 35
+	s := r.screen()
+	if !strings.Contains(s, "Last runs") || !strings.Contains(s, "● backup") || strings.Contains(s, "● unlock") && strings.Index(s, "● unlock") < strings.Index(s, "● verify") {
+		t.Errorf("the last runs at height 35:\n%s", s)
+	}
+}
+
 func TestShellLinesStayReadableForAShell(t *testing.T) {
 	values := []string{
 		"s3:http://127.0.0.1:9000/backuptest/mcs-backup-demo/20261028-162121",

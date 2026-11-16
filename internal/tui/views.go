@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"cmp"
 	"fmt"
 	"image/color"
 	"slices"
@@ -283,7 +284,7 @@ func (m *Model) overviewPage(avail int) string {
 	if st.ForgetHeld && !st.AppendOnly {
 		attention += "\n" + styleWarn.Render("F  approve the held forget (review it in Snapshots, f)")
 	}
-	build := func(withExtras, withRuns bool, detail int) string {
+	build := func(withExtras bool, nRuns, detail int) string {
 		var parts []string
 		if cards {
 			parts = append(parts, m.cards(st))
@@ -297,19 +298,28 @@ func (m *Model) overviewPage(avail int) string {
 		if withExtras && detail > 0 {
 			parts[len(parts)-1] += "\n" + extras
 		}
-		if withRuns && runs != "" {
-			parts = append(parts, styleTitle.Render("Last runs")+"\n"+runs)
+		if nRuns > 0 && len(runs) > 0 {
+			parts = append(parts, styleTitle.Render("Last runs")+"\n"+strings.Join(runs[:min(nRuns, len(runs))], "\n"))
 		}
 		if attention != "" {
 			parts = append(parts, strings.TrimLeft(attention, "\n"))
 		}
 		return strings.Join(parts, "\n\n")
 	}
+	// what goes first when the room is short: the web UI line, then the
+	// least important of the last runs, one by one, then the next runs of
+	// the maintenance jobs and at last all rows
+	type variant struct {
+		extras       bool
+		runs, detail int
+	}
+	variants := []variant{{true, len(runs), 2}}
+	for n := len(runs); n >= 0; n-- {
+		variants = append(variants, variant{false, n, 2})
+	}
+	variants = append(variants, variant{false, 0, 1}, variant{false, 0, 0})
 	var out string
-	for _, v := range []struct {
-		extras, runs bool
-		detail       int
-	}{{true, true, 2}, {false, true, 2}, {false, false, 2}, {false, false, 1}, {false, false, 0}} {
+	for _, v := range variants {
 		out = build(v.extras, v.runs, v.detail)
 		if strings.Count(out, "\n")+1 <= avail {
 			break
@@ -343,14 +353,26 @@ func (m *Model) attention(notes []present.Row) string {
 	return framed(c, m.width, styleTitle.Render(title)+"\n"+strings.Join(lines, "\n"))
 }
 
-// lastRuns lists the latest result of every kind of operation.
-func (m *Model) lastRuns(st service.Status) string {
+// runOrder ranks the kinds of operations for the last runs: when not all fit,
+// the backup stays and quick actions such as tag and unlock go first.
+var runOrder = []service.Kind{service.KindBackup, service.KindCopy, service.KindVerify, service.KindPrune, service.KindCheck,
+	service.KindRestore, service.KindForget, service.KindTag, service.KindUnlock}
+
+// lastRuns lists the latest result of every kind of operation, one line
+// each, the most important first.
+func (m *Model) lastRuns(st service.Status) []string {
 	kinds := make([]service.Kind, 0, len(st.LastRuns))
 	for k := range st.LastRuns {
 		kinds = append(kinds, k)
 	}
-	slices.Sort(kinds)
-	var b strings.Builder
+	rank := func(k service.Kind) int {
+		if i := slices.Index(runOrder, k); i >= 0 {
+			return i
+		}
+		return len(runOrder)
+	}
+	slices.SortFunc(kinds, func(a, b service.Kind) int { return cmp.Or(cmp.Compare(rank(a), rank(b)), cmp.Compare(a, b)) })
+	out := make([]string, 0, len(kinds))
 	for _, k := range kinds {
 		r := st.LastRuns[k]
 		c := colBad
@@ -366,9 +388,9 @@ func (m *Model) lastRuns(st service.Status) string {
 		if r.Snapshot != "" {
 			line += styleDim.Render("  snapshot ") + present.Short(r.Snapshot)
 		}
-		b.WriteString(line + "\n")
+		out = append(out, line)
 	}
-	return strings.TrimRight(b.String(), "\n")
+	return out
 }
 
 func webLine(w service.WebUIStatus, width int) string {
