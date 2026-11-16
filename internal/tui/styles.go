@@ -43,17 +43,37 @@ func framed(c color.Color, width int, content string) string {
 	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(c).Padding(0, 1).Width(width).Render(content)
 }
 
+// formWidth is the widest a dialog with a form or a short text gets: longer
+// lines are hard to read. listWidth is the widest a dialog with a list of
+// files or a log gets: a path that is cut short is of no use.
+const (
+	formWidth = 92
+	listWidth = 160
+)
+
 // boxWidth is the outer width of a dialog on a terminal of the given width.
-func boxWidth(width int) int { return min(max(width, 24), 92) }
+func boxWidth(width int) int { return min(max(width, 24), formWidth) }
 
 // boxText is the width of the text inside a dialog: without border and padding.
 func boxText(width int) int { return boxWidth(width) - 4 }
 
+// listBoxWidth and listText are boxWidth and boxText of a dialog with a list.
+func listBoxWidth(width int) int { return min(max(width, 24), listWidth) }
+
+func listText(width int) int { return listBoxWidth(width) - 4 }
+
 // box frames the body of a dialog.
 func box(title, body, hint string, width int) string {
-	inner := boxWidth(width)
-	content := styleAccent.Bold(true).Render(title) + "\n\n" + strings.TrimRight(body, "\n") + "\n\n" + styleDim.Render(hint)
-	return framed(colAccent, inner, content)
+	return framed(colAccent, boxWidth(width), boxContent(title, body, hint))
+}
+
+// listBox frames the body of a dialog with a list, which may be wider.
+func listBox(title, body, hint string, width int) string {
+	return framed(colAccent, listBoxWidth(width), boxContent(title, body, hint))
+}
+
+func boxContent(title, body, hint string) string {
+	return styleAccent.Bold(true).Render(title) + "\n\n" + strings.TrimRight(body, "\n") + "\n\n" + styleDim.Render(hint)
 }
 
 // dot is a colored status dot.

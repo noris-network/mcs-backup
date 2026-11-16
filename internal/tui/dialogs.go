@@ -73,10 +73,10 @@ func newInput(placeholder string) textinput.Model {
 	return in
 }
 
-// field draws a text input as wide as the text of a dialog. Without a width
-// the input shows only the first letter of its placeholder.
-func field(in *textinput.Model, width int) string {
-	in.SetWidth(boxText(width) - lipgloss.Width(in.Prompt) - 1)
+// field draws a text input as wide as the text of a dialog, textWidth. Without
+// a width the input shows only the first letter of its placeholder.
+func field(in *textinput.Model, textWidth int) string {
+	in.SetWidth(textWidth - lipgloss.Width(in.Prompt) - 1)
 	return in.View()
 }
 
@@ -116,7 +116,7 @@ func (d *confirmDialog) key(_ *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 
 func (d *confirmDialog) view(width, _ int) string {
 	var b strings.Builder
-	b.WriteString(wrap(d.text, boxText(width)) + "\n\n" + field(&d.in, width) + "\n")
+	b.WriteString(wrap(d.text, boxText(width)) + "\n\n" + field(&d.in, boxText(width)) + "\n")
 	if d.err != "" {
 		b.WriteString("\n" + styleBad.Render(d.err) + "\n")
 	}
@@ -156,7 +156,7 @@ func (d *promptDialog) key(_ *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 
 func (d *promptDialog) view(width, _ int) string {
 	var b strings.Builder
-	b.WriteString(d.label + "\n\n" + field(&d.in, width) + "\n")
+	b.WriteString(d.label + "\n\n" + field(&d.in, boxText(width)) + "\n")
 	hint := "enter ok · esc cancel"
 	if d.checkbox != "" {
 		mark := "[ ]"
@@ -314,7 +314,7 @@ func (d *textDialog) view(width, height int) string {
 	// for example); the scrolling goes by the lines on the screen
 	shown := make([]string, 0, len(d.lines))
 	for _, l := range d.lines {
-		shown = append(shown, strings.Split(ansi.Wrap(l, boxText(width), ""), "\n")...)
+		shown = append(shown, strings.Split(ansi.Wrap(l, listText(width), ""), "\n")...)
 	}
 	if d.follow {
 		d.top = len(shown) // scroll moves it back to the last page
@@ -329,7 +329,7 @@ func (d *textDialog) view(width, height int) string {
 	if pos != "" {
 		hint = pos + " · " + hint
 	}
-	return box(d.title, body, hint, width)
+	return listBox(d.title, body, hint, width)
 }
 
 // ---- the keys ----
@@ -656,7 +656,7 @@ func (d *restoreDialog) view(width, height int) string {
 	switch d.stage {
 	case stageForm:
 		for i := range d.fields {
-			b.WriteString(d.labels[i] + "\n" + field(&d.fields[i], width) + "\n\n")
+			b.WriteString(d.labels[i] + "\n" + field(&d.fields[i], boxText(width)) + "\n\n")
 		}
 		mode := "exact (files that are not in the snapshot are removed)"
 		if d.merge {
@@ -688,7 +688,7 @@ func (d *restoreDialog) view(width, height int) string {
 			hint = pos + " · ↑↓ scroll · " + hint
 		}
 	case stageConfirm:
-		b.WriteString(wrap("This replaces the current data. Type "+d.req.Snapshot+" to confirm.", boxText(width)) + "\n\n" + field(&d.confirm, width) + "\n")
+		b.WriteString(wrap("This replaces the current data. Type "+d.req.Snapshot+" to confirm.", boxText(width)) + "\n\n" + field(&d.confirm, boxText(width)) + "\n")
 		hint = "enter restore · esc back"
 	}
 	b.WriteString(problem)

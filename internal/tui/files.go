@@ -9,6 +9,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/noris-network/mcs-backup/v2/internal/present"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
@@ -183,7 +184,7 @@ func (d *filesDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 }
 
 func (d *filesDialog) view(width, height int) string {
-	w := boxText(width)
+	w := listText(width)
 	// above and below the entries: they get the room that is left
 	var head, tail strings.Builder
 	title := "Files"
@@ -198,8 +199,11 @@ func (d *filesDialog) view(width, height int) string {
 		n = len(d.found.Versions)
 		entry = func(i int) string {
 			v := d.found.Versions[i]
-			in := fmt.Sprintf("%s  in %d, newest %s %s", fileSize(v.File), v.Snapshots, present.Short(v.Newest.ID), present.Stamp(v.Newest.Time))
-			return d.row(i, fileName(v.File, v.Path), in, w)
+			in := fmt.Sprintf("%s  in %d, newest %s", fileSize(v.File), v.Snapshots, present.Short(v.Newest.ID))
+			if w-lipgloss.Width(in) > 60 { // the path comes first: the time only where it has room
+				in += " " + present.Stamp(v.Newest.Time)
+			}
+			return d.row(i, fileName(v.File, v.Path), in, w, true)
 		}
 		if d.found.Truncated {
 			tail.WriteString(styleDim.Render("There are more matches than are shown: narrow the pattern.") + "\n")
@@ -213,14 +217,14 @@ func (d *filesDialog) view(width, height int) string {
 		n = len(d.list.Files)
 		entry = func(i int) string {
 			f := d.list.Files[i]
-			return d.row(i, fileName(f, path.Base(f.Path)), fileSize(f)+"  "+present.Stamp(f.Mtime), w)
+			return d.row(i, fileName(f, path.Base(f.Path)), fileSize(f)+"  "+present.Stamp(f.Mtime), w, false)
 		}
 		if d.list.Truncated {
 			tail.WriteString(styleDim.Render(fmt.Sprintf("Only the first %d entries are shown: search with /.", len(d.list.Files))) + "\n")
 		}
 	}
 	if d.searching {
-		tail.WriteString("\nFind in all snapshots (case is ignored)\n" + field(&d.input, width) + "\n")
+		tail.WriteString("\nFind in all snapshots (case is ignored)\n" + field(&d.input, w) + "\n")
 	}
 	if d.busy != "" {
 		tail.WriteString("\n" + styleDim.Render(d.busy+" …") + "\n")
@@ -243,16 +247,25 @@ func (d *filesDialog) view(width, height int) string {
 	case d.found != nil:
 		hint = "↑↓ move · enter show in its snapshot · r restore · / find · esc back"
 	}
-	return box(title, b.String(), hint, width)
+	return listBox(title, b.String(), hint, width)
 }
 
-// row draws one entry: the name on the left, the details on the right.
-func (d *filesDialog) row(i int, name, details string, width int) string {
+// row draws one entry: the name on the left, the details on the right. A
+// path that is too long loses its start if cutLeft is set, so that the name
+// of the file stays.
+func (d *filesDialog) row(i int, name, details string, width int, cutLeft bool) string {
 	cursor, style := "  ", lipgloss.NewStyle()
 	if i == d.cursor {
 		cursor, style = "> ", styleAccent
 	}
-	name = truncate(name, max(width-lipgloss.Width(cursor)-lipgloss.Width(details)-2, 12))
+	room := max(width-lipgloss.Width(cursor)-lipgloss.Width(details)-2, 12)
+	switch {
+	case lipgloss.Width(name) <= room:
+	case cutLeft:
+		name = ansi.TruncateLeft(name, lipgloss.Width(name)-room+1, "…")
+	default:
+		name = truncate(name, room)
+	}
 	pad := max(width-lipgloss.Width(cursor)-lipgloss.Width(name)-lipgloss.Width(details), 1)
 	return style.Render(cursor+name) + strings.Repeat(" ", pad) + styleDim.Render(details)
 }

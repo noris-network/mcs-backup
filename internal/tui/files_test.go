@@ -168,3 +168,28 @@ func TestRestoreDialogShowsWhatWouldChange(t *testing.T) {
 	r.press("enter")
 	r.wantScreen("Type cccccccc to confirm")
 }
+
+func TestFoundPathsKeepTheirFileName(t *testing.T) {
+	r := tree(healthy(newRig(t))).load()
+	r.m.width = 80
+	long := "/var/lib/postgresql/data/base/16384/archive/2026/november/exports/report-2026-final.sql"
+	newest := service.SnapshotRef{ID: "bbbbbbbb" + strings.Repeat("0", 56), Time: t0.Add(-24 * time.Hour)}
+	r.fake.FindFn = func(context.Context, service.FindRequest) (service.FindResult, error) {
+		return service.FindResult{Searched: 3, Versions: []service.FileVersion{
+			{Path: long, Type: "file", Size: 3 << 20, Mtime: t0, Newest: newest, Oldest: newest, Snapshots: 12},
+		}}, nil
+	}
+	r.press("2", "o", "/")
+	r.typeText("report*")
+	r.press("enter")
+	r.wantScreen("…", "exports/report-2026-final.sql", "in 12, newest bbbbbbbb")
+
+	// a wide terminal gives the list the room
+	r.m.width = 200
+	r.wantScreen(long)
+	for l := range strings.SplitSeq(r.screen(), "\n") {
+		if strings.HasPrefix(l, "╭") && len([]rune(l)) <= formWidth {
+			t.Errorf("the file browser stays %d wide on a terminal of 200", len([]rune(l)))
+		}
+	}
+}
