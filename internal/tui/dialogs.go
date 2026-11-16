@@ -314,7 +314,7 @@ func (d *textDialog) view(width, height int) string {
 	// for example); the scrolling goes by the lines on the screen
 	shown := make([]string, 0, len(d.lines))
 	for _, l := range d.lines {
-		shown = append(shown, strings.Split(ansi.Wrap(l, listText(width), ""), "\n")...)
+		shown = append(shown, wrapAtSpaces(l, listText(width))...)
 	}
 	if d.follow {
 		d.top = len(shown) // scroll moves it back to the last page

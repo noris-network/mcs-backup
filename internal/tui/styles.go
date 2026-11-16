@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/noris-network/mcs-backup/v2/internal/envexport"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
@@ -81,6 +82,49 @@ func dot(c color.Color) string { return lipgloss.NewStyle().Foreground(c).Render
 
 // rule is a thin horizontal line.
 func rule(width int) string { return styleRule.Render(strings.Repeat("─", max(width, 0))) }
+
+// wrapAtSpaces breaks a line of a log into lines of at most width cells. It
+// breaks at spaces only, never inside a date or a path at a hyphen, keeps the
+// spaces inside a line (the columns of restic's output) and cuts a word that
+// is longer than a line.
+func wrapAtSpaces(line string, width int) []string {
+	width = max(width, 1)
+	var out []string
+	cur, n := "", 0
+	flush := func() { out, cur, n = append(out, strings.TrimRight(cur, " ")), "", 0 }
+	for _, tok := range tokens(line) {
+		w := ansi.StringWidth(tok)
+		switch {
+		case n+w <= width:
+			cur, n = cur+tok, n+w
+		case strings.TrimLeft(tok, " ") == "": // spaces at a break go
+			flush()
+		default:
+			if n > 0 {
+				flush()
+			}
+			for ansi.StringWidth(tok) > width {
+				out = append(out, ansi.Truncate(tok, width, ""))
+				tok = ansi.TruncateLeft(tok, width, "")
+			}
+			cur, n = tok, ansi.StringWidth(tok)
+		}
+	}
+	return append(out, cur)
+}
+
+// tokens splits a line into words and the runs of spaces between them.
+func tokens(line string) []string {
+	var out []string
+	start := 0
+	for i := 1; i <= len(line); i++ {
+		if i == len(line) || (line[i] == ' ') != (line[start] == ' ') {
+			out = append(out, line[start:i])
+			start = i
+		}
+	}
+	return out
+}
 
 // fill pads a line with spaces to the width, so that a background covers it.
 func fill(line string, width int) string {

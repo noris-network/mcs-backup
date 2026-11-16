@@ -548,6 +548,23 @@ func TestLogWrapsLongLines(t *testing.T) {
 	r.wantNoScreen("…")
 }
 
+func TestWrapAtSpaces(t *testing.T) {
+	for _, c := range []struct {
+		line  string
+		width int
+		want  []string
+	}{
+		{"to snapshot 9f54b8fa of 2026-11-11 10:20:00:", 30, []string{"to snapshot 9f54b8fa of", "2026-11-11 10:20:00:"}},
+		{"[0:00]          0 packs copied", 76, []string{"[0:00]          0 packs copied"}},
+		{"a /very/long/path/without/a/space", 10, []string{"a", "/very/long", "/path/with", "out/a/spac", "e"}},
+		{"", 10, []string{""}},
+	} {
+		if got := wrapAtSpaces(c.line, c.width); !slices.Equal(got, c.want) {
+			t.Errorf("wrapAtSpaces(%q, %d) = %q, want %q", c.line, c.width, got, c.want)
+		}
+	}
+}
+
 func TestCancelWithoutOperation(t *testing.T) {
 	r := healthy(newRig(t)).load()
 	r.press("c")
