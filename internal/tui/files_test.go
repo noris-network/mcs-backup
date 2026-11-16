@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"path"
 	"strings"
 	"testing"
@@ -191,5 +192,65 @@ func TestFoundPathsKeepTheirFileName(t *testing.T) {
 		if strings.HasPrefix(l, "╭") && len([]rune(l)) <= formWidth {
 			t.Errorf("the file browser stays %d wide on a terminal of 200", len([]rune(l)))
 		}
+	}
+}
+
+func TestTheCursorLandsWhereTheUserCameFrom(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	r.fake.FilesFn = func(_ context.Context, req service.FilesRequest) (service.FileList, error) {
+		list := service.FileList{Snapshot: snap("cccccccc", time.Hour), Path: path.Join("/", req.Path)}
+		switch list.Path {
+		case "/":
+			for _, n := range []string{"aaa", "mmm", "zzz"} {
+				list.Files = append(list.Files, service.File{Path: "/" + n, Type: "dir", Mtime: t0})
+			}
+		case "/zzz":
+			for _, n := range []string{"a.txt", "b.txt", "c.txt"} {
+				list.Files = append(list.Files, service.File{Path: "/zzz/" + n, Type: "file", Size: 1, Mtime: t0})
+			}
+		}
+		return list, nil
+	}
+	r.press("2", "o", "down", "down", "enter")
+	r.wantScreen("/zzz", "> a.txt")
+	r.press("left")
+	r.wantScreen("> zzz/") // back on the directory it came out of
+
+	r.fake.FindFn = func(context.Context, service.FindRequest) (service.FindResult, error) {
+		return service.FindResult{Searched: 1, Versions: []service.FileVersion{{Path: "/zzz/c.txt", Type: "file", Size: 1, Mtime: t0, Newest: service.SnapshotRef{ID: "cccccccc" + strings.Repeat("0", 56), Time: t0}, Snapshots: 1}}}, nil
+	}
+	r.press("/")
+	r.typeText("c.txt")
+	r.press("enter", "enter")
+	r.wantScreen("/zzz", "> c.txt") // the found file, not the top of its directory
+}
+
+func TestListsShowWhereTheCursorIs(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	r.m.height = 24
+	r.fake.FilesFn = func(context.Context, service.FilesRequest) (service.FileList, error) {
+		list := service.FileList{Snapshot: snap("cccccccc", time.Hour), Path: "/"}
+		for i := range 50 {
+			list.Files = append(list.Files, service.File{Path: fmt.Sprintf("/f%02d", i), Type: "file", Size: 1, Mtime: t0})
+		}
+		return list, nil
+	}
+	r.press("2", "o", "down")
+	r.wantScreen("2 of 50 ·")
+	r.press("esc")
+
+	var many []service.Snapshot
+	for i := range 40 {
+		many = append(many, snap(fmt.Sprintf("%08d", i), time.Duration(i+1)*time.Hour))
+	}
+	r.fake.SnapshotsFn = func(context.Context) ([]service.Snapshot, error) { return many, nil }
+	r.press("r", "end")
+	if r.m.cursor[tabSnapshots] != 39 {
+		t.Errorf("end: cursor %d", r.m.cursor[tabSnapshots])
+	}
+	r.screen() // drawn, as Bubble Tea does after every key
+	r.press("home", "pgdown")
+	if c := r.m.cursor[tabSnapshots]; c != r.m.listRows || c < 5 {
+		t.Errorf("pgdown: cursor %d, %d rows in view", c, r.m.listRows)
 	}
 }

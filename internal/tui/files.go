@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
@@ -53,6 +54,7 @@ type filesDialog struct {
 	found    *service.FindResult // the result of a search, shown instead of the directory
 	pattern  string
 	cursor   int
+	want     string // the entry to put the cursor on when the directory arrives
 	page     int    // entries in view at the last drawing
 	busy     string // what is being fetched
 	err      string
@@ -79,6 +81,11 @@ func (m *Model) gotFiles(msg filesMsg) {
 		return
 	}
 	d.list, d.found, d.cursor, d.err = &msg.list, nil, 0, ""
+	// back up from a directory, or to a found file: the cursor is on it
+	if i := slices.IndexFunc(msg.list.Files, func(f service.File) bool { return f.Path == d.want }); i >= 0 {
+		d.cursor = i
+	}
+	d.want = ""
 }
 
 func (m *Model) gotFind(msg findMsg) {
@@ -165,13 +172,14 @@ func (d *filesDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 		switch {
 		case !ok:
 		case d.found != nil: // show the file where it lies in its newest snapshot
-			d.found = nil
+			d.found, d.want = nil, f.Path
 			return d.open(m, snap, path.Dir(f.Path)), false
 		case f.Type == "dir":
 			return d.open(m, snap, f.Path), false
 		}
 	case "left", "h", "backspace":
 		if d.found == nil && d.list != nil && d.list.Path != "/" {
+			d.want = d.list.Path
 			return d.open(m, d.list.Snapshot.ID, path.Dir(d.list.Path)), false
 		}
 	case "r":
@@ -246,6 +254,9 @@ func (d *filesDialog) view(width, height int) string {
 		hint = "enter find · esc cancel"
 	case d.found != nil:
 		hint = "↑↓ move · enter show in its snapshot · r restore · / find · esc back"
+	}
+	if n > d.page && !d.searching { // where in a list that does not fit
+		hint = fmt.Sprintf("%d of %d · ", d.cursor+1, n) + hint
 	}
 	return listBox(title, b.String(), hint, width)
 }

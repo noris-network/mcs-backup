@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"time"
 
@@ -37,6 +38,7 @@ type Model struct {
 	tab           tab
 	cursor        [numTabs]int
 	showForget    bool // snapshots tab: the forget preview instead of the list
+	listRows      int  // snapshots in view at the last drawing, for paging
 	quitting      bool
 
 	status    *service.Status
@@ -307,6 +309,14 @@ func (m *Model) key(k tea.KeyPressMsg) tea.Cmd {
 		m.move(-1)
 	case "down", "j":
 		m.move(1)
+	case "pgup":
+		m.move(-m.pageRows())
+	case "pgdown":
+		m.move(m.pageRows())
+	case "home", "g":
+		m.move(-math.MaxInt32)
+	case "end", "G":
+		m.move(math.MaxInt32)
 	case "r":
 		return m.refresh()
 	case "b":
@@ -339,6 +349,14 @@ func (m *Model) switchTab(t tab) tea.Cmd {
 		return fetchEnv(m.ctx, m.svc, false)
 	}
 	return nil
+}
+
+// pageRows is how many rows of a list are in view, for paging.
+func (m *Model) pageRows() int {
+	if m.listRows > 0 {
+		return m.listRows
+	}
+	return max(1, m.height-12) // not drawn yet: about what the screen holds
 }
 
 func (m *Model) move(delta int) {

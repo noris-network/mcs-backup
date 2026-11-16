@@ -451,6 +451,7 @@ func (m *Model) snapshotsPage(avail int) string {
 	b.WriteString(styleDim.Render(header+"NOTE") + "\n")
 	now := m.o.Now()
 	first, last := window(m.cursor[tabSnapshots], len(m.snapshots), avail-2) // the column header and the summary take two lines
+	m.listRows = last - first
 	for i := first; i < last; i++ {
 		s := m.snapshots[i]
 		files, size := "-", "-"
@@ -703,7 +704,7 @@ func window(cursor, n, size int) (first, last int) {
 }
 
 const helpText = `Tabs        tab / ← →  or 1 2 3 4
-Move        ↑ ↓  or  j k
+Move        ↑ ↓  or  j k, pgup pgdn, home end
 Backup      b  start a backup (with a note)
 Restore     in Snapshots: enter restores the selected snapshot, t the latest
 Files       in Snapshots: o  browse the selected snapshot, / finds a file in all

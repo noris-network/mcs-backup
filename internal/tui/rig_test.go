@@ -89,6 +89,8 @@ var special = map[string]tea.KeyPressMsg{
 	"right":     {Code: tea.KeyRight},
 	"pgup":      {Code: tea.KeyPgUp},
 	"pgdown":    {Code: tea.KeyPgDown},
+	"home":      {Code: tea.KeyHome},
+	"end":       {Code: tea.KeyEnd},
 }
 
 // press sends keys: a name from special or a single character.
