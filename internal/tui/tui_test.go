@@ -400,7 +400,11 @@ func TestForgetPreviewAndApproval(t *testing.T) {
 	r.load()
 	r.wantScreen("F  approve the held forget")
 	r.press("2", "f")
-	r.wantScreen("would remove 2 snapshots", "aaaaaaaa", "held back until it is approved", "f back to the list")
+	r.wantScreen("would remove 2 snapshots", "aaaaaaaa", "held back until it is", "f back to the list")
+	r.m.width = 60
+	r.wantScreen("marked keep.", "(F on the overview).") // wrapped, not cut
+	r.wantNoScreen("…")
+	r.m.width = 110
 	r.wantNoScreen("enter restore", "keep/unkeep")
 	// the keys of the list do nothing to the snapshots out of view
 	r.press("down", "K", "a", "d", "o", "t", "enter")

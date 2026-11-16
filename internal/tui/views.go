@@ -498,13 +498,13 @@ func (m *Model) forgetPage() string {
 	case r.AppendOnly:
 		return "The repository is append-only: nothing is ever forgotten."
 	case r.Policy != "":
-		fmt.Fprintf(&b, "Policy: keep %s, and every snapshot marked keep.\n", r.Policy)
+		b.WriteString(wrap(fmt.Sprintf("Policy: keep %s, and every snapshot marked keep.", r.Policy), m.width) + "\n")
 	}
-	fmt.Fprintf(&b, "Applies to host %s: %d snapshots", strings.Join(r.Hosts, ", "), r.Total)
+	applies := fmt.Sprintf("Applies to host %s: %d snapshots", strings.Join(r.Hosts, ", "), r.Total)
 	if r.Foreign > 0 {
-		fmt.Fprintf(&b, " (%d snapshots of other hosts are never touched)", r.Foreign)
+		applies += fmt.Sprintf(" (%d snapshots of other hosts are never touched)", r.Foreign)
 	}
-	b.WriteString("\n\n")
+	b.WriteString(wrap(applies, m.width) + "\n\n")
 	if len(r.Remove) == 0 {
 		b.WriteString("The next forget would remove nothing.")
 		return b.String()
@@ -514,7 +514,7 @@ func (m *Model) forgetPage() string {
 		fmt.Fprintf(&b, "  %s  %s%s\n", s.ShortID, present.Stamp(s.Time), present.NoteSuffix(s))
 	}
 	if r.Held {
-		b.WriteString("\n" + styleWarn.Render("That is more than the retention guard allows: forget is held back until it is approved (F on the overview)."))
+		b.WriteString("\n" + styleWarn.Render(wrap("That is more than the retention guard allows: forget is held back until it is approved (F on the overview).", m.width)))
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
