@@ -54,6 +54,11 @@ func Bytes(n int64) string {
 		div *= unit
 		exp++
 	}
+	// a value that rounds up to 1024.0 is 1.0 of the next unit
+	if float64(n)/float64(div) >= unit-0.05 && exp < len("KMGTPE")-1 {
+		div *= unit
+		exp++
+	}
 	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGTPE"[exp])
 }
 

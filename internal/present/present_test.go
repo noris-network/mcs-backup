@@ -21,7 +21,10 @@ func TestDuration(t *testing.T) {
 }
 
 func TestBytes(t *testing.T) {
-	for in, want := range map[int64]string{0: "0 B", 1023: "1023 B", 1024: "1.0 KiB", 5 << 20: "5.0 MiB", 3 << 40: "3.0 TiB"} {
+	for in, want := range map[int64]string{
+		0: "0 B", 1023: "1023 B", 1024: "1.0 KiB", 5 << 20: "5.0 MiB", 3 << 40: "3.0 TiB",
+		1<<30 - 1<<10: "1.0 GiB", 1023 << 20: "1023.0 MiB", // rounded up to the next unit only where it would read 1024.0
+	} {
 		if got := present.Bytes(in); got != want {
 			t.Errorf("Bytes(%d) = %q, want %q", in, got, want)
 		}
