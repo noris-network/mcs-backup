@@ -88,6 +88,22 @@ func TestSnapshotCursorFollowsTheSnapshot(t *testing.T) {
 	}
 }
 
+func TestSnapshotNotesKeepTheirRoom(t *testing.T) {
+	r := healthy(newRig(t))
+	list := []service.Snapshot{snap("aaaaaaaa", time.Hour, func(s *service.Snapshot) { s.Note = "tui test"; s.Bytes = 1 << 30 })}
+	r.fake.SnapshotsFn = func(context.Context) ([]service.Snapshot, error) { return list, nil }
+	r.load()
+	r.m.width = 80
+	r.press("2")
+	r.wantScreen("tui test")
+	r.wantNoScreen("FLAGS", "…") // no snapshot has a flag: no column for them
+
+	list = append(list, snap("bbbbbbbb", 2*time.Hour, func(s *service.Snapshot) { s.Keep = true }))
+	r.press("r")
+	r.wantScreen("FLAGS", "keep", "tui test")
+	r.wantNoScreen("…")
+}
+
 func TestAccessMasksSecrets(t *testing.T) {
 	r := healthy(newRig(t)).load()
 	r.press("4")

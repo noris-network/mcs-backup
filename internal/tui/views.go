@@ -422,8 +422,22 @@ func (m *Model) snapshotsPage(avail int) string {
 		}
 		return fmt.Sprintf("%-9s %-19s %*s  %-11s %7s %10s  ", id, time, ageWidth, age, origin, files, size)
 	}
+	// the flags take the room they need in the whole list, none if no
+	// snapshot has one, so that the notes keep theirs
+	fw := 0
+	for _, s := range m.snapshots {
+		fw = max(fw, len(strings.Join(present.SnapshotFlags(s), " ")))
+	}
+	if fw > 0 {
+		fw = max(fw, len("FLAGS")) + 1
+	}
+	pad := func(text string) string { return text + strings.Repeat(" ", max(0, fw-lipgloss.Width(text))) }
+	header := "  " + columns("ID", "TIME", "AGE", "ORIGIN", "FILES", "SIZE")
+	if fw > 0 {
+		header += pad("FLAGS")
+	}
 	var b strings.Builder
-	b.WriteString(styleDim.Render("  "+columns("ID", "TIME", "AGE", "ORIGIN", "FILES", "SIZE")+fmt.Sprintf("%-*s %s", flagWidth, "FLAGS", "NOTE")) + "\n")
+	b.WriteString(styleDim.Render(header+"NOTE") + "\n")
 	now := m.o.Now()
 	first, last := window(m.cursor[tabSnapshots], len(m.snapshots), avail-2) // the column header and the summary take two lines
 	for i := first; i < last; i++ {
@@ -436,18 +450,16 @@ func (m *Model) snapshotsPage(avail int) string {
 		flags := present.SnapshotFlags(s)
 		var line string
 		if i == m.cursor[tabSnapshots] {
-			line = styleSel.Render(fill("› "+cols+fmt.Sprintf("%-*s", flagWidth, strings.Join(flags, " "))+" "+s.Note, m.width))
+			line = styleSel.Render(fill("› "+cols+pad(strings.Join(flags, " "))+s.Note, m.width))
 		} else {
 			tags := make([]string, len(flags))
 			for k, f := range flags {
 				tags[k] = flagStyle(f).Render(f)
 			}
-			info := strings.Join(tags, " ")
-			info += strings.Repeat(" ", max(0, flagWidth-lipgloss.Width(info)))
 			if s.Suspicious {
 				cols = strings.Replace(cols, s.ShortID, styleBad.Render(s.ShortID), 1)
 			}
-			line = "  " + cols + info + " " + s.Note
+			line = "  " + cols + pad(strings.Join(tags, " ")) + s.Note
 		}
 		b.WriteString(line + "\n")
 	}
@@ -463,9 +475,6 @@ func (m *Model) snapshotsPage(avail int) string {
 
 // ageWidth fits "100d 23h".
 const ageWidth = 8
-
-// flagWidth fits "pre-restore" and "keep" plus a bit of room.
-const flagWidth = 12
 
 func flagStyle(flag string) lipgloss.Style {
 	switch flag {
