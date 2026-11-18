@@ -144,7 +144,7 @@ func StatusRows(st service.Status, now time.Time) []Row {
 		if i == 0 {
 			label = "Last runs"
 		}
-		add(label, "%-8s %-10s %s (%s)%s", k, r.Result, Stamp(r.Started), Duration(r.Duration.Std()), snapshotSuffix(r))
+		add(label, "%-12s %-10s %s (%s)%s", KindName(k), r.Result, Stamp(r.Started), Duration(r.Duration.Std()), snapshotSuffix(r))
 	}
 
 	for i, warn := range st.Warnings {

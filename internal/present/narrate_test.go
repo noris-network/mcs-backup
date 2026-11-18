@@ -1,6 +1,8 @@
 package present
 
 import (
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -76,6 +78,10 @@ func TestKindsAreNamedInWords(t *testing.T) {
 	r := service.RunResult{Kind: service.KindVerify, Result: service.ResultSuccess}
 	if got := ResultLines(r)[0]; got != "restore test: success" {
 		t.Errorf("head = %q", got)
+	}
+	st := service.Status{LastRuns: map[service.Kind]service.RunResult{service.KindVerify: r}}
+	if rows := StatusRows(st, time.Now()); !slices.ContainsFunc(rows, func(row Row) bool { return strings.HasPrefix(row.Text, "restore test success") }) {
+		t.Errorf("the last runs of the status say verify: %+v", rows)
 	}
 	op := service.Operation{Kind: service.KindTag, Source: "tui", Started: time.Now()}
 	if got := OperationTitle(op) + " · " + OperationMeta(time.Now(), op); got != "Changing the tags of a snapshot · tag change, started by tui, running for 0s" {
