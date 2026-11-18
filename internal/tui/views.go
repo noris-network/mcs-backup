@@ -49,6 +49,7 @@ func (m *Model) View() tea.View {
 			foot = append([]string{""}, foot...)
 		}
 		bottom = append(bottom, foot...)
+
 	}
 	avail := max(m.height-len(top)-len(bottom), 3)
 
@@ -475,7 +476,7 @@ func (m *Model) snapshotsPage(avail int) string {
 		}
 		b.WriteString(line + "\n")
 	}
-	more := fmt.Sprintf("%d snapshots", len(m.snapshots))
+	more := present.Count(len(m.snapshots), "snapshot")
 	if first > 0 {
 		more += fmt.Sprintf(" · %d newer above", first)
 	}
@@ -512,16 +513,16 @@ func (m *Model) forgetPage() string {
 	case r.Policy != "":
 		b.WriteString(wrap(fmt.Sprintf("Policy: keep %s, and every snapshot marked keep.", r.Policy), m.width) + "\n")
 	}
-	applies := fmt.Sprintf("Applies to host %s: %d snapshots", strings.Join(r.Hosts, ", "), r.Total)
+	applies := fmt.Sprintf("Applies to host %s: %s", strings.Join(r.Hosts, ", "), present.Count(r.Total, "snapshot"))
 	if r.Foreign > 0 {
-		applies += fmt.Sprintf(" (%d snapshots of other hosts are never touched)", r.Foreign)
+		applies += fmt.Sprintf(" (%s of other hosts are never touched)", present.Count(r.Foreign, "snapshot"))
 	}
 	b.WriteString(wrap(applies, m.width) + "\n\n")
 	if len(r.Remove) == 0 {
 		b.WriteString("The next forget would remove nothing.")
 		return b.String()
 	}
-	fmt.Fprintf(&b, "The next forget would remove %d snapshots:\n", len(r.Remove))
+	fmt.Fprintf(&b, "The next forget would remove %s:\n", present.Count(len(r.Remove), "snapshot"))
 	for _, s := range r.Remove {
 		fmt.Fprintf(&b, "  %s  %s%s\n", s.ShortID, present.Stamp(s.Time), present.NoteSuffix(s))
 	}

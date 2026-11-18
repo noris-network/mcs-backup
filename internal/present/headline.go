@@ -1,7 +1,6 @@
 package present
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/noris-network/mcs-backup/v2/internal/service"
@@ -42,7 +41,7 @@ func repoCard(title string, r service.RepoStatus) Card {
 	}
 	sub := "id " + Short(r.ID)
 	if r.Snapshots >= 0 {
-		sub = fmt.Sprintf("%d snapshots", r.Snapshots)
+		sub = Count(r.Snapshots, "snapshot")
 		if r.SizeBytes >= 0 {
 			sub += " · " + Bytes(r.SizeBytes)
 		}

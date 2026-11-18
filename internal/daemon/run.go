@@ -8,6 +8,7 @@ import (
 	"github.com/noris-network/mcs-backup/v2/internal/engine"
 	"github.com/noris-network/mcs-backup/v2/internal/metrics"
 	"github.com/noris-network/mcs-backup/v2/internal/notify"
+	"github.com/noris-network/mcs-backup/v2/internal/present"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
 
@@ -265,7 +266,7 @@ func (d *Daemon) ApproveForget(ctx context.Context, confirm string) (service.Ope
 			d.forgetHeld = false
 			d.mu.Unlock()
 		}
-		msg := fmt.Sprintf("forget removed %d snapshots", res.Main.Removed)
+		msg := "forget removed " + present.Count(res.Main.Removed, "snapshot")
 		return outcome{result: res.Result, message: msg, err: res.Error, refresh: true}
 	})
 }

@@ -170,7 +170,7 @@ func RepoLine(r service.RepoStatus) string {
 		parts = append(parts, "id "+Short(r.ID))
 	}
 	if r.Snapshots >= 0 {
-		parts = append(parts, fmt.Sprintf("%d snapshots", r.Snapshots))
+		parts = append(parts, Count(r.Snapshots, "snapshot"))
 	}
 	if r.SizeBytes >= 0 {
 		parts = append(parts, Bytes(r.SizeBytes))
@@ -402,6 +402,9 @@ func diffPaths(title string, s service.DiffSide) []string {
 }
 
 // plural returns noun in the plural unless n is 1.
+// Count says how many of a thing there are: "1 snapshot", "3 snapshots".
+func Count(n int, noun string) string { return fmt.Sprintf("%d %s", n, plural(n, noun)) }
+
 func plural(n int, noun string) string {
 	switch {
 	case n == 1:

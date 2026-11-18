@@ -31,6 +31,12 @@ func TestBytes(t *testing.T) {
 	}
 }
 
+func TestCount(t *testing.T) {
+	if got := present.Count(1, "snapshot") + ", " + present.Count(3, "snapshot") + ", " + present.Count(0, "entry"); got != "1 snapshot, 3 snapshots, 0 entries" {
+		t.Errorf("Count = %q", got)
+	}
+}
+
 func TestStatusRows(t *testing.T) {
 	now := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
 	st := service.Status{

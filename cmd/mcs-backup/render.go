@@ -63,16 +63,16 @@ func (a *app) renderRetention(r service.RetentionInfo) {
 	case r.Policy != "":
 		fmt.Fprintf(a.stdout, "Policy: keep %s, and every snapshot marked keep.\n", r.Policy)
 	}
-	fmt.Fprintf(a.stdout, "Applies to host %s: %d snapshots", strings.Join(r.Hosts, ", "), r.Total)
+	fmt.Fprintf(a.stdout, "Applies to host %s: %s", strings.Join(r.Hosts, ", "), present.Count(r.Total, "snapshot"))
 	if r.Foreign > 0 {
-		fmt.Fprintf(a.stdout, " (%d snapshots of other hosts are never touched)", r.Foreign)
+		fmt.Fprintf(a.stdout, " (%s of other hosts are never touched)", present.Count(r.Foreign, "snapshot"))
 	}
 	fmt.Fprintln(a.stdout)
 	if len(r.Remove) == 0 {
 		fmt.Fprintln(a.stdout, "The next forget would remove nothing.")
 		return
 	}
-	fmt.Fprintf(a.stdout, "The next forget would remove %d snapshots:\n", len(r.Remove))
+	fmt.Fprintf(a.stdout, "The next forget would remove %s:\n", present.Count(len(r.Remove), "snapshot"))
 	a.renderSnapshots(r.Remove)
 	if r.Held {
 		fmt.Fprintln(a.stdout, "\nThis is more than the retention guard allows: forget is held back until it is approved (mcs-backup approve-forget).")

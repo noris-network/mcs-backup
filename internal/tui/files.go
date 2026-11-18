@@ -200,7 +200,7 @@ func (d *filesDialog) view(width, height int) string {
 	n := 0
 	switch {
 	case d.found != nil:
-		title = fmt.Sprintf("Files matching %s in %d snapshots", d.pattern, d.found.Searched)
+		title = fmt.Sprintf("Files matching %s in %s", d.pattern, present.Count(d.found.Searched, "snapshot"))
 		if len(d.found.Versions) == 0 {
 			head.WriteString("Nothing found.\n")
 		}
