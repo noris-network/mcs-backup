@@ -228,7 +228,7 @@ func SnapshotFlags(s service.Snapshot) []string {
 	if s.Suspicious {
 		f = append(f, "SUSPICIOUS")
 	}
-	if s.PreRestore {
+	if s.PreRestore && s.Origin != service.OriginPreRestore { // the origin says it already
 		f = append(f, "pre-restore")
 	}
 	return f

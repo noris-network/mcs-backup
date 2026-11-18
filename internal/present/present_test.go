@@ -129,3 +129,14 @@ func TestPreflightRowsShowTheChanges(t *testing.T) {
 		}
 	}
 }
+
+func TestSnapshotFlagsLeaveTheOriginToItsColumn(t *testing.T) {
+	safety := service.Snapshot{Origin: service.OriginPreRestore, PreRestore: true, Keep: true}
+	if got := strings.Join(present.SnapshotFlags(safety), " "); got != "keep" {
+		t.Errorf("flags of a safety snapshot = %q, want keep: the origin says pre-restore", got)
+	}
+	other := service.Snapshot{Origin: service.OriginManual, PreRestore: true}
+	if got := strings.Join(present.SnapshotFlags(other), " "); got != "pre-restore" {
+		t.Errorf("flags = %q", got)
+	}
+}
