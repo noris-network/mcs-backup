@@ -2,6 +2,9 @@ package engine
 
 import (
 	"errors"
+	"fmt"
+	"os"
+	"os/exec"
 	"slices"
 	"strings"
 	"testing"
@@ -196,6 +199,43 @@ func TestLocks(t *testing.T) {
 	}
 	if got := r.main.CallsTo(t, "unlock"); !slices.Equal(got[0], []string{"unlock", "--remove-all"}) {
 		t.Errorf("unlock = %q", got)
+	}
+}
+
+func TestLocksOfAProcessThatIsGoneAreStale(t *testing.T) {
+	host, err := os.Hostname()
+	if err != nil {
+		t.Skip(err)
+	}
+	r := newRig(t, false)
+	lock := func(hostname string, pid int) resticfake.Response {
+		return resticfake.Response{Stdout: fmt.Sprintf(`{"time":%q,"exclusive":true,"hostname":%q,"username":"u","pid":%d}`,
+			testNow.Add(-time.Minute).Format(time.RFC3339), hostname, pid)}
+	}
+	r.main.On(t, "list locks", resticfake.Response{Stdout: "gone\nalive\nelsewhere\n"})
+	r.main.On(t, "cat lock", lock(host, 41), lock(host, 42), lock("other-"+host, 41))
+	r.e.processAlive = func(pid int) bool { return pid == 42 }
+
+	locks, err := r.e.Locks(t.Context())
+	if err != nil || len(locks) != 3 {
+		t.Fatalf("Locks() = %+v, %v", locks, err)
+	}
+	if !locks[0].Stale || locks[1].Stale || locks[2].Stale {
+		t.Errorf("stale = %v %v %v, want true false false: only the young lock of a gone process of this machine is stale",
+			locks[0].Stale, locks[1].Stale, locks[2].Stale)
+	}
+}
+
+func TestProcessAlive(t *testing.T) {
+	if !processAlive(os.Getpid()) {
+		t.Error("this process is not alive")
+	}
+	cmd := exec.CommandContext(t.Context(), "true")
+	if err := cmd.Run(); err != nil {
+		t.Skip(err)
+	}
+	if processAlive(cmd.Process.Pid) {
+		t.Errorf("process %d has ended but is alive", cmd.Process.Pid)
 	}
 }
 

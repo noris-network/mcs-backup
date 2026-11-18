@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"syscall"
 	"time"
 
 	"github.com/noris-network/mcs-backup/v2/internal/restic"
@@ -97,15 +99,29 @@ func (e *Engine) Locks(ctx context.Context) ([]service.Lock, error) {
 		return nil, err
 	}
 	now := e.now()
+	host, _ := os.Hostname()
 	out := make([]service.Lock, len(locks))
 	for i, l := range locks {
 		age := now.Sub(l.Time)
+		// what restic checks: the lock is old, or its process is gone from this machine
+		stale := age > staleLockAge || (host != "" && l.Hostname == host && l.PID > 0 && !e.processAlive(l.PID))
 		out[i] = service.Lock{
 			ID: l.ID, Time: l.Time, Age: service.Duration(age), Exclusive: l.Exclusive,
-			Hostname: l.Hostname, Username: l.Username, PID: l.PID, Stale: age > staleLockAge,
+			Hostname: l.Hostname, Username: l.Username, PID: l.PID, Stale: stale,
 		}
 	}
 	return out, nil
+}
+
+// processAlive reports whether a process runs on this machine, like restic
+// checks it for a lock: any error of signal 0 counts as gone.
+func processAlive(pid int) bool {
+	p, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	defer func() { _ = p.Release() }()
+	return p.Signal(syscall.Signal(0)) == nil
 }
 
 // ReleaseStaleLocks removes the locks that a restic which was stopped may have

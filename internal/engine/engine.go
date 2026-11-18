@@ -59,11 +59,13 @@ type Engine struct {
 	log    *slog.Logger
 	now    func() time.Time
 	rnd    *rand.Rand
+	// processAlive reports whether a process of this machine runs (for the locks).
+	processAlive func(pid int) bool
 }
 
 // New creates an Engine.
 func New(o Options) *Engine {
-	e := &Engine{cfg: o.Config, main: o.Main, second: o.Second, hooks: o.Hooks, log: o.Logger, now: o.Now, rnd: o.Rand}
+	e := &Engine{cfg: o.Config, main: o.Main, second: o.Second, hooks: o.Hooks, log: o.Logger, now: o.Now, rnd: o.Rand, processAlive: processAlive}
 	if e.now == nil {
 		e.now = time.Now
 	}
