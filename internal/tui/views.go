@@ -42,14 +42,18 @@ func (m *Model) View() tea.View {
 			bottom = append(bottom, strings.Split(panel, "\n")...)
 			bottom = append(bottom, "")
 		}
-		// a message takes the blank line above the legend, which stays
-		bottom[len(bottom)-1] = styleTitle.Render(m.flash)
 		foot := strings.Split(m.footer(), "\n")
 		for len(foot) < m.footerHeight() { // the last line of the legend is the last line of the screen
 			foot = append([]string{""}, foot...)
 		}
 		bottom = append(bottom, foot...)
-
+		// a message takes the blank line right above the legend, which stays
+		for i := len(bottom) - len(foot); i < len(bottom); i++ {
+			if bottom[i] != "" {
+				bottom[i-1] = styleTitle.Render(m.flash)
+				break
+			}
+		}
 	}
 	avail := max(m.height-len(top)-len(bottom), 3)
 

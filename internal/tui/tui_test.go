@@ -165,6 +165,11 @@ func TestMessagesLeaveTheLegendAndGoWithTheirRun(t *testing.T) {
 	r := healthy(newRig(t)).load()
 	r.press("b", "enter")
 	r.wantScreen("backup started", "q quit") // the legend stays in view
+	lines := strings.Split(r.screen(), "\n")
+	at := slices.IndexFunc(lines, func(l string) bool { return strings.Contains(l, "backup started") })
+	if at < 0 || at+1 >= len(lines) || !strings.HasPrefix(lines[at+1], "b backup") {
+		t.Errorf("the message is not right above the legend:\n%s", r.screen())
+	}
 	r.send(eventMsg{service.Event{Type: service.EventStarted, Operation: &service.Operation{Kind: service.KindBackup, Started: t0}}})
 	r.wantScreen("backup started")
 	r.send(eventMsg{service.Event{Type: service.EventFinished, Result: &service.RunResult{Kind: service.KindBackup, Result: service.ResultSuccess, Snapshot: "dddddddd00"}}})
