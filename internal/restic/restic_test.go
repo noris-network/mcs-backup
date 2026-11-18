@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -250,8 +251,34 @@ func TestBackupFailure(t *testing.T) {
 	if !strings.Contains(err.Error(), "command failed") {
 		t.Errorf("error = %v", err)
 	}
+	if !strings.HasSuffix(err.Error(), "; false said: dump: connection to the database refused") {
+		t.Errorf("error = %v, want the words of the command", err)
+	}
 	if len(sum.Errors) != 1 {
 		t.Errorf("errors = %q", sum.Errors)
+	}
+	if !slices.Equal(sum.CommandOutput, []string{"dump: connection to the database refused"}) || len(sum.Output) != 0 {
+		t.Errorf("command output = %q, output = %q", sum.CommandOutput, sum.Output)
+	}
+}
+
+func TestBackupTextOutput(t *testing.T) {
+	f := resticfake.New(t)
+	var stderr strings.Builder
+	for i := range 25 {
+		fmt.Fprintf(&stderr, "subprocess dump: line %d\n", i)
+	}
+	stderr.WriteString("Load(<lock/0123>, 0, 0) returned error, retrying after 1s: connection reset\n")
+	f.On(t, "backup", resticfake.Response{Stdout: fixture(t, "backup.jsonl"), Stderr: stderr.String()})
+	sum, err := newRepo(t, f).Backup(t.Context(), BackupOptions{Host: "h", StdinCommand: []string{"dump"}, StdinFilename: "x"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sum.CommandOutput) != maxOutput || sum.CommandOutput[0] != "line 5" || sum.CommandOutput[maxOutput-1] != "line 24" {
+		t.Errorf("command output = %q, want the last %d lines", sum.CommandOutput, maxOutput)
+	}
+	if len(sum.Output) != 1 || !strings.HasPrefix(sum.Output[0], "Load(") {
+		t.Errorf("output = %q", sum.Output)
 	}
 }
 

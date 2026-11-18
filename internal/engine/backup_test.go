@@ -448,6 +448,34 @@ func TestBackupPlausibilityPipeMode(t *testing.T) {
 	}
 }
 
+func TestBackupPipeCommandFails(t *testing.T) {
+	in := script(t, "exit 2")
+	out := script(t, "cat > /dev/null")
+	r := newRig(t, false, "PIPE_IN_SCRIPT="+in, "PIPE_OUT_SCRIPT="+out, "PIPE_IN_FILENAME=dump.sql")
+	r.main.On(t, "snapshots", resticfake.Response{Stdout: snapsJSON(t)})
+	r.main.On(t, "backup", resticfake.Response{
+		Stderr: "subprocess " + in + ": dump: connection refused\n" +
+			`{"message_type":"error","error":{"message":"failed to save /dump.sql: Fatal: command failed: exit status 2"},"during":"archival","item":"/dump.sql"}` + "\n" +
+			`{"message_type":"exit_error","code":1,"message":"Fatal: unable to save snapshot: failed to save /dump.sql: Fatal: command failed: exit status 2"}` + "\n",
+		Exit: 1,
+	})
+
+	res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
+	if res.Result != service.ResultFailure || !strings.HasSuffix(res.Error, "said: dump: connection refused") {
+		t.Fatalf("result = %+v, want the words of the dump command in the error", res)
+	}
+	log := r.logText()
+	name := filepath.Base(in)
+	for _, want := range []string{name + ": dump: connection refused", "error: failed to save /dump.sql"} {
+		if !strings.Contains(log, want) {
+			t.Errorf("the log lacks %q:\n%s", want, log)
+		}
+	}
+	if strings.Contains(log, "warning:") {
+		t.Errorf("a failed backup has errors, not warnings:\n%s", log)
+	}
+}
+
 func TestBackupCopy(t *testing.T) {
 	r := newRig(t, true)
 	r.main.On(t, "snapshots", resticfake.Response{Stdout: snapsJSON(t)})

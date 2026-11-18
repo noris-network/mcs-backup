@@ -5,11 +5,15 @@ import (
 	"encoding/json/v2"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 )
 
 // maxErrors limits how many unreadable files a BackupSummary lists.
 const maxErrors = 20
+
+// maxOutput limits how many lines of text output a BackupSummary keeps.
+const maxOutput = 20
 
 // BackupOptions describes one backup run.
 type BackupOptions struct {
@@ -89,8 +93,13 @@ func (r *Repo) Backup(ctx context.Context, o BackupOptions, onStatus func(Backup
 			}
 		}
 	}
-	// Unreadable files are reported on stderr.
-	var errs []string
+	// Unreadable files are reported on stderr, and so is what the stdin
+	// command writes there, as text: "subprocess <command>: <line>".
+	var errs, cmdOut, out []string
+	var prefix string
+	if len(o.StdinCommand) > 0 {
+		prefix = "subprocess " + o.StdinCommand[0] + ": "
+	}
 	stderrLine := func(line []byte) {
 		var m struct {
 			Type  string `json:"message_type"`
@@ -98,13 +107,24 @@ func (r *Repo) Backup(ctx context.Context, o BackupOptions, onStatus func(Backup
 				Message string `json:"message"`
 			} `json:"error"`
 		}
-		if json.Unmarshal(line, &m) == nil && m.Type == "error" && len(errs) < maxErrors {
-			errs = append(errs, m.Error.Message)
+		switch {
+		case json.Unmarshal(line, &m) == nil:
+			if m.Type == "error" && len(errs) < maxErrors {
+				errs = append(errs, m.Error.Message)
+			}
+		case prefix != "" && strings.HasPrefix(string(line), prefix):
+			cmdOut = keepLast(cmdOut, strings.TrimPrefix(string(line), prefix))
+		default:
+			out = keepLast(out, string(line))
 		}
 	}
 
 	_, err = r.run(ctx, args, runOpts{stdoutLine: stdoutLine, stderrLine: stderrLine})
-	sum.Errors = errs
+	sum.Errors, sum.CommandOutput, sum.Output = errs, cmdOut, out
+	if err != nil && !errors.Is(err, ErrIncomplete) && len(cmdOut) > 0 {
+		// the reason of a failed command is in its own words, not in restic's
+		err = fmt.Errorf("%w; %s said: %s", err, filepath.Base(o.StdinCommand[0]), cmdOut[len(cmdOut)-1])
+	}
 	if err != nil {
 		return sum, err // for ErrIncomplete the snapshot exists and sum is valid
 	}
@@ -112,4 +132,13 @@ func (r *Repo) Backup(ctx context.Context, o BackupOptions, onStatus func(Backup
 		return sum, errors.New("restic backup: no summary in output")
 	}
 	return sum, nil
+}
+
+// keepLast appends line and drops the oldest lines beyond maxOutput.
+func keepLast(lines []string, line string) []string {
+	lines = append(lines, line)
+	if len(lines) > maxOutput {
+		lines = lines[len(lines)-maxOutput:]
+	}
+	return lines
 }

@@ -129,6 +129,12 @@ type BackupSummary struct {
 	BackupEnd           time.Time `json:"backup_end"`
 	// Errors lists files that could not be read (at most maxErrors).
 	Errors []string `json:"-"`
+	// CommandOutput holds the last lines the stdin command wrote to stderr
+	// (at most maxOutput), without the prefix restic puts in front of them.
+	CommandOutput []string `json:"-"`
+	// Output holds the last other lines restic wrote to stderr as text
+	// rather than JSON, such as notes about retries (at most maxOutput).
+	Output []string `json:"-"`
 }
 
 // RestoreStatus is a progress report of a running restore.

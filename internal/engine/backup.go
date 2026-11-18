@@ -152,8 +152,23 @@ func (e *Engine) runBackup(ctx context.Context, snaps []restic.Snapshot, origin 
 		})
 		return err
 	})
+	if len(sum.CommandOutput) > 0 {
+		name := filepath.Base(e.cfg.Pipe.InScript)
+		for _, line := range sum.CommandOutput {
+			sink.logf("%s: %s", name, line)
+		}
+	}
+	for _, line := range sum.Output {
+		sink.logf("restic: %s", line)
+	}
+	// a file that could not be read is a warning if restic saved the snapshot
+	// without it, and the reason why the backup failed if not
+	level := "warning"
+	if err != nil && !errors.Is(err, restic.ErrIncomplete) {
+		level = "error"
+	}
 	for _, msg := range sum.Errors {
-		sink.logf("warning: %s", msg)
+		sink.logf("%s: %s", level, msg)
 	}
 	if sum.SnapshotID != "" {
 		// what restic prints at the end of a backup, for the log
