@@ -60,6 +60,9 @@ func (d *Daemon) loadRuns() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	maps.Copy(d.lastRuns, p.LastRuns)
+	for kind := range p.LastRuns {
+		d.restored[kind] = true
+	}
 	for kind, l := range p.Logs {
 		d.logs[kind] = &runLog{start: l.Start, lines: l.Lines, dropped: l.Dropped}
 	}
@@ -158,7 +161,9 @@ func (d *Daemon) backupsActiveLocked() bool {
 
 // metricsState builds the snapshot the Prometheus collector reads. Only what
 // is known is filled in: right after a restart the last success comes from the
-// repository, and the results of the last runs from runs.json.
+// repository, and the result of the last run stays absent until a run happens,
+// as documented: the results read back from runs.json are for the status and
+// the log, a restart must not keep an alert on a run alive.
 func (d *Daemon) metricsState() metrics.State {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -203,7 +208,7 @@ func (d *Daemon) metricsState() metrics.State {
 	}
 	for kind, res := range d.lastRuns {
 		// a skipped or cancelled run says nothing about whether the job works
-		if res.Result == service.ResultSkipped || res.Result == service.ResultCancelled || kind == service.KindTag || kind == service.KindUnlock {
+		if d.restored[kind] || res.Result == service.ResultSkipped || res.Result == service.ResultCancelled || kind == service.KindTag || kind == service.KindUnlock {
 			continue
 		}
 		s.LastRuns[string(kind)] = metrics.LastRun{Success: res.Result == service.ResultSuccess || res.Result == service.ResultWarning, At: res.Started, Duration: res.Duration.Std()}

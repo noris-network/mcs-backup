@@ -73,6 +73,7 @@ func (d *Daemon) end(r *running, res service.RunResult) {
 	d.mu.Lock()
 	d.op = nil
 	d.lastRuns[res.Kind] = res
+	delete(d.restored, res.Kind)
 	d.publishLocked(service.Event{Type: service.EventFinished, Result: &res})
 	d.mu.Unlock()
 	d.saveRuns()
@@ -88,6 +89,7 @@ func (d *Daemon) record(res service.RunResult) {
 	res = d.redactResult(res)
 	d.mu.Lock()
 	d.lastRuns[res.Kind] = res
+	delete(d.restored, res.Kind)
 	d.mu.Unlock()
 	d.saveRuns()
 }

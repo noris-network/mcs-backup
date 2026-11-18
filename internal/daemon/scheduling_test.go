@@ -524,6 +524,11 @@ func TestLastRunsSurviveARestart(t *testing.T) {
 		if !slices.Contains(log.Lines, "forget on the main repository failed: locked") {
 			t.Errorf("log after the restart = %q", log.Lines)
 		}
+		// the metrics report runs since the start, as documented: a restart
+		// does not keep an alert on a run alive
+		if body := scrape(t, second.Daemon); strings.Contains(body, "mcsbackup_last_run_success") {
+			t.Error("last_run_success of a run before the restart")
+		}
 		stop()
 	})
 }

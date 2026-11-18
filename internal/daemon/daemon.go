@@ -151,6 +151,9 @@ type Daemon struct {
 
 	op       *running
 	lastRuns map[service.Kind]service.RunResult
+	// restored marks the last runs read back after a restart: they are not
+	// runs since the start, which the metrics report
+	restored map[service.Kind]bool
 	logs     map[service.Kind]*runLog
 	// prevBad: the last final result of a kind was bad, so that the next
 	// success is reported as a recovery.
@@ -191,6 +194,7 @@ func New(o Options) *Daemon {
 		events:   newBroadcaster(),
 		hardStop: make(chan struct{}),
 		lastRuns: map[service.Kind]service.RunResult{},
+		restored: map[service.Kind]bool{},
 		logs:     map[service.Kind]*runLog{},
 		prevBad:  map[service.Kind]bool{},
 		queued:   map[service.Kind]bool{},
