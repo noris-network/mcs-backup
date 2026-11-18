@@ -274,7 +274,7 @@ func (h *Handler) action(back string, fn func(*http.Request) (string, error)) ht
 // describe turns an error of the service into a sentence for the page.
 func describe(err error) string {
 	if b, ok := errors.AsType[*service.BusyError](err); ok {
-		return fmt.Sprintf("Another operation is running (%s). Wait for it or cancel it.", b.Current.Kind)
+		return fmt.Sprintf("Another operation is running (%s). Wait for it or cancel it.", present.KindName(b.Current.Kind))
 	}
 	switch {
 	case errors.Is(err, service.ErrConfirm):

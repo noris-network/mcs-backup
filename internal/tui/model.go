@@ -143,7 +143,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case logMsg:
 		m.arrived()
 		if !m.fail("log", msg.err) {
-			m.dlg = &textDialog{title: "Log of the last " + string(msg.log.Kind) + " run", lines: msg.log.Lines, follow: true, log: true}
+			m.dlg = &textDialog{title: "Log of the last " + present.KindName(msg.log.Kind) + " run", lines: msg.log.Lines, follow: true, log: true}
 		}
 	case preflightMsg:
 		return m, m.gotPreflight(msg)
@@ -209,7 +209,7 @@ func (m *Model) fail(what string, err error) bool {
 // describe turns an error of the service into a sentence for the screen.
 func describe(err error) string {
 	if b, ok := errors.AsType[*service.BusyError](err); ok {
-		return fmt.Sprintf("another operation is running (%s); wait for it or cancel it", b.Current.Kind)
+		return fmt.Sprintf("another operation is running (%s); wait for it or cancel it", present.KindName(b.Current.Kind))
 	}
 	switch {
 	case errors.Is(err, service.ErrUnavailable):

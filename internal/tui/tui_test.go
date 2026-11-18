@@ -202,6 +202,11 @@ func TestBusy(t *testing.T) {
 	}
 	r.press("b", "enter")
 	r.wantScreen("another operation is running (prune)")
+	r.fake.StartBackupFn = func(context.Context, service.BackupRequest) (service.Operation, error) {
+		return service.Operation{}, &service.BusyError{Current: service.Operation{Kind: service.KindVerify, Started: t0}}
+	}
+	r.press("b", "enter")
+	r.wantScreen("another operation is running (restore test)")
 }
 
 func TestRestoreInPlaceNeedsTheSnapshotTyped(t *testing.T) {
@@ -658,6 +663,8 @@ func TestLogSkipsQuickRunsAndSwitches(t *testing.T) {
 	r.wantScreen("Log of the last backup run", "a line of backup", "b p c v r other logs")
 	r.press("p")
 	r.wantScreen("Log of the last prune run", "a line of prune")
+	r.press("v")
+	r.wantScreen("Log of the last restore test run", "a line of verify")
 	r.press("esc")
 	r.wantNoScreen("a line of")
 }
