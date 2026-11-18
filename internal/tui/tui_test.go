@@ -108,7 +108,7 @@ func TestHeaderKeepsTheHealthOnANarrowTerminal(t *testing.T) {
 	r := healthy(newRig(t)).load()
 	for _, w := range []int{120, 70, 60, 45, 36} {
 		r.m.width = w
-		head := strings.Split(r.screen(), "\n")[0]
+		head, _, _ := strings.Cut(r.screen(), "\n")
 		if !strings.Contains(head, "healthy") || !strings.Contains(head, "Overview") {
 			t.Errorf("width %d: the header lacks the health or the tab: %q", w, head)
 		}
@@ -484,8 +484,8 @@ func TestLockColumnsFitAPodName(t *testing.T) {
 	col := func(text string) int {
 		t.Helper()
 		for _, l := range lines {
-			if i := strings.Index(l, text); i >= 0 {
-				return len([]rune(l[:i]))
+			if before, _, ok := strings.Cut(l, text); ok {
+				return len([]rune(before))
 			}
 		}
 		t.Fatalf("%q is not on the screen:\n%s", text, r.screen())

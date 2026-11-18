@@ -59,9 +59,7 @@ func (d *Daemon) loadRuns() {
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	for kind, res := range p.LastRuns {
-		d.lastRuns[kind] = res
-	}
+	maps.Copy(d.lastRuns, p.LastRuns)
 	for kind, l := range p.Logs {
 		d.logs[kind] = &runLog{start: l.Start, lines: l.Lines, dropped: l.Dropped}
 	}
