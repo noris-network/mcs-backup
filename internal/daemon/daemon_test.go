@@ -324,6 +324,31 @@ func TestStatusWarnsOfRunsThatNeedALook(t *testing.T) {
 	})
 }
 
+func TestStatusTakesACancelAsNoAlarm(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		d := newTestDaemon(t, func(f *fakeEngine) {
+			f.backup = func(context.Context, service.BackupRequest, engine.Sink) engine.BackupResult {
+				return engine.BackupResult{Result: service.ResultCancelled, Snapshot: "new1", Error: "context canceled",
+					Message: "snapshot new1 created; stopped before the copy to the secondary repository was done",
+					Copy:    &engine.PhaseResult{Result: service.ResultCancelled, Error: "context canceled"}}
+			}
+		})
+		ctx, stop := start(t, d)
+		synctest.Wait()
+		if _, err := d.StartBackup(ctx, service.BackupRequest{}); err != nil {
+			t.Fatal(err)
+		}
+		synctest.Wait()
+		st, _ := d.Status(ctx)
+		for _, code := range []string{"backup_failed", "backup_warning", "copy_failed"} {
+			if hasWarning(st, code) {
+				t.Errorf("a cancel raises %s: %+v", code, st.Warnings)
+			}
+		}
+		stop()
+	})
+}
+
 func TestSnapshotsListsOnlyOwnNewestFirst(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		d := newTestDaemon(t, func(f *fakeEngine) {

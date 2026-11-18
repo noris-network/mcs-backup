@@ -143,10 +143,10 @@ func (d *Daemon) warningsLocked(st service.Status, now time.Time) []service.Warn
 	if r, ok := st.LastRuns[service.KindCheck]; ok && !r.Result.OK() && r.Result != service.ResultCancelled {
 		add("check_failed", service.SeverityError, "the last check of the repository failed: %s", r.Error)
 	}
-	if r, ok := st.LastRuns[service.KindCopy]; ok && !r.Result.OK() {
+	if r, ok := st.LastRuns[service.KindCopy]; ok && !r.Result.OK() && r.Result != service.ResultCancelled {
 		add("copy_failed", service.SeverityWarning, "the last copy to the secondary repository failed: %s", r.Error)
 	}
-	if r, ok := st.LastRuns[service.KindVerify]; ok && !r.Result.OK() {
+	if r, ok := st.LastRuns[service.KindVerify]; ok && !r.Result.OK() && r.Result != service.ResultCancelled {
 		add("verify_failed", service.SeverityError, "the last restore test failed: %s", r.Error)
 	}
 	if !st.VerifyConfigured {
