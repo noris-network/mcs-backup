@@ -418,6 +418,14 @@ func TestKeepAndAcknowledge(t *testing.T) {
 	}
 	r.press("K")
 	r.wantScreen("snapshot bbbbbbbb is kept; restic gave it the new ID eeeeeeee")
+	r.fake.SnapshotsFn = func(context.Context) ([]service.Snapshot, error) {
+		return []service.Snapshot{snap("aaaaaaaa", 2*time.Hour), snap("eeeeeeee", time.Hour, func(s *service.Snapshot) { s.Suspicious, s.Keep = true, true })}, nil
+	}
+	r.fake.UnkeepFn = func(context.Context, string) (service.TagResult, error) {
+		return service.TagResult{}, &service.BusyError{Current: service.Operation{Kind: service.KindBackup, Started: t0}}
+	}
+	r.press("r", "K")
+	r.wantScreen("unkeep: another operation is running (backup)")
 	r.press("down", "a")
 	r.wantScreen("is not marked suspicious")
 }
