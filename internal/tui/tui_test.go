@@ -30,6 +30,29 @@ func TestOverview(t *testing.T) {
 		"Needs attention", "the latest backup is much smaller", "Restore test is not set up", "Web UI", "off")
 }
 
+func TestAttentionNotesWrapUnderTheirText(t *testing.T) {
+	r := healthy(newRig(t))
+	r.fake.StatusFn = func(context.Context) (service.Status, error) {
+		return service.Status{
+			Version: "2.0.0", Host: "app", Repository: service.RepoStatus{Up: true},
+			Warnings: []service.Warning{{Code: "backup_warning", Severity: service.SeverityWarning,
+				Message: "the latest backup could not read some files: 3 source files could not be read, for example: open /data/locked: permission denied"}},
+		}, nil
+	}
+	r.load()
+	r.m.width = 60
+	lines := strings.Split(r.screen(), "\n")
+	for i, l := range lines {
+		if strings.Contains(l, "• the latest") {
+			if next := strings.TrimPrefix(lines[i+1], "│ "); !strings.HasPrefix(next, "  ") || strings.HasPrefix(next, "   ") {
+				t.Errorf("the second line of the note is not under its text: %q", lines[i+1])
+			}
+			return
+		}
+	}
+	t.Errorf("no note on the screen:\n%s", r.screen())
+}
+
 func TestServiceNotReachable(t *testing.T) {
 	r := newRig(t)
 	r.fake.StatusFn = func(context.Context) (service.Status, error) {

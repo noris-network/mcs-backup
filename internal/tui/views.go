@@ -360,7 +360,8 @@ func (m *Model) attention(notes []present.Row) string {
 			}
 		}
 		text := strings.TrimPrefix(n.Text, present.SeverityMark(n.Severity)+" ")
-		lines = append(lines, style.Render("• "+wrap(text, m.width-8)))
+		// the lines of a wrapped note start under its text, not under the bullet
+		lines = append(lines, style.Render("• "+strings.ReplaceAll(wrap(text, m.width-8), "\n", "\n  ")))
 	}
 	title := "Needs attention"
 	if c == colMuted {
