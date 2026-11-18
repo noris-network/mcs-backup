@@ -586,7 +586,10 @@ func TestInputsShowTheirPlaceholder(t *testing.T) {
 	r.press("b")
 	r.wantScreen("> e.g. before the upgrade")
 	r.press("esc", "2", "enter")
-	r.wantScreen("> /path/to/directory", "> /path/in/snapshot")
+	r.wantScreen("> cccccccc", "  /path/to/directory", "  /path/in/snapshot")
+	// only the field with the focus has the prompt
+	r.press("tab")
+	r.wantScreen("  cccccccc", "> /path/to/directory", "  /path/in/snapshot")
 }
 
 func TestLogWrapsLongLines(t *testing.T) {

@@ -528,14 +528,26 @@ func newRestoreDialog(snapshot string) *restoreDialog {
 	return d
 }
 
+// focus marks the field the keys go to: only it has the prompt and a
+// bright label, the others are dimmed.
 func (d *restoreDialog) focus() {
 	for i := range d.fields {
 		if i == d.at {
 			d.fields[i].Focus()
+			d.fields[i].Prompt = "> "
 		} else {
 			d.fields[i].Blur()
+			d.fields[i].Prompt = "  "
 		}
 	}
+}
+
+// label draws the label of field i, bright if the field has the focus.
+func (d *restoreDialog) label(i int, text string) string {
+	if i == d.at {
+		return styleAccent.Bold(true).Render(text)
+	}
+	return styleDim.Render(text)
 }
 
 func (d *restoreDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
@@ -666,7 +678,7 @@ func (d *restoreDialog) view(width, height int) string {
 	switch d.stage {
 	case stageForm:
 		for i := range d.fields {
-			b.WriteString(d.labels[i] + "\n" + field(&d.fields[i], boxText(width)) + "\n\n")
+			b.WriteString(d.label(i, d.labels[i]) + "\n" + field(&d.fields[i], boxText(width)) + "\n\n")
 		}
 		mode := "exact (files that are not in the snapshot are removed)"
 		if d.merge {
@@ -676,7 +688,7 @@ func (d *restoreDialog) view(width, height int) string {
 		if d.at == 3 {
 			cursor = "> "
 		}
-		b.WriteString("Mode when replacing the live data\n" + cursor + mode + "\n")
+		b.WriteString(d.label(3, "Mode when replacing the live data") + "\n" + cursor + mode + "\n")
 		hint = "tab next field · ←→ change mode · enter check · esc cancel"
 	case stagePreview:
 		lines := strings.Split(rows(present.PreflightRows(*d.pre, d.now), boxText(width)), "\n")
