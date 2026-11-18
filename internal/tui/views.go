@@ -706,7 +706,8 @@ func window(cursor, n, size int) (first, last int) {
 const helpText = `Tabs        tab / ← →  or 1 2 3 4
 Move        ↑ ↓  or  j k, pgup pgdn, home end
 Backup      b  start a backup (with a note)
-Restore     in Snapshots: enter restores the selected snapshot, t the latest
+Restore     in Snapshots: enter restores the selected snapshot, t the latest; p in the check shows what would change
+Retry       x  repeat a failed restore without the safety snapshot
 Files       in Snapshots: o  browse the selected snapshot, / finds a file in all
 Changes     in Snapshots: d  what the selected snapshot lost, gained and changed
 Cancel      c  stop the running operation or the pending retry
@@ -714,6 +715,7 @@ Test        v  restore test: restore a sample of the latest snapshot and check i
 Keep        in Snapshots: K  keep / unkeep the selected snapshot
 Acknowledge in Snapshots: a  accept a much smaller snapshot
 Forget      in Snapshots: f  what the retention would delete
+Approve     on the overview: F  run a forget that the retention guard held back
 Locks       in Locks: u  remove stale locks, U  remove all
 Schedule    s  enable, disable or pause scheduled backups
 Log         l  log of the last run, in it b p c v r the log of another kind

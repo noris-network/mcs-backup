@@ -772,7 +772,7 @@ func TestWebUIUnavailable(t *testing.T) {
 func TestHelpAndQuit(t *testing.T) {
 	r := healthy(newRig(t)).load()
 	r.press("?")
-	r.wantScreen("Keys", "Backup", "Acknowledge")
+	r.wantScreen("Keys", "Backup", "Acknowledge", "shows what would change", "x  repeat a failed restore", "F  run a forget")
 	r.press("x")
 	r.wantNoScreen("Acknowledge")
 	if r.quit {
