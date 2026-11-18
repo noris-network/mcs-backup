@@ -97,7 +97,8 @@ func (e *Engine) backupPhases(ctx context.Context, req service.BackupRequest, si
 		return e.afterImplausible(ctx, verdict, res, sink)
 	}
 
-	res.Message = fmt.Sprintf("snapshot %s created: %d files, %s processed", short(sum.SnapshotID), sum.TotalFilesProcessed, formatBytes(sum.TotalBytesProcessed))
+	res.Message = fmt.Sprintf("snapshot %s created: %d %s, %s processed", short(sum.SnapshotID),
+		sum.TotalFilesProcessed, plural(int(sum.TotalFilesProcessed), "file"), formatBytes(sum.TotalBytesProcessed))
 
 	// forget
 	if !res.Suspicious {
@@ -175,8 +176,9 @@ func (e *Engine) runBackup(ctx context.Context, snaps []restic.Snapshot, origin 
 		sink.logf("snapshot %s saved", short(sum.SnapshotID))
 		sink.logf("files: %d new, %d changed, %d unmodified; directories: %d new, %d changed, %d unmodified",
 			sum.FilesNew, sum.FilesChanged, sum.FilesUnmodified, sum.DirsNew, sum.DirsChanged, sum.DirsUnmodified)
-		sink.logf("%s added to the repository (%s stored), %d files and %s processed in %s",
-			formatBytes(sum.DataAdded), formatBytes(sum.DataAddedPacked), sum.TotalFilesProcessed, formatBytes(sum.TotalBytesProcessed),
+		sink.logf("%s added to the repository (%s stored), %d %s and %s processed in %s",
+			formatBytes(sum.DataAdded), formatBytes(sum.DataAddedPacked),
+			sum.TotalFilesProcessed, plural(int(sum.TotalFilesProcessed), "file"), formatBytes(sum.TotalBytesProcessed),
 			time.Duration(sum.TotalDuration*float64(time.Second)).Round(time.Second))
 	}
 	return sum, err

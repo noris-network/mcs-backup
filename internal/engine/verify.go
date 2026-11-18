@@ -250,7 +250,7 @@ func (e *Engine) verifyFiles(ctx context.Context, repo *restic.Repo, snap restic
 			return fail(err, "the verify script rejected the restored data")
 		}
 	}
-	rr.Message = fmt.Sprintf("snapshot %s: %d files restored and verified", short(snap.ID), rr.Files)
+	rr.Message = fmt.Sprintf("snapshot %s: %d %s restored and verified", short(snap.ID), rr.Files, plural(rr.Files, "file"))
 	return rr
 }
 
