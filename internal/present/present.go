@@ -330,6 +330,10 @@ func ResultLines(r service.RunResult) []string {
 			note = "stopped by " + r.Source + " before it finished"
 		}
 		add(note)
+		if r.Snapshot != "" {
+			// stopped after the snapshot was saved: the message says what did not happen
+			add(r.Message)
+		}
 		for _, w := range r.Warnings {
 			add("warning: " + w)
 		}

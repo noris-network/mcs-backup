@@ -105,10 +105,32 @@ func (e *Engine) backupPhases(ctx context.Context, req service.BackupRequest, si
 		e.forgetPhase(ctx, e.main, "main", e.cfg.AppendOnly, &res.Forget, res, sink)
 	}
 	// copy
-	if e.second != nil {
+	if e.second != nil && !cancelled(ctx) {
 		e.copyPhase(ctx, res, sink)
 	}
+	// stopped after the snapshot was saved: the snapshot stays, but the
+	// result says what did not happen
+	var missed string
+	switch {
+	case !cancelled(ctx):
+	case res.Forget.Error != "":
+		missed = "the retention was applied"
+	case e.second == nil:
+	case res.Copy == nil || res.Copy.Result == service.ResultCancelled:
+		missed = "the copy to the secondary repository was done"
+	case res.CopyForget.Error != "":
+		missed = "the retention was applied to the secondary repository"
+	}
+	if missed != "" {
+		res.Message += "; stopped before " + missed
+		return ctx.Err()
+	}
 	return nil
+}
+
+// cancelled reports whether the operation was cancelled, rather than timed out.
+func cancelled(ctx context.Context) bool {
+	return errors.Is(ctx.Err(), context.Canceled) && !errors.Is(context.Cause(ctx), errTimeout)
 }
 
 // runBackup takes a snapshot of the data. Snapshots must be the current list
@@ -320,6 +342,10 @@ func (e *Engine) copyPhase(ctx context.Context, res *BackupResult, sink Sink) {
 	})
 	if err != nil {
 		pr.Result, pr.Error = classify(ctx, err), err.Error()
+		if cancelled(ctx) {
+			sink.logf("copy to the secondary repository stopped: the backup was cancelled")
+			return
+		}
 		res.warn("copy to the secondary repository failed: %v", err)
 		return
 	}

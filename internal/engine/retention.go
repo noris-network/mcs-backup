@@ -106,6 +106,10 @@ func (e *Engine) forgetPhase(ctx context.Context, repo *restic.Repo, name string
 	o, err := e.forget(ctx, repo, appendOnly, false, sink)
 	*out = o
 	switch {
+	case err != nil && cancelled(ctx):
+		// stopped on purpose: no warning, the result says that it was cancelled
+		out.Error = err.Error()
+		sink.logf("forget on the %s repository stopped: the backup was cancelled", name)
 	case err != nil:
 		out.Error = err.Error()
 		res.warn("forget on the %s repository failed: %v", name, err)

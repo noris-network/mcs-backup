@@ -72,6 +72,12 @@ func TestResultLinesOfACancelledRun(t *testing.T) {
 	if len(got) != 2 || got[1] != "  stopped by tui before it finished" {
 		t.Errorf("lines = %q", got)
 	}
+	// stopped after the snapshot was saved
+	r.Snapshot, r.Message = "abcdef0123", "snapshot abcdef01 created: 3 files, 1.0 KiB processed; stopped before the retention was applied"
+	got = ResultLines(r)
+	if len(got) != 3 || got[2] != "  "+r.Message {
+		t.Errorf("lines = %q", got)
+	}
 }
 
 func TestKindsAreNamedInWords(t *testing.T) {

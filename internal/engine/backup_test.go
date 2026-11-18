@@ -583,6 +583,61 @@ func TestBackupCancelAndTimeout(t *testing.T) {
 	})
 }
 
+func TestBackupCancelAfterTheSnapshot(t *testing.T) {
+	cancelAfter := func(t *testing.T) context.Context {
+		ctx, cancel := context.WithCancel(t.Context())
+		time.AfterFunc(500*time.Millisecond, cancel)
+		return ctx
+	}
+	t.Run("during forget", func(t *testing.T) {
+		r := newRig(t, true)
+		r.main.On(t, "snapshots", resticfake.Response{Stdout: snapsJSON(t)})
+		r.main.On(t, "backup", resticfake.Response{Stdout: summaryLine("new1", 3, 1000)})
+		r.main.On(t, "forget", resticfake.Response{Sleep: 30 * time.Second})
+
+		res := r.e.Backup(cancelAfter(t), service.BackupRequest{}, r.sink())
+		if res.Result != service.ResultCancelled || res.Snapshot != "new1" || len(res.Warnings) != 0 {
+			t.Fatalf("result = %+v, want cancelled without warnings", res)
+		}
+		if !strings.HasPrefix(res.Message, "snapshot new1 created") || !strings.HasSuffix(res.Message, "; stopped before the retention was applied") {
+			t.Errorf("message = %q", res.Message)
+		}
+		if res.Copy != nil || len(r.second.CallsTo(t, "copy")) != 0 {
+			t.Error("nothing is copied after a cancel")
+		}
+		if log := r.logText(); !strings.Contains(log, "forget on the main repository stopped: the backup was cancelled") || strings.Contains(log, "failed") {
+			t.Errorf("log:\n%s", log)
+		}
+	})
+	t.Run("during copy", func(t *testing.T) {
+		r := newRig(t, true)
+		r.main.On(t, "snapshots", resticfake.Response{Stdout: snapsJSON(t)})
+		r.main.On(t, "backup", resticfake.Response{Stdout: summaryLine("new1", 3, 1000)})
+		r.main.On(t, "forget", resticfake.Response{Stdout: forgetJSON(t, 3, 0)})
+		r.second.On(t, "copy", resticfake.Response{Sleep: 30 * time.Second})
+
+		res := r.e.Backup(cancelAfter(t), service.BackupRequest{}, r.sink())
+		if res.Result != service.ResultCancelled || len(res.Warnings) != 0 || res.Copy == nil || res.Copy.Result != service.ResultCancelled {
+			t.Fatalf("result = %+v, copy = %+v", res, res.Copy)
+		}
+		if !strings.HasSuffix(res.Message, "; stopped before the copy to the secondary repository was done") {
+			t.Errorf("message = %q", res.Message)
+		}
+	})
+	t.Run("timeout during forget", func(t *testing.T) {
+		r := newRig(t, false, "BACKUP_TIMEOUT=500ms")
+		r.main.On(t, "snapshots", resticfake.Response{Stdout: snapsJSON(t)})
+		r.main.On(t, "backup", resticfake.Response{Stdout: summaryLine("new1", 3, 1000)})
+		r.main.On(t, "forget", resticfake.Response{Sleep: 30 * time.Second})
+
+		// running out of time is not a cancel: the forget failed and that needs a look
+		res := r.e.Backup(t.Context(), service.BackupRequest{}, r.sink())
+		if res.Result != service.ResultWarning || len(res.Warnings) != 1 || !strings.Contains(res.Warnings[0], "forget on the main repository failed") {
+			t.Fatalf("result = %+v", res)
+		}
+	})
+}
+
 func TestBackupAutoUnlock(t *testing.T) {
 	setup := func(t *testing.T, lockAge time.Duration) *rig {
 		r := newRig(t, false, "AUTO_UNLOCK_AFTER=1h")
