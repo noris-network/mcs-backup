@@ -22,11 +22,13 @@ func TestOverview(t *testing.T) {
 			Version: "2.0.0", Host: "app", StartedAt: t0.Add(-time.Hour),
 			Repository: service.RepoStatus{Up: true, Snapshots: 3, SizeBytes: 1 << 20, LastSuccess: t0.Add(-3 * time.Hour)},
 			Schedule:   service.ScheduleStatus{Enabled: true, Backup: "0 2 * * *"}, Retention: "the last 7 snapshots",
+			PipeMode: true, Source: "pipe: the output of /opt/dump.sh, stored as dump.sql",
 			Warnings: []service.Warning{{Code: "backup_suspicious", Severity: service.SeverityError, Message: "the latest backup is much smaller"}},
 		}, nil
 	}
 	r.load()
 	r.wantScreen("Overview", "reachable", "3 snapshots", "3h ago", "backups enabled (0 2 * * *)", "keeps the last 7 snapshots",
+		"Source", "pipe: the output of /opt/dump.sh, stored as dump.sql",
 		"Needs attention", "the latest backup is much smaller", "Restore test is not set up", "Web UI", "off")
 }
 

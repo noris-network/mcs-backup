@@ -54,3 +54,19 @@ func TestDescribe(t *testing.T) {
 		t.Errorf("append-only description: %+v / %+v", got["APPEND_ONLY"], got["RETENTION_POLICY"])
 	}
 }
+
+func TestSource(t *testing.T) {
+	c := mustLoad(t, testEnv(t, "BACKUP_PATHS=docs:/etc/app"))
+	if got, want := c.Source(), "files: "+c.Root+"/docs, /etc/app"; got != want {
+		t.Errorf("Source() = %q, want %q", got, want)
+	}
+	c = mustLoad(t, testEnv(t))
+	if got, want := c.Source(), "files: "+c.Root; got != want {
+		t.Errorf("Source() = %q, want %q", got, want)
+	}
+	in, out := writeScript(t, "dump.sh", 0o755), writeScript(t, "load.sh", 0o755)
+	c = mustLoad(t, testEnv(t, "PIPE_IN_SCRIPT="+in, "PIPE_OUT_SCRIPT="+out, "PIPE_IN_FILENAME=dump.sql"))
+	if got, want := c.Source(), "pipe: the output of "+in+", stored as dump.sql"; got != want {
+		t.Errorf("Source() = %q, want %q", got, want)
+	}
+}

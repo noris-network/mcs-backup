@@ -106,6 +106,9 @@ func StatusRows(st service.Status, now time.Time) []Row {
 	if st.Copy != nil {
 		add("Secondary", "%s", RepoLine(*st.Copy))
 	}
+	if st.Source != "" {
+		add("Source", "%s", st.Source)
+	}
 
 	switch {
 	case st.Schedule.MaintenanceUntil.After(now):

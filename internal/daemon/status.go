@@ -21,7 +21,7 @@ func (d *Daemon) Status(context.Context) (service.Status, error) {
 
 	st := service.Status{
 		Version: d.o.Version, Host: d.cfg.Host, StartedAt: d.started, Ready: d.ready && d.snapsKnown,
-		Retention: d.cfg.Retention.Describe(), AppendOnly: d.cfg.AppendOnly, PipeMode: d.cfg.PipeMode(),
+		Retention: d.cfg.Retention.Describe(), AppendOnly: d.cfg.AppendOnly, PipeMode: d.cfg.PipeMode(), Source: d.cfg.Source(),
 		ForgetHeld: d.forgetHeld, VerifyConfigured: d.eng.VerifyConfigured(),
 		LastRuns: maps.Clone(d.lastRuns),
 		Repository: service.RepoStatus{

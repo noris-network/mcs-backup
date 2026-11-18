@@ -77,6 +77,8 @@ type Status struct {
 	Retention  string `json:"retention"`
 	AppendOnly bool   `json:"append_only"`
 	PipeMode   bool   `json:"pipe_mode"`
+	// Source says in words what a backup takes: the paths, or the dump command in pipe mode.
+	Source string `json:"source,omitempty"`
 	// Suspicious: a snapshot is tagged suspicious and waits for acknowledgement.
 	Suspicious bool `json:"suspicious"`
 	// ForgetHeld: forget is held back by the retention guard.

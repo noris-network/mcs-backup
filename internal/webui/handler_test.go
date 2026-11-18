@@ -44,6 +44,7 @@ func newSite(t *testing.T, token string) *site {
 			Version: "2.0.0", Host: "app", StartedAt: t0.Add(-time.Hour), Ready: true, VerifyConfigured: true,
 			Repository: service.RepoStatus{Up: true, Snapshots: 2, SizeBytes: 1 << 20, LastSuccess: t0.Add(-3 * time.Hour)},
 			Schedule:   service.ScheduleStatus{Enabled: true, Backup: "0 2 * * *"}, Retention: "the last 7 snapshots",
+			Source: "files: /data",
 		}, nil
 	}
 	s.fake.SnapshotsFn = func(context.Context) ([]service.Snapshot, error) {
@@ -282,7 +283,7 @@ func TestOverview(t *testing.T) {
 		return v, nil
 	}
 	s.login()
-	s.do("GET", "/", nil).want(t, http.StatusOK, "reachable", "2 snapshots", "3h ago", "backups enabled (0 2 * * *)", "keeps the last 7 snapshots",
+	s.do("GET", "/", nil).want(t, http.StatusOK, "reachable", "2 snapshots", "3h ago", "backups enabled (0 2 * * *)", "keeps the last 7 snapshots", "files: /data",
 		"Needs attention", "forget is &lt;held&gt; back", `hx-get="/ui/live"`, "Start a backup")
 	s.do("GET", "/ui/live", nil).want(t, http.StatusOK, "reachable")
 }

@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -41,6 +42,22 @@ func dur(d time.Duration) string {
 		return "off"
 	}
 	return d.String()
+}
+
+// Source says in words what a backup takes: the output of the dump command
+// in pipe mode, the backed up paths otherwise.
+func (c *Config) Source() string {
+	if c.PipeMode() {
+		return fmt.Sprintf("pipe: the output of %s, stored as %s", c.Pipe.InScript, c.Pipe.InFilename)
+	}
+	paths := make([]string, len(c.Paths))
+	for i, p := range c.Paths {
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(c.Root, p)
+		}
+		paths[i] = filepath.Clean(p)
+	}
+	return "files: " + strings.Join(paths, ", ")
 }
 
 // Describe lists the effective configuration for `config check`. Secrets are
