@@ -147,8 +147,17 @@ func (i *inst) serve() *exec.Cmd {
 		i.t.Fatal(err)
 	}
 	i.t.Cleanup(func() {
-		_ = cmd.Process.Kill()
-		_ = cmd.Wait()
+		// a graceful stop: the service ends its restic, which would otherwise
+		// go on writing into the directory the test removes next
+		_ = cmd.Process.Signal(syscall.SIGTERM)
+		done := make(chan struct{})
+		go func() { _ = cmd.Wait(); close(done) }()
+		select {
+		case <-done:
+		case <-time.After(60 * time.Second):
+			_ = cmd.Process.Kill()
+			<-done
+		}
 		if os.Getenv("IT_LOG") != "" {
 			i.t.Logf("serve log:\n%s", logw)
 		}
