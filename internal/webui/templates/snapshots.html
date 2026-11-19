@@ -2,7 +2,7 @@
 <h1>Snapshots <span class="dim">{{len .Data.Snapshots}}</span></h1>
 {{if not .Data.Snapshots}}<section class="panel"><p>There are no snapshots yet.</p></section>{{else}}
 <section class="panel table">
-<table>
+<table class="stackable">
 <thead><tr><th>ID</th><th>Time</th><th>Origin</th><th class="num">Files</th><th class="num">Size</th><th>Flags and note</th><th></th></tr></thead>
 <tbody>
 {{range .Data.Snapshots}}
@@ -10,7 +10,7 @@
   <td><code>{{.ShortID}}</code></td>
   <td class="when">{{stamp .Time}}<br><span class="dim">{{ago .Time}}</span></td>
   <td class="origin">{{.Origin}}</td>
-  <td class="num">{{if .HasSummary}}{{.Files}}{{else}}-{{end}}</td><td class="num">{{if .HasSummary}}{{bytes .Bytes}}{{else}}-{{end}}</td>
+  <td class="num" data-label="files">{{if .HasSummary}}{{.Files}}{{else}}-{{end}}</td><td class="num">{{if .HasSummary}}{{bytes .Bytes}}{{else}}-{{end}}</td>
   <td>{{range flags .}}<span class="badge {{flagclass .}}">{{.}}</span>{{end}}{{if .Note}} {{.Note}}{{end}}</td>
   <td class="row-actions">
     <a href="/diff?to={{.ID}}" class="btn small">changes</a>

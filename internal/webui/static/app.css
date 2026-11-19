@@ -123,6 +123,21 @@ td.path { overflow-wrap: anywhere; }
 textarea { resize: vertical; font-family: ui-monospace, monospace; font-size: .9rem; }
 .row-actions { white-space: nowrap; text-align: right; }
 .row-actions > * { margin-left: .35rem; }
+/* on a narrow screen a table with actions shows each row as a block, so that
+   its actions are on the screen and not right of it */
+@media (max-width: 40rem) {
+  table.stackable thead { display: none; }
+  table.stackable, table.stackable tbody, table.stackable tr { display: block; }
+  table.stackable tr { padding: .55rem 0; border-bottom: 1px solid var(--line); }
+  table.stackable tbody tr:last-child { border-bottom: 0; }
+  table.stackable tr.bad { background: var(--bad-bg); }
+  table.stackable td { display: inline-block; border: 0; padding: .1rem .8rem .1rem 0; background: none; }
+  table.stackable td:empty { display: none; }
+  table.stackable td.path { display: block; }
+  table.stackable td[data-label]::before { content: attr(data-label) " "; color: var(--dim); font-size: .85em; }
+  table.stackable td.row-actions { display: block; text-align: left; white-space: normal; padding-top: .4rem; }
+  table.stackable td.row-actions > * { margin: 0 .35rem .35rem 0; }
+}
 
 .badge { display: inline-block; padding: .05rem .5rem; border-radius: .35rem; font-size: .75rem; font-weight: 650; background: var(--accent-soft); color: var(--accent); margin-right: .25rem; }
 .badge.ok { background: var(--ok-bg); color: var(--ok); } .badge.warn { background: var(--warn-bg); color: var(--warn); } .badge.bad { background: var(--bad-bg); color: var(--bad); }
