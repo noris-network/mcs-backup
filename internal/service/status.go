@@ -6,6 +6,8 @@ import "time"
 type RepoStatus struct {
 	// Up: the last attempt to reach the repository succeeded.
 	Up bool `json:"up"`
+	// Connecting: the first attempt to reach the repository has not finished yet.
+	Connecting bool `json:"connecting,omitempty"`
 	// Error is why the repository is not reachable.
 	Error string `json:"error,omitempty"`
 	ID    string `json:"id,omitempty"`

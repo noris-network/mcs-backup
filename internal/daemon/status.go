@@ -25,7 +25,7 @@ func (d *Daemon) Status(context.Context) (service.Status, error) {
 		ForgetHeld: d.forgetHeld, VerifyConfigured: d.eng.VerifyConfigured(),
 		LastRuns: maps.Clone(d.lastRuns),
 		Repository: service.RepoStatus{
-			Up: d.repo.up, Error: d.repo.err, ID: d.repo.id, Snapshots: -1, SizeBytes: -1,
+			Up: d.repo.up, Connecting: d.repo.connecting(), Error: d.repo.err, ID: d.repo.id, Snapshots: -1, SizeBytes: -1,
 		},
 		Schedule: service.ScheduleStatus{
 			Enabled: d.enabled, Backup: d.cfg.Schedule.Backup, CatchUp: d.cfg.Schedule.CatchUp,
@@ -53,7 +53,7 @@ func (d *Daemon) Status(context.Context) (service.Status, error) {
 		st.Repository.SizeBytes = d.size
 	}
 	if d.eng.HasSecond() {
-		c := service.RepoStatus{Up: d.second.up, Error: d.second.err, ID: d.second.id, Snapshots: -1, SizeBytes: -1}
+		c := service.RepoStatus{Up: d.second.up, Connecting: d.second.connecting(), Error: d.second.err, ID: d.second.id, Snapshots: -1, SizeBytes: -1}
 		if d.secondSnaps != nil {
 			c.Snapshots = len(service.Own(d.secondSnaps, service.OwnHosts(d.cfg.Host, d.secondSnaps)))
 			c.LastSuccess = d.latestSuccess(d.secondSnaps)
@@ -82,14 +82,14 @@ func (d *Daemon) warningsLocked(st service.Status, now time.Time) []service.Warn
 		w = append(w, service.Warning{Code: code, Severity: sev, Message: d.redact.String(fmt.Sprintf(format, args...))})
 	}
 
-	if !st.Repository.Up {
+	if !st.Repository.Up && !st.Repository.Connecting {
 		msg := "the repository is not reachable"
 		if st.Repository.Error != "" {
 			msg += ": " + st.Repository.Error
 		}
 		add("repository_down", service.SeverityError, "%s", msg)
 	}
-	if st.Copy != nil && !st.Copy.Up {
+	if st.Copy != nil && !st.Copy.Up && !st.Copy.Connecting {
 		msg := "the secondary repository is not reachable"
 		if st.Copy.Error != "" {
 			msg += ": " + st.Copy.Error

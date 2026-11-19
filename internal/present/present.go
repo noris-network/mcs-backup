@@ -162,6 +162,9 @@ func StatusRows(st service.Status, now time.Time) []Row {
 
 // RepoLine describes a repository in one line.
 func RepoLine(r service.RepoStatus) string {
+	if r.Connecting {
+		return "connecting …"
+	}
 	if !r.Up {
 		if r.Error != "" {
 			return "NOT REACHABLE: " + r.Error

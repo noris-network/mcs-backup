@@ -36,6 +36,9 @@ func Cards(st service.Status, now time.Time) []Card {
 }
 
 func repoCard(title string, r service.RepoStatus) Card {
+	if r.Connecting {
+		return Card{Title: title, Value: "connecting", Sub: "the first contact is under way", Dot: true}
+	}
 	if !r.Up {
 		return Card{Title: title, Value: "unreachable", Sub: r.Error, Level: LevelBad, Dot: true}
 	}
@@ -73,6 +76,9 @@ func nextBackupCard(sc service.ScheduleStatus, now time.Time) Card {
 // Health sums the state of the service up in a word and a level, for the
 // indicator in the header.
 func Health(st service.Status) (string, Level) {
+	if st.Repository.Connecting {
+		return "starting", LevelNone
+	}
 	if !st.Repository.Up {
 		return "repository down", LevelBad
 	}

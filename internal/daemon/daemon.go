@@ -112,6 +112,10 @@ type repoState struct {
 	notified bool
 }
 
+// connecting reports whether the first attempt to reach the repository is
+// still running: it was neither reached nor found down yet.
+func (r repoState) connecting() bool { return !r.up && r.err == "" && r.since.IsZero() }
+
 // Daemon implements service.Service.
 type Daemon struct {
 	o      Options

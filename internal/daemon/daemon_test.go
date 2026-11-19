@@ -143,6 +143,30 @@ func TestMetricsAfterARun(t *testing.T) {
 	})
 }
 
+func TestRepositoryConnectingAtStart(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		d := newTestDaemon(t, func(f *fakeEngine) {
+			f.openMain = func(int) (engine.RepoInfo, error) {
+				time.Sleep(time.Minute) // restic takes its time to answer
+				return engine.RepoInfo{}, errors.New("connection refused")
+			}
+		})
+		ctx, stop := start(t, d)
+		synctest.Wait()
+		st, _ := d.Status(ctx)
+		if !st.Repository.Connecting || st.Repository.Up || hasWarning(st, "repository_down") {
+			t.Errorf("before the first answer: repository = %+v, warnings = %+v", st.Repository, st.Warnings)
+		}
+		time.Sleep(time.Minute)
+		synctest.Wait()
+		st, _ = d.Status(ctx)
+		if st.Repository.Connecting || !hasWarning(st, "repository_down") {
+			t.Errorf("after the failure: repository = %+v, warnings = %+v", st.Repository, st.Warnings)
+		}
+		stop()
+	})
+}
+
 func TestRepositoryDownAtStart(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		d := newTestDaemon(t, func(f *fakeEngine) {

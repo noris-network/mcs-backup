@@ -148,6 +148,7 @@ func TestHealth(t *testing.T) {
 		"error":         {service.Status{Repository: up, Warnings: []service.Warning{{Severity: service.SeverityWarning}, {Severity: service.SeverityError}}}, "needs attention", LevelBad},
 		"error first":   {service.Status{Repository: up, Warnings: []service.Warning{{Severity: service.SeverityError}, {Severity: service.SeverityWarning}}}, "needs attention", LevelBad},
 		"repo down":     {service.Status{Repository: service.RepoStatus{Up: false}}, "repository down", LevelBad},
+		"connecting":    {service.Status{Repository: service.RepoStatus{Connecting: true}}, "starting", LevelNone},
 		"info only":     {service.Status{Repository: up, Warnings: []service.Warning{{Severity: service.SeverityInfo}}}, "healthy", LevelOK},
 		"warning works": {service.Status{Repository: up, Operation: &service.Operation{}, Warnings: []service.Warning{{Severity: service.SeverityWarning}}}, "warnings", LevelWarn},
 	} {
