@@ -571,13 +571,19 @@ func TestRestoreIfEmpty(t *testing.T) {
 func TestRestoreSaysWhereTo(t *testing.T) {
 	r := restoreRig(t)
 	res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "snap1", Confirm: "snap1", NoSafetySnapshot: true}, r.sink())
-	if want := "snapshot snap1 restored over the live data in " + r.root + ": 3 files, 10 B"; res.Message != want {
+	if want := "snapshot snap1 restored over the live data in " + r.root + ": 3 files and directories, 10 B"; res.Message != want {
 		t.Errorf("message = %q, want %q", res.Message, want)
 	}
 	target := filepath.Join(t.TempDir(), "out")
-	res = r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "snap1", Target: target}, r.sink())
-	if want := "snapshot snap1 restored to " + target + ": 3 files, 10 B"; res.Message != want {
+	res = r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "snap1", Target: target, Includes: []string{"/a", "/b c"}}, r.sink())
+	if want := "snapshot snap1 restored to " + target + ": 3 files and directories, 10 B"; res.Message != want {
 		t.Errorf("message = %q, want %q", res.Message, want)
+	}
+	// the log says what was restored where, and what came of it
+	for _, want := range []string{"restoring /a, /b c of snapshot snap1 to " + target + " (merge)", res.Message} {
+		if !strings.Contains(r.logText(), want) {
+			t.Errorf("the log lacks %q:\n%s", want, r.logText())
+		}
 	}
 }
 

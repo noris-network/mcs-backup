@@ -157,12 +157,21 @@ func restoredMessage(plan restorePlan, sum restic.RestoreSummary) string {
 		msg += " to " + plan.Target
 	}
 	if sum.TotalFiles > 0 {
-		msg += fmt.Sprintf(": %d %s, %s", sum.FilesRestored, plural(int(sum.FilesRestored), "file"), formatBytes(sum.BytesRestored))
+		msg += fmt.Sprintf(": %s, %s", restoredCount(sum.FilesRestored), formatBytes(sum.BytesRestored))
 		if sum.FilesSkipped > 0 {
 			msg += fmt.Sprintf(", %d unchanged", sum.FilesSkipped)
 		}
 	}
 	return msg
+}
+
+// restoredCount counts what restic restored: its count of files includes the
+// directories.
+func restoredCount(n int64) string {
+	if n == 1 {
+		return "1 file or directory"
+	}
+	return fmt.Sprintf("%d files and directories", n)
 }
 
 // inTarget turns a path that restic reports in the target into the path in
@@ -355,14 +364,21 @@ func (e *Engine) restorePhases(ctx context.Context, req service.RestoreRequest, 
 
 	sink.phase("restore")
 	if plan.PipeMode {
+		sink.logf("streaming %s of snapshot %s into the restore script %s", plan.pipeFile, short(plan.snap.ID), e.cfg.Pipe.OutScript)
 		err = e.restorePipe(ctx, plan, sink)
 	} else {
+		what := "snapshot " + short(plan.snap.ID)
+		if len(plan.includes) > 0 {
+			what = strings.Join(plan.includes, ", ") + " of " + what
+		}
+		sink.logf("restoring %s to %s (%s)", what, plan.Target, plan.Mode)
 		err = e.restoreFiles(ctx, plan, sink, res)
 	}
 	if err != nil {
 		return true, err
 	}
 	res.Message = restoredMessage(plan, res.Summary)
+	sink.logf("%s", res.Message)
 	return true, nil
 }
 
