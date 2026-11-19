@@ -3,6 +3,9 @@
 <section class="panel">
 <form method="post" action="/restore/check" class="stack">
   <label>Snapshot (ID or latest) <input name="snapshot" value="{{.Data.Snapshot}}" required></label>
+  {{if .Data.Pipe}}
+  <p class="dim">Pipe mode: the whole snapshot goes to the restore script (PIPE_OUT_SCRIPT), which loads it into the application. There is no target directory, path or mode to choose.</p>
+  {{else}}
   <label><span>Target directory <span class="dim">(empty: replace the live data)</span></span> <input name="target" value="{{.Data.Target}}" placeholder="/path/to/directory"></label>
   <label><span>Only these paths <span class="dim">(optional, one per line, as in the snapshot: <a href="/files?snapshot={{.Data.Snapshot}}">browse or search the files</a>)</span></span> <textarea name="include" rows="3">{{.Data.Include}}</textarea></label>
   <label>Mode when replacing the live data
@@ -10,6 +13,7 @@
       <option value="exact">exact: files that are not in the snapshot are removed</option>
       <option value="merge"{{if .Data.Merge}} selected{{end}}>merge: files that are not in the snapshot stay</option>
     </select></label>
+  {{end}}
   <button class="primary">Check</button>
 </form>
 </section>

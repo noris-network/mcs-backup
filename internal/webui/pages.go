@@ -294,15 +294,22 @@ type restoreForm struct {
 	Target   string
 	Include  string
 	Merge    bool
+	// Pipe: the snapshot goes to the restore script as a whole, so the form
+	// has only the snapshot
+	Pipe bool
 }
 
 // restoreForm shows the form filled from the query, see restoreURL.
 func (h *Handler) restoreForm(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	h.render(w, r, "restore", "snapshots", restoreForm{
+	form := restoreForm{
 		Snapshot: cmp.Or(q.Get("snapshot"), "latest"), Target: q.Get("target"), Include: strings.Join(includeLines(q["include"]), "\n"),
 		Merge: q.Get("mode") == string(service.ModeMerge),
-	})
+	}
+	if st, err := h.svc.Status(r.Context()); err == nil && st.PipeMode {
+		form = restoreForm{Snapshot: form.Snapshot, Pipe: true}
+	}
+	h.render(w, r, "restore", "snapshots", form)
 }
 
 // restoreURL is the restore form filled with req, so that the way back from

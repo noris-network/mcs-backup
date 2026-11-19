@@ -586,6 +586,25 @@ func TestFilesPageBrowsesASnapshot(t *testing.T) {
 	s.do("GET", "/snapshots", nil).want(t, http.StatusOK, `href="/files?snapshot=aaaaaaaa"`)
 }
 
+func TestRestoreFormInPipeModeAsksOnlyForTheSnapshot(t *testing.T) {
+	s := newSite(t, "")
+	status := s.fake.StatusFn
+	s.fake.StatusFn = func(ctx context.Context) (service.Status, error) {
+		st, err := status(ctx)
+		st.PipeMode = true
+		return st, err
+	}
+	s.login()
+	// also when the file browser links a path of the snapshot
+	page := s.do("GET", "/restore?snapshot=aaaaaaaa&include=%2Fdump.sql", nil)
+	page.want(t, http.StatusOK, `value="aaaaaaaa"`, "Pipe mode: the whole snapshot goes to the restore script")
+	for _, field := range []string{`name="target"`, `name="include"`, `name="mode"`} {
+		if strings.Contains(page.body, field) {
+			t.Errorf("the form in pipe mode has %s", field)
+		}
+	}
+}
+
 func TestRestoreCheckCanShowWhatWouldChange(t *testing.T) {
 	s := newSite(t, "")
 	s.fake.RestorePreflightFn = func(_ context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {
