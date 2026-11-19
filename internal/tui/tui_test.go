@@ -570,6 +570,9 @@ func TestLockColumnsFitAPodName(t *testing.T) {
 	if pid, a, b := col("PID"), col("37896"), col("4242"); pid != a || a != b {
 		t.Errorf("the PID column is not aligned: %d %d %d\n%s", pid, a, b, r.screen())
 	}
+	if gap := col("37896") - col("mcs-sim-files-7f5d9d7785-j9p79") - len("mcs-sim-files-7f5d9d7785-j9p79"); gap != 2 {
+		t.Errorf("the longest host is %d spaces from the PID, want 2 like the other columns", gap)
+	}
 }
 
 func TestUnlock(t *testing.T) {

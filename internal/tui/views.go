@@ -541,11 +541,13 @@ func (m *Model) locksPage() string {
 	if len(m.locks) == 0 {
 		return styleGood.Render("✓") + " The repository has no locks."
 	}
-	// a host is often the name of a pod, which is long
+	// a host is often the name of a pod, which is long; like the other
+	// columns it has room for one more space than its longest value
 	host := len("HOST")
 	for _, l := range m.locks {
 		host = max(host, len(l.Hostname))
 	}
+	host++
 	var b strings.Builder
 	b.WriteString(styleDim.Render(fmt.Sprintf("  %-9s %-8s %-10s %-*s %-8s", "ID", "AGE", "EXCLUSIVE", host, "HOST", "PID")) + "\n")
 	for i, l := range m.locks {
