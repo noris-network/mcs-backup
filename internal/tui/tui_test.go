@@ -1174,6 +1174,14 @@ func TestOverviewGivesTheRoomOfTheNextRunsToTheLastRuns(t *testing.T) {
 	}
 }
 
+func TestAccessWrapsOnANarrowTerminal(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	r.m.width = 60
+	r.press("4")
+	r.wantScreen("What it takes to run restic against this repository from", "another place.")
+	r.wantNoScreen("…")
+}
+
 func TestShellLinesStayReadableForAShell(t *testing.T) {
 	values := []string{
 		"s3:http://127.0.0.1:9000/backuptest/mcs-backup-demo/20261028-162121",

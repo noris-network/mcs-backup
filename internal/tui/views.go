@@ -577,7 +577,7 @@ func (m *Model) accessPage() string {
 		return styleDim.Render("loading …")
 	}
 	var b strings.Builder
-	b.WriteString("What it takes to run restic against this repository from another place.\n")
+	b.WriteString(wrap("What it takes to run restic against this repository from another place.", m.width) + "\n")
 	if m.revealed {
 		b.WriteString(styleWarn.Render("The secrets are shown. ") + "p hides them again.\n\n")
 	} else {
@@ -593,7 +593,7 @@ func (m *Model) accessPage() string {
 	}
 	fmt.Fprintf(&b, "\nrestic %s or newer is needed.\n", m.env.MinVersion)
 	for _, n := range m.env.Notes {
-		b.WriteString(styleDim.Render("• "+wrap(n, m.width-8)) + "\n")
+		b.WriteString(styleDim.Render("• "+strings.ReplaceAll(wrap(n, m.width-8), "\n", "\n  ")) + "\n")
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
