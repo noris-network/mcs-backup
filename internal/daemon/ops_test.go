@@ -86,13 +86,16 @@ func TestCancel(t *testing.T) {
 			t.Fatal(err)
 		}
 		synctest.Wait()
-		if err := d.Cancel(ctx); err != nil {
+		if err := d.Cancel(service.WithSource(ctx, "tui")); err != nil {
 			t.Fatal(err)
 		}
 		synctest.Wait()
 		st, _ := d.Status(ctx)
 		if st.Operation != nil || st.LastRuns[service.KindBackup].Result != service.ResultCancelled {
 			t.Errorf("status = %+v", st)
+		}
+		if l, _ := d.Log(ctx, service.KindBackup); !slices.Contains(l.Lines, "cancel requested by tui") {
+			t.Errorf("the log does not say who cancelled: %q", l.Lines)
 		}
 		if names := d.notes.names(); len(names) != 0 {
 			t.Errorf("notifications = %q: a cancel is not an incident", names)

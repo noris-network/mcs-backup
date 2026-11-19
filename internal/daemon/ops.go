@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"iter"
@@ -220,6 +221,8 @@ func (d *Daemon) Cancel(ctx context.Context) error {
 	d.mu.Unlock()
 	if r != nil {
 		d.log.InfoContext(ctx, "cancel requested", "source", service.SourceFrom(ctx), "kind", r.op.Kind)
+		// the log of the run says why it ends here
+		d.logLine(r.op.Kind, "cancel requested by "+cmp.Or(service.SourceFrom(ctx), "an unknown client"))
 		r.cancel()
 	} else if hadRetry {
 		d.log.InfoContext(ctx, "pending retry discarded", "source", service.SourceFrom(ctx))
@@ -244,6 +247,7 @@ func (d *Daemon) shutdown(srv *http.Server) {
 	d.log.Info("shutting down")
 
 	if r != nil {
+		d.logLine(r.op.Kind, "the service is shutting down: the operation is cancelled")
 		r.cancel()
 		timer := time.NewTimer(d.cfg.Timeouts.Shutdown)
 		select {
