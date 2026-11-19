@@ -500,13 +500,19 @@ type restoreDialog struct {
 	// picked is a path chosen in the file browser: it is one path, also if
 	// it contains spaces, as long as the field still holds it.
 	picked string
+	// pipe: the snapshot goes to the restore script as a whole, so the
+	// form has only the snapshot
+	pipe bool
 }
 
-// newRestoreDialogFor opens the restore of one path of a snapshot.
-func newRestoreDialogFor(snapshot, include string) *restoreDialog {
-	d := newRestoreDialog(snapshot)
-	d.picked = include
-	d.fields[2].SetValue(include)
+// newRestoreDialogFor opens the restore of one path of a snapshot. In pipe
+// mode the whole snapshot is restored.
+func newRestoreDialogFor(snapshot, include string, pipe bool) *restoreDialog {
+	d := newRestoreDialog(snapshot, pipe)
+	if !pipe {
+		d.picked = include
+		d.fields[2].SetValue(include)
+	}
 	return d
 }
 
@@ -518,10 +524,11 @@ func (d *restoreDialog) includes() []string {
 	return strings.Fields(d.fields[2].Value())
 }
 
-func newRestoreDialog(snapshot string) *restoreDialog {
+func newRestoreDialog(snapshot string, pipe bool) *restoreDialog {
 	d := &restoreDialog{
 		labels: [3]string{"Snapshot (ID or latest)", "Target directory (empty: replace the live data)", "Only these paths (optional, separated by spaces)"},
 		fields: [3]textinput.Model{newInput("latest"), newInput("/path/to/directory"), newInput("/path/in/snapshot")},
+		pipe:   pipe,
 	}
 	d.fields[0].SetValue(snapshot)
 	d.focus()
@@ -568,11 +575,15 @@ func (d *restoreDialog) formKey(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch k.String() {
 	case "esc":
 		return nil, true
-	case "tab", "down":
-		d.at = (d.at + 1) % 4
-		d.focus()
-	case "shift+tab", "up":
-		d.at = (d.at + 3) % 4
+	case "tab", "down", "shift+tab", "up":
+		if d.pipe {
+			return nil, false // the snapshot is the only field
+		}
+		if s := k.String(); s == "shift+tab" || s == "up" {
+			d.at = (d.at + 3) % 4
+		} else {
+			d.at = (d.at + 1) % 4
+		}
 		d.focus()
 	case "left", "right", "space":
 		if d.at == 3 {
@@ -677,6 +688,13 @@ func (d *restoreDialog) view(width, height int) string {
 	}
 	switch d.stage {
 	case stageForm:
+		if d.pipe {
+			b.WriteString(d.label(0, d.labels[0]) + "\n" + field(&d.fields[0], boxText(width)) + "\n\n")
+			b.WriteString(styleDim.Render(wrap("Pipe mode: the whole snapshot goes to the restore script (PIPE_OUT_SCRIPT), which loads it into the application. "+
+				"There is no target directory, path or mode to choose.", boxText(width))) + "\n")
+			hint = "enter check · esc cancel"
+			break
+		}
 		for i := range d.fields {
 			b.WriteString(d.label(i, d.labels[i]) + "\n" + field(&d.fields[i], boxText(width)) + "\n\n")
 		}

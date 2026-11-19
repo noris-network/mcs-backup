@@ -184,7 +184,7 @@ func (d *filesDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 	case "r":
 		if snap, f, ok := d.selected(); ok {
-			m.dlg = newRestoreDialogFor(present.Short(snap), f.Path)
+			m.dlg = newRestoreDialogFor(present.Short(snap), f.Path, m.pipeMode())
 			return nil, true
 		}
 	}

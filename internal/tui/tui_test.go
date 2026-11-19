@@ -275,6 +275,39 @@ func TestRestoreInPlaceNeedsTheSnapshotTyped(t *testing.T) {
 	}
 }
 
+func TestRestoreInPipeModeAsksOnlyForTheSnapshot(t *testing.T) {
+	r := healthy(newRig(t))
+	status := r.fake.StatusFn
+	r.fake.StatusFn = func(ctx context.Context) (service.Status, error) {
+		st, err := status(ctx)
+		st.PipeMode = true
+		return st, err
+	}
+	r.load()
+	r.fake.RestorePreflightFn = func(_ context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {
+		return service.RestorePreflight{Snapshot: snap("cccccccc", time.Hour), InPlace: true, PipeMode: true, Mode: req.Mode, SafetySnapshot: true}, nil
+	}
+	r.press("2", "enter")
+	r.wantScreen("Snapshot (ID or latest)", "Pipe mode: the whole snapshot goes to the restore script", "enter check")
+	r.wantNoScreen("Target directory", "Only these paths", "Mode when replacing")
+	r.press("tab")
+	r.typeText("x")
+	r.press("enter")
+	calls := r.fake.CallsTo("RestorePreflight")
+	if len(calls) != 1 {
+		t.Fatalf("preflight calls: %v", r.fake)
+	}
+	if req := calls[0].Args[0].(service.RestoreRequest); req.Snapshot != "ccccccccx" || req.Target != "" || len(req.Includes) != 0 {
+		t.Errorf("request = %+v, want the snapshot only", req)
+	}
+
+	// from the file browser: the whole snapshot, not the file
+	d := newRestoreDialogFor("cccccccc", "/dump.sql", true)
+	if got := d.includes(); len(got) != 0 {
+		t.Errorf("includes = %q", got)
+	}
+}
+
 func TestRestoreToAnotherDirectory(t *testing.T) {
 	r := healthy(newRig(t)).load()
 	r.fake.RestorePreflightFn = func(_ context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {

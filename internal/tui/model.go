@@ -85,6 +85,8 @@ func (m *Model) refresh() tea.Cmd {
 
 func (m *Model) appendOnly() bool { return m.status != nil && m.status.AppendOnly }
 
+func (m *Model) pipeMode() bool { return m.status != nil && m.status.PipeMode }
+
 func (m *Model) say(format string, args ...any) {
 	m.flash, m.flashAt, m.flashRun, m.waiting = fmt.Sprintf(format, args...), m.o.Now(), false, false
 }
@@ -463,11 +465,11 @@ func (m *Model) snapshotKey(s string) tea.Cmd {
 		return nil
 	case "enter":
 		if ok {
-			m.dlg = newRestoreDialog(snap.ShortID)
+			m.dlg = newRestoreDialog(snap.ShortID, m.pipeMode())
 		}
 		return nil
 	case "t":
-		m.dlg = newRestoreDialog("latest")
+		m.dlg = newRestoreDialog("latest", m.pipeMode())
 		return nil
 	case "d":
 		req := service.DiffRequest{}
