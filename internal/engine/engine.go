@@ -200,7 +200,11 @@ func (e *Engine) autoUnlock(ctx context.Context, repo *restic.Repo, appendOnly b
 			return false
 		}
 	}
-	sink.logf("repository is locked, all %d locks are older than %v: removing them", len(locks), e.cfg.AutoUnlockAfter)
+	if len(locks) == 1 {
+		sink.logf("repository is locked, the lock is older than %v: removing it", e.cfg.AutoUnlockAfter)
+	} else {
+		sink.logf("repository is locked, all %d locks are older than %v: removing them", len(locks), e.cfg.AutoUnlockAfter)
+	}
 	// An append-only repository does not allow --remove-all.
 	if err := repo.Unlock(ctx, !appendOnly); err != nil {
 		sink.logf("unlock failed: %v", err)

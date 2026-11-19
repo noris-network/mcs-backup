@@ -291,6 +291,11 @@ func TestStatusWarnings(t *testing.T) {
 				t.Errorf("no %s warning: %+v", code, st.Warnings)
 			}
 		}
+		for _, w := range st.Warnings {
+			if w.Code == "stale_locks" && w.Message != "1 stale lock in the repository" {
+				t.Errorf("stale locks: %q", w.Message)
+			}
+		}
 		if !st.Suspicious {
 			t.Error("Status.Suspicious")
 		}

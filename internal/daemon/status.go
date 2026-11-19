@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/noris-network/mcs-backup/v2/internal/notify"
+	"github.com/noris-network/mcs-backup/v2/internal/present"
 	"github.com/noris-network/mcs-backup/v2/internal/restic"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
@@ -109,7 +110,7 @@ func (d *Daemon) warningsLocked(st service.Status, now time.Time) []service.Warn
 		add("forget_held", service.SeverityWarning, "forget would delete many snapshots and is held back: approve it if that is intended")
 	}
 	if d.staleLocks > 0 {
-		add("stale_locks", service.SeverityWarning, "%d stale locks in the repository", d.staleLocks)
+		add("stale_locks", service.SeverityWarning, "%s in the repository", present.Count(d.staleLocks, "stale lock"))
 	}
 	switch {
 	case st.Schedule.MaintenanceUntil.After(now):

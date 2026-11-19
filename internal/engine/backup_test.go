@@ -664,6 +664,9 @@ func TestBackupAutoUnlock(t *testing.T) {
 		if len(r.main.CallsTo(t, "backup")) != 2 {
 			t.Error("the backup is retried once")
 		}
+		if !strings.Contains(r.logText(), "the lock is older than 1h0m0s: removing it") {
+			t.Errorf("log = %s", r.logText())
+		}
 	})
 
 	t.Run("young locks are left alone", func(t *testing.T) {
