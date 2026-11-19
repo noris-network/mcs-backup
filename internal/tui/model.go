@@ -215,7 +215,7 @@ func describe(err error) string {
 	}
 	switch {
 	case errors.Is(err, service.ErrUnavailable):
-		return "not available in this configuration"
+		return present.Unavailable(err)
 	case errors.Is(err, service.ErrAppendOnly):
 		return "not possible, the repository is append-only"
 	}

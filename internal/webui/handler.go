@@ -282,7 +282,8 @@ func describe(err error) string {
 	case errors.Is(err, service.ErrAppendOnly):
 		return "Not possible: the repository is append-only."
 	case errors.Is(err, service.ErrUnavailable):
-		return "Not available in this configuration."
+		s := present.Unavailable(err)
+		return strings.ToUpper(s[:1]) + s[1:] + "."
 	}
 	s := err.Error()
 	if s == "" {

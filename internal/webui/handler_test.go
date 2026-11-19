@@ -4,6 +4,7 @@ import (
 	"context"
 	b64 "encoding/base64"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -443,6 +444,13 @@ func TestActionsShowTheirOutcome(t *testing.T) {
 		s.do("POST", "/backup", url.Values{}).want(t, http.StatusSeeOther)
 		s.do("GET", "/", nil).want(t, http.StatusOK, want)
 	}
+
+	// what is not available says why, if the service knows
+	s.fake.NotifyTestFn = func(context.Context) error {
+		return fmt.Errorf("%w: NOTIFY_COMMAND is not configured", service.ErrUnavailable)
+	}
+	s.do("POST", "/notify-test", url.Values{}).want(t, http.StatusSeeOther)
+	s.do("GET", "/", nil).want(t, http.StatusOK, "Not available: NOTIFY_COMMAND is not configured.")
 }
 
 func TestScheduleActions(t *testing.T) {

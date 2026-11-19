@@ -124,3 +124,12 @@ func ResultMark(r service.Result) string {
 	}
 	return "✗"
 }
+
+// Unavailable says that a function is not available, and why if the service
+// gave a reason, such as "NOTIFY_COMMAND is not configured".
+func Unavailable(err error) string {
+	if _, why, ok := strings.Cut(err.Error(), service.ErrUnavailable.Error()+": "); ok && why != "" {
+		return "not available: " + why
+	}
+	return "not available in this configuration"
+}

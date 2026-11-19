@@ -848,6 +848,11 @@ func TestWebUIUnavailable(t *testing.T) {
 	}
 	r.press("w")
 	r.wantScreen("not available in this configuration")
+	r.fake.NotifyTestFn = func(context.Context) error {
+		return fmt.Errorf("%w: NOTIFY_COMMAND is not configured", service.ErrUnavailable)
+	}
+	r.press("n")
+	r.wantScreen("test notification: not available: NOTIFY_COMMAND is not configured")
 	if r.m.dlg != nil {
 		t.Error("a dialog opened")
 	}

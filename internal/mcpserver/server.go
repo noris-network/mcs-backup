@@ -19,6 +19,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/noris-network/mcs-backup/v2/internal/present"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
 
@@ -140,7 +141,7 @@ func explain(err error) error {
 	case errors.Is(err, service.ErrAppendOnly):
 		return errors.New("not possible: the repository is append-only")
 	case errors.Is(err, service.ErrUnavailable):
-		return fmt.Errorf("not available in this configuration: %w", err)
+		return errors.New(present.Unavailable(err))
 	}
 	return err
 }
