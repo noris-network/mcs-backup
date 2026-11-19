@@ -36,7 +36,7 @@
     <h2>Last result</h2>
     <pre>{{range .ResultLines}}{{.}}
 {{end}}</pre>
-    <p><a href="/log/{{.Result.Kind}}">Log of the {{.Result.Kind}} run</a></p>
+    <p><a href="/log/{{.Result.Kind}}">Log of the {{kindname .Result.Kind}} run</a></p>
     {{if .CanRepeat}}
     {{/* kept across the refreshes, which would otherwise clear what was typed */}}
     <form method="post" action="/restore" class="stack" id="repeat-restore" hx-preserve>
@@ -72,7 +72,7 @@
     <table>
       <thead><tr><th>Operation</th><th>Result</th><th>Started</th><th class="num">Took</th><th>Snapshot</th></tr></thead>
       <tbody>
-      {{range .Runs}}<tr><td>{{.Kind}}</td><td><span class="dot {{.Class}}">{{.Result}}</span></td><td class="when">{{.Started}}</td><td class="num">{{.Duration}}</td><td>{{if .Snapshot}}<code>{{.Snapshot}}</code>{{end}}</td></tr>
+      {{range .Runs}}<tr><td>{{kindname .Kind}}</td><td><span class="dot {{.Class}}">{{.Result}}</span></td><td class="when">{{.Started}}</td><td class="num">{{.Duration}}</td><td>{{if .Snapshot}}<code>{{.Snapshot}}</code>{{end}}</td></tr>
       {{end}}
       </tbody>
     </table>

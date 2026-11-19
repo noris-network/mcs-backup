@@ -712,6 +712,7 @@ func TestLocksAndLog(t *testing.T) {
 		t.Errorf("calls: %v", s.fake)
 	}
 	s.do("GET", "/log/backup", nil).want(t, http.StatusOK, "Log of the last backup run", "line &lt;1&gt;")
+	s.do("GET", "/log/verify", nil).want(t, http.StatusOK, "Log of the last restore test run")
 }
 
 func TestAccessMasksSecretsUnlessAsked(t *testing.T) {
@@ -803,9 +804,9 @@ func TestTheBackupIsTheLastResultNotItsCopy(t *testing.T) {
 		if !strings.Contains(body, "backup: success") {
 			t.Fatalf("the last result is not the backup:\n%s", body)
 		}
-		b, c, v := strings.Index(body, "<td>backup</td>"), strings.Index(body, "<td>copy</td>"), strings.Index(body, "<td>verify</td>")
+		b, c, v := strings.Index(body, "<td>backup</td>"), strings.Index(body, "<td>copy</td>"), strings.Index(body, "<td>restore test</td>")
 		if b < 0 || b > c || c > v {
-			t.Fatalf("the runs are not backup, copy, verify:\n%s", body)
+			t.Fatalf("the runs are not backup, copy, restore test:\n%s", body)
 		}
 	}
 }

@@ -62,7 +62,7 @@ func NewHandler(svc service.Service, auth *Auth, o Options) http.Handler {
 	}
 	h := &Handler{svc: svc, auth: auth, o: o, pages: map[string]*template.Template{}, mux: http.NewServeMux()}
 	funcs := template.FuncMap{
-		"bytes": present.Bytes, "stamp": present.Stamp, "short": present.Short, "flags": present.SnapshotFlags,
+		"bytes": present.Bytes, "stamp": present.Stamp, "short": present.Short, "flags": present.SnapshotFlags, "kindname": present.KindName,
 		"ago":      func(t time.Time) string { return present.Ago(o.Now(), t) },
 		"duration": func(d service.Duration) string { return present.Duration(d.Std()) },
 		"join":     strings.Join,
