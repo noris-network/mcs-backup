@@ -622,8 +622,13 @@ func (a *app) newLogCmd() *cobra.Command {
 			if a.wantJSON(cmd) {
 				return a.printJSON(l)
 			}
-			if len(l.Lines) == 0 {
-				fmt.Fprintf(a.stdout, "No %s has run since the service started.\n", kind)
+			switch {
+			case len(l.Lines) > 0:
+			case l.Start.IsZero():
+				fmt.Fprintf(a.stdout, "There is no log of a %s yet.\n", present.KindName(kind))
+				return nil
+			default:
+				fmt.Fprintf(a.stdout, "The log of the %s of %s is empty.\n", present.KindName(kind), present.Stamp(l.Start))
 				return nil
 			}
 			writeLines(a.stdout, l.Lines)

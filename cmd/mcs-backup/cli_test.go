@@ -601,7 +601,14 @@ func TestLocksAndLog(t *testing.T) {
 		t.Errorf("output = %q", c.out())
 	}
 
-	if c.run("log"); !strings.Contains(c.out(), "No backup has run") {
+	if c.run("log"); c.out() != "There is no log of a backup yet.\n" {
+		t.Errorf("output = %q", c.out())
+	}
+	started := time.Date(2026, 11, 11, 15, 16, 45, 0, time.Local)
+	c.fake.LogFn = func(_ context.Context, k service.Kind) (service.Log, error) {
+		return service.Log{Kind: k, Start: started}, nil
+	}
+	if c.run("log", "verify"); c.out() != "The log of the restore test of 2026-11-11 15:16:45 is empty.\n" {
 		t.Errorf("output = %q", c.out())
 	}
 	c.fake.LogFn = func(_ context.Context, k service.Kind) (service.Log, error) {
@@ -610,7 +617,7 @@ func TestLocksAndLog(t *testing.T) {
 	if code := c.run("log", "prune"); code != 0 || c.out() != "first\nsecond\n" {
 		t.Errorf("exit %d, output %q", code, c.out())
 	}
-	if kind := c.fake.CallsTo("Log")[1].Args[0]; kind != service.KindPrune {
+	if kind := c.fake.CallsTo("Log")[2].Args[0]; kind != service.KindPrune {
 		t.Errorf("kind = %v", kind)
 	}
 }
