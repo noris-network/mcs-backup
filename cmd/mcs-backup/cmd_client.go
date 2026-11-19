@@ -301,6 +301,11 @@ arguments are then hook arguments. A date without a time means its first minute.
 				fmt.Fprintln(a.stdout, "\nThis was a dry run: nothing was restored.")
 				return nil
 			}
+			if id := pre.Snapshot.ShortID; id != "" {
+				// the restore takes the snapshot that was checked, also if
+				// "latest" is another one by then because a backup came in
+				ref, req.Snapshot = id, id
+			}
 			if !a.wantJSON(cmd) {
 				a.renderPreflight(pre)
 				fmt.Fprintln(a.stdout)

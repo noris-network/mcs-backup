@@ -641,6 +641,12 @@ func (m *Model) gotPreflight(msg preflightMsg) tea.Cmd {
 		d.err = describe(msg.err)
 		return nil
 	}
-	d.req, d.pre, d.stage, d.err, d.now, d.top = msg.req, &msg.pre, stagePreview, "", m.o.Now(), 0
+	req := msg.req
+	if id := msg.pre.Snapshot.ShortID; id != "" {
+		// the restore takes the snapshot that was checked, also if "latest"
+		// is another one by then because a backup came in
+		req.Snapshot = id
+	}
+	d.req, d.pre, d.stage, d.err, d.now, d.top = req, &msg.pre, stagePreview, "", m.o.Now(), 0
 	return nil
 }

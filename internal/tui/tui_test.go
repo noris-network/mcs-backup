@@ -308,6 +308,26 @@ func TestRestoreInPipeModeAsksOnlyForTheSnapshot(t *testing.T) {
 	}
 }
 
+func TestRestoreOfLatestTakesTheCheckedSnapshot(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	r.fake.RestorePreflightFn = func(_ context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {
+		return service.RestorePreflight{Snapshot: snap("cccccccc", time.Hour), Target: "/data", InPlace: true, Mode: req.Mode, SafetySnapshot: true}, nil
+	}
+	r.press("2", "t") // the latest
+	r.press("enter")
+	if req := r.fake.CallsTo("RestorePreflight")[0].Args[0].(service.RestoreRequest); req.Snapshot != "latest" {
+		t.Fatalf("preflight request = %+v", req)
+	}
+	// a backup that comes in now does not change what is restored
+	r.press("enter")
+	r.wantScreen("Type cccccccc to confirm")
+	r.m.dlg.(*restoreDialog).confirm.SetValue("cccccccc")
+	r.press("enter")
+	if req := r.fake.CallsTo("StartRestore")[0].Args[0].(service.RestoreRequest); req.Snapshot != "cccccccc" || req.Confirm != "cccccccc" {
+		t.Errorf("restore request = %+v, want the checked snapshot", req)
+	}
+}
+
 func TestRestoreToAnotherDirectory(t *testing.T) {
 	r := healthy(newRig(t)).load()
 	r.fake.RestorePreflightFn = func(_ context.Context, req service.RestoreRequest) (service.RestorePreflight, error) {

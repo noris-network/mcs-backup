@@ -422,16 +422,17 @@ func TestRestoreInPlaceNeedsConfirmation(t *testing.T) {
 
 	t.Run("interactive", func(t *testing.T) {
 		c := newCLI(t)
-		c.tty, c.stdin = true, "latest\n"
+		c.tty, c.stdin = true, "abcdef01\n"
 		c.fake.RestorePreflightFn = preflight(true)
 		c.finishing(service.KindRestore, service.ResultSuccess)
 		if code := c.run("restore"); code != 0 {
 			t.Fatalf("exit %d: %s", code, c.err())
 		}
-		if req := c.fake.CallsTo("StartRestore")[0].Args[0].(service.RestoreRequest); req.Confirm != "latest" || req.Snapshot != "latest" {
+		// latest is the snapshot that was checked: a backup that comes in meanwhile changes nothing
+		if req := c.fake.CallsTo("StartRestore")[0].Args[0].(service.RestoreRequest); req.Confirm != "abcdef01" || req.Snapshot != "abcdef01" {
 			t.Errorf("request = %+v", req)
 		}
-		if !strings.Contains(c.err(), `Type "latest" to confirm`) {
+		if !strings.Contains(c.err(), `Type "abcdef01" to confirm`) {
 			t.Errorf("prompt = %q", c.err())
 		}
 	})

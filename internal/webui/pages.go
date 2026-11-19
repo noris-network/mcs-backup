@@ -385,9 +385,15 @@ func (h *Handler) restoreCheck(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, restoreURL(req), http.StatusSeeOther)
 		return
 	}
+	back := restoreURL(req)
+	if id := pre.Snapshot.ShortID; id != "" {
+		// the restore takes the snapshot that was checked, also if "latest"
+		// is another one by then because a backup came in
+		req.Snapshot = id
+	}
 	h.render(w, r, "restore_check", "snapshots", restoreCheckData{
 		Request: req, Pre: pre, Rows: present.PreflightRows(pre, h.o.Now()),
-		Back: restoreURL(req),
+		Back: back,
 	})
 }
 

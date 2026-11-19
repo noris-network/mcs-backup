@@ -531,6 +531,10 @@ func TestRestoreFlow(t *testing.T) {
 		t.Errorf("restore request = %+v", got)
 	}
 
+	// latest: the restore takes the snapshot that was checked, also if a backup comes in meanwhile
+	s.do("POST", "/restore/check", url.Values{"snapshot": {"latest"}}).want(t, http.StatusOK,
+		"Type <code>aaaaaaaa</code> to confirm", `name="snapshot" value="aaaaaaaa"`, `href="/restore?snapshot=latest"`)
+
 	// another target: no typed confirmation, the space warning needs its checkbox
 	other := s.do("POST", "/restore/check", url.Values{"snapshot": {"latest"}, "target": {"/tmp/out"}})
 	other.want(t, http.StatusOK, "restore although the space looks too small", `href="/restore?snapshot=latest&amp;target=%2Ftmp%2Fout"`)
