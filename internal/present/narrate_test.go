@@ -89,6 +89,10 @@ func TestKindsAreNamedInWords(t *testing.T) {
 	if rows := StatusRows(st, time.Now()); !slices.ContainsFunc(rows, func(row Row) bool { return strings.HasPrefix(row.Text, "restore test success") }) {
 		t.Errorf("the last runs of the status say verify: %+v", rows)
 	}
+	st.Schedule.Next = map[service.Kind]time.Time{service.KindVerify: time.Now().Add(time.Hour)}
+	if rows := StatusRows(st, time.Now()); !slices.ContainsFunc(rows, func(row Row) bool { return row.Label == "  next restore test" }) {
+		t.Errorf("the next runs of the status say verify: %+v", rows)
+	}
 	op := service.Operation{Kind: service.KindTag, Source: "tui", Started: time.Now()}
 	if got := OperationTitle(op) + " · " + OperationMeta(time.Now(), op); got != "Changing the tags of a snapshot · tag change, started by tui, running for 0s" {
 		t.Errorf("operation = %q", got)

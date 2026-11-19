@@ -122,7 +122,7 @@ func StatusRows(st service.Status, now time.Time) []Row {
 	}
 	for _, kind := range []service.Kind{service.KindBackup, service.KindPrune, service.KindCheck, service.KindVerify} {
 		if next, ok := st.Schedule.Next[kind]; ok {
-			add("  next "+string(kind), "%s", In(now, next))
+			add("  next "+KindName(kind), "%s", In(now, next))
 		}
 	}
 	add("Retention", "%s", RetentionLine(st))
