@@ -520,7 +520,7 @@ func (m *Model) forgetPage() string {
 	}
 	applies := fmt.Sprintf("Applies to host %s: %s", strings.Join(r.Hosts, ", "), present.Count(r.Total, "snapshot"))
 	if r.Foreign > 0 {
-		applies += fmt.Sprintf(" (%s of other hosts are never touched)", present.Count(r.Foreign, "snapshot"))
+		applies += fmt.Sprintf(" (%s of other hosts %s never touched)", present.Count(r.Foreign, "snapshot"), map[bool]string{true: "is", false: "are"}[r.Foreign == 1])
 	}
 	b.WriteString(wrap(applies, m.width) + "\n\n")
 	if len(r.Remove) == 0 {

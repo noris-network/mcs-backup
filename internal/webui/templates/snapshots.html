@@ -37,9 +37,9 @@
 <section class="panel">
 <h2>Retention</h2>
 {{if .AppendOnly}}<p>The repository is append-only: nothing is ever forgotten.</p>{{else}}
-<p>Policy: keep {{.Policy}}, and every snapshot marked keep. Applies to host {{join .Hosts ", "}}: {{.Total}} snapshots{{if .Foreign}} ({{.Foreign}} snapshots of other hosts are never touched){{end}}.</p>
+<p>Policy: keep {{.Policy}}, and every snapshot marked keep. Applies to host {{join .Hosts ", "}}: {{count .Total "snapshot"}}{{if .Foreign}} ({{count .Foreign "snapshot"}} of other hosts {{if eq .Foreign 1}}is{{else}}are{{end}} never touched){{end}}.</p>
 {{if .Remove}}
-<p>The next forget would remove {{len .Remove}} snapshots:</p>
+<p>The next forget would remove {{count (len .Remove) "snapshot"}}:</p>
 <ul>{{range .Remove}}<li><code>{{.ShortID}}</code> {{stamp .Time}}{{if .Note}}, {{.Note}}{{end}}</li>{{end}}</ul>
 {{if .Held}}
 <form method="post" action="/forget/approve" class="stack">

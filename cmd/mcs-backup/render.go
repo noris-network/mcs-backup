@@ -65,7 +65,7 @@ func (a *app) renderRetention(r service.RetentionInfo) {
 	}
 	fmt.Fprintf(a.stdout, "Applies to host %s: %s", strings.Join(r.Hosts, ", "), present.Count(r.Total, "snapshot"))
 	if r.Foreign > 0 {
-		fmt.Fprintf(a.stdout, " (%s of other hosts are never touched)", present.Count(r.Foreign, "snapshot"))
+		fmt.Fprintf(a.stdout, " (%s of other hosts %s never touched)", present.Count(r.Foreign, "snapshot"), map[bool]string{true: "is", false: "are"}[r.Foreign == 1])
 	}
 	fmt.Fprintln(a.stdout)
 	if len(r.Remove) == 0 {

@@ -362,11 +362,11 @@ func TestLastResultAndRepeatWithoutSafetySnapshot(t *testing.T) {
 func TestSnapshotsPageEscapesAndActs(t *testing.T) {
 	s := newSite(t, "")
 	s.fake.RetentionFn = func(context.Context) (service.RetentionInfo, error) {
-		return service.RetentionInfo{Policy: "the last 1 snapshots", Hosts: []string{"app"}, Total: 2, Held: true, Remove: []service.Snapshot{{ShortID: "aaaaaaaa", Time: t0.Add(-48 * time.Hour)}}}, nil
+		return service.RetentionInfo{Policy: "the last 1 snapshots", Hosts: []string{"app"}, Total: 2, Foreign: 1, Held: true, Remove: []service.Snapshot{{ShortID: "aaaaaaaa", Time: t0.Add(-48 * time.Hour)}}}, nil
 	}
 	s.login()
 	page := s.do("GET", "/snapshots", nil)
-	page.want(t, http.StatusOK, "aaaaaaaa", "SUSPICIOUS", "&lt;b&gt;x&lt;/b&gt;", "would remove 1 snapshots", "held back until it is approved", "/restore?snapshot=aaaaaaaa")
+	page.want(t, http.StatusOK, "aaaaaaaa", "SUSPICIOUS", "&lt;b&gt;x&lt;/b&gt;", "would remove 1 snapshot:", "2 snapshots (1 snapshot of other hosts is never touched)", "held back until it is approved", "/restore?snapshot=aaaaaaaa")
 	if strings.Contains(page.body, "<b>x</b>") {
 		t.Error("a note was not escaped")
 	}

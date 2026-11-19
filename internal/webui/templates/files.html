@@ -12,7 +12,7 @@
 {{if .Data.Error}}<p class="flash bad" role="status">{{.Data.Error}}</p>{{end}}
 
 {{if .Data.Found}}
-{{if not .Data.Versions}}<section class="panel"><p>Nothing found in {{.Data.Searched}} snapshots.</p></section>{{else}}
+{{if not .Data.Versions}}<section class="panel"><p>Nothing found in {{count .Data.Searched "snapshot"}}.</p></section>{{else}}
 <section class="panel table">
 <table class="stackable">
 <thead><tr><th>Path</th><th class="num">Size</th><th>Modified</th><th>Newest snapshot</th><th>Oldest snapshot</th><th class="num">In</th><th></th></tr></thead>
@@ -31,7 +31,7 @@
 </tbody>
 </table>
 </section>
-<p class="dim">Every state of a file is shown once. Restore takes it from the newest snapshot that has this state. Searched {{.Data.Searched}} snapshots{{if .Data.Truncated}}; there are more matches than are shown, narrow the pattern{{end}}.</p>
+<p class="dim">Every state of a file is shown once. Restore takes it from the newest snapshot that has this state. Searched {{count .Data.Searched "snapshot"}}{{if .Data.Truncated}}; there are more matches than are shown, narrow the pattern{{end}}.</p>
 {{end}}
 <p class="back"><a href="/files?snapshot={{.Data.Snapshot}}" class="btn">Browse snapshot {{.Data.Snapshot}}</a></p>
 {{else if .Data.SnapshotID}}
