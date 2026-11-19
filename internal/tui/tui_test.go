@@ -1147,6 +1147,33 @@ func TestOverviewShortensTheLastRunsBeforeDroppingThem(t *testing.T) {
 	}
 }
 
+func TestOverviewGivesTheRoomOfTheNextRunsToTheLastRuns(t *testing.T) {
+	r := healthy(newRig(t))
+	status := r.fake.StatusFn
+	r.fake.StatusFn = func(ctx context.Context) (service.Status, error) {
+		st, _ := status(ctx)
+		for _, k := range []service.Kind{service.KindPrune, service.KindCheck, service.KindVerify} {
+			st.Schedule.Next[k] = t0.Add(10 * time.Hour)
+		}
+		st.LastRuns = map[service.Kind]service.RunResult{}
+		for _, k := range []service.Kind{service.KindTag, service.KindRestore, service.KindVerify, service.KindBackup} {
+			st.LastRuns[k] = service.RunResult{Kind: k, Result: service.ResultSuccess, Started: t0.Add(-time.Hour)}
+		}
+		return st, nil
+	}
+	r.load()
+	// on a small terminal the next runs of the maintenance jobs go, and the
+	// last runs come back into the room they leave
+	r.m.width, r.m.height = 60, 20
+	s := r.screen()
+	if !strings.Contains(s, "● backup") || strings.Contains(s, "next prune") {
+		t.Errorf("the last runs at 60x20:\n%s", s)
+	}
+	if n := len(strings.Split(s, "\n")); n > 20 {
+		t.Errorf("the screen has %d lines at 60x20", n)
+	}
+}
+
 func TestShellLinesStayReadableForAShell(t *testing.T) {
 	values := []string{
 		"s3:http://127.0.0.1:9000/backuptest/mcs-backup-demo/20261028-162121",

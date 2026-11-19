@@ -323,17 +323,23 @@ func (m *Model) overviewPage(avail int) string {
 		return strings.Join(parts, "\n\n")
 	}
 	// what goes first when the room is short: the web UI line, then the
-	// least important of the last runs, one by one, then the next runs of
-	// the maintenance jobs and at last all rows
+	// least important of the last runs, one by one, down to the backup, then
+	// the next runs of the maintenance jobs (and the last runs get their
+	// room back), then the backup and at last all rows
 	type variant struct {
 		extras       bool
 		runs, detail int
 	}
 	variants := []variant{{true, len(runs), 2}}
-	for n := len(runs); n >= 0; n-- {
-		variants = append(variants, variant{false, n, 2})
+	for _, detail := range []int{2, 1} {
+		for n := len(runs); n >= min(1, len(runs)); n-- {
+			variants = append(variants, variant{false, n, detail})
+		}
 	}
-	variants = append(variants, variant{false, 0, 1}, variant{false, 0, 0})
+	variants = append(variants, variant{false, 0, 1})
+	for n := len(runs); n >= 0; n-- {
+		variants = append(variants, variant{false, n, 0})
+	}
 	var out string
 	for _, v := range variants {
 		out = build(v.extras, v.runs, v.detail)
