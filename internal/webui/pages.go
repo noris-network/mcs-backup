@@ -470,11 +470,11 @@ func (h *Handler) keep(on bool) func(*http.Request) (string, error) {
 	return func(r *http.Request) (string, error) {
 		id := r.PathValue("id")
 		if on {
-			_, err := h.svc.Keep(r.Context(), id)
-			return "Snapshot " + present.Short(id) + " is kept.", err
+			res, err := h.svc.Keep(r.Context(), id)
+			return retagged(id, "is kept", res), err
 		}
-		_, err := h.svc.Unkeep(r.Context(), id)
-		return "Snapshot " + present.Short(id) + " is no longer kept.", err
+		res, err := h.svc.Unkeep(r.Context(), id)
+		return retagged(id, "is no longer kept", res), err
 	}
 }
 
@@ -483,8 +483,18 @@ func (h *Handler) acknowledge(r *http.Request) (string, error) {
 		return "", errors.New("bad form")
 	}
 	id := r.PathValue("id")
-	_, err := h.svc.Acknowledge(r.Context(), id, strings.TrimSpace(r.PostFormValue("confirm")))
-	return "Snapshot " + present.Short(id) + " is a regular snapshot now.", err
+	res, err := h.svc.Acknowledge(r.Context(), id, strings.TrimSpace(r.PostFormValue("confirm")))
+	return retagged(id, "is a regular snapshot now", res), err
+}
+
+// retagged says what a tag change did. restic gives the snapshot a new ID
+// for it, which the message names: the old one is gone from the list.
+func retagged(id, state string, res service.TagResult) string {
+	msg := "Snapshot " + present.Short(id) + " " + state
+	if res.ID != "" && res.ID != id {
+		msg += "; restic gave it the new ID " + present.Short(res.ID)
+	}
+	return msg + "."
 }
 
 func (h *Handler) unlock(r *http.Request) (string, error) {

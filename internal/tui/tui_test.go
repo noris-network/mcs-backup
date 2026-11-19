@@ -480,12 +480,16 @@ func TestKeepAndAcknowledge(t *testing.T) {
 	}
 	r.press("esc")
 	r.press("a")
+	r.fake.AcknowledgeFn = func(context.Context, string, string) (service.TagResult, error) {
+		return service.TagResult{ID: "ffffffff" + strings.Repeat("0", 56)}, nil
+	}
 	r.m.dlg.(*confirmDialog).in.SetValue("acknowledge")
 	r.press("enter")
 	calls := r.fake.CallsTo("Acknowledge")
 	if len(calls) != 1 || calls[0].Args[1] != "acknowledge" {
 		t.Fatalf("calls: %v", r.fake)
 	}
+	r.wantScreen("snapshot bbbbbbbb is a regular snapshot now; restic gave it the new ID ffffffff")
 
 	r.press("K")
 	if len(r.fake.CallsTo("Keep")) != 1 {

@@ -505,7 +505,9 @@ func (m *Model) snapshotKey(s string) tea.Cmd {
 		}
 		m.dlg = newConfirmDialog("Acknowledge the size change", "Snapshot "+snap.ShortID+" is much smaller than the one before. If that is expected, type "+service.ConfirmAcknowledge+": it becomes a regular snapshot and the retention applies again.", service.ConfirmAcknowledge,
 			func(word string) tea.Cmd {
-				return act("acknowledge", func() error { _, err := m.svc.Acknowledge(m.ctx, snap.ID, word); return err })
+				return m.retag(snap, "acknowledge", "a regular snapshot now", func(ctx context.Context, id string) (service.TagResult, error) {
+					return m.svc.Acknowledge(ctx, id, word)
+				})
 			})
 	}
 	return nil

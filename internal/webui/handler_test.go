@@ -375,7 +375,11 @@ func TestSnapshotsPageEscapesAndActs(t *testing.T) {
 	}
 
 	id := strings.Repeat("a", 64)
+	s.fake.KeepFn = func(context.Context, string) (service.TagResult, error) {
+		return service.TagResult{ID: strings.Repeat("e", 64)}, nil
+	}
 	s.do("POST", "/snapshots/"+id+"/keep", url.Values{}).want(t, http.StatusSeeOther)
+	s.do("GET", "/snapshots", nil).want(t, http.StatusOK, "Snapshot aaaaaaaa is kept; restic gave it the new ID eeeeeeee.")
 	s.do("POST", "/snapshots/"+id+"/unkeep", url.Values{})
 	s.do("POST", "/snapshots/"+id+"/acknowledge", url.Values{"confirm": {"acknowledge"}})
 	s.do("POST", "/forget/approve", url.Values{"confirm": {"forget"}})
