@@ -241,7 +241,7 @@ func newMaintenanceDialog(st *service.Status, now time.Time) *menuDialog {
 		}
 	}
 	if len(next) > 0 {
-		text += " (" + strings.Join(next, ", ") + ")"
+		text += ": " + strings.Join(next, ", ")
 	}
 	text += ". Started now, they lock the repository while they run: a scheduled backup waits until they are done."
 	d := &menuDialog{title: "Maintenance", text: text, items: []menuItem{
