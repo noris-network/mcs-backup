@@ -66,6 +66,22 @@ func TestResultLinesIndentTheLinesOfAnError(t *testing.T) {
 	}
 }
 
+func TestResultLinesLeaveOutAMessageThatRepeatsTheHead(t *testing.T) {
+	for _, r := range []service.RunResult{
+		{Kind: service.KindBackup, Result: service.ResultFailure, Message: "backup failed", Error: "dump.sh said: no database"},
+		{Kind: service.KindVerify, Result: service.ResultTimeout, Message: "the restore test failed", Error: "operation timed out"},
+	} {
+		got := ResultLines(r)
+		if len(got) != 2 || !strings.HasPrefix(got[1], "  error: ") {
+			t.Errorf("lines = %q", got)
+		}
+	}
+	r := service.RunResult{Kind: service.KindBackup, Result: service.ResultFailure, Message: "the backup is empty although 3 regular snapshots exist"}
+	if got := ResultLines(r); len(got) != 2 || got[1] != "  "+r.Message {
+		t.Errorf("lines = %q", got)
+	}
+}
+
 func TestResultLinesOfACancelledRun(t *testing.T) {
 	r := service.RunResult{Kind: service.KindBackup, Result: service.ResultCancelled, Source: "tui", Message: "backup failed", Error: "context canceled\nrestic backup: exit code 130"}
 	got := ResultLines(r)

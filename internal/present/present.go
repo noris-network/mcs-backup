@@ -348,7 +348,7 @@ func ResultLines(r service.RunResult) []string {
 	if r.Snapshot != "" && !strings.Contains(r.Message, Short(r.Snapshot)) {
 		add("snapshot " + Short(r.Snapshot))
 	}
-	if r.Message != "" {
+	if r.Message != "" && !repeatsHead(r) {
 		add(r.Message)
 	}
 	if r.Error != "" {
@@ -361,6 +361,16 @@ func ResultLines(r service.RunResult) []string {
 		lines = append(lines, "  the backup will be retried")
 	}
 	return lines
+}
+
+// repeatsHead reports whether the message of a failed run only says that it
+// failed, such as "backup failed" under "backup: failure": the error says why.
+func repeatsHead(r service.RunResult) bool {
+	if r.Result != service.ResultFailure && r.Result != service.ResultTimeout {
+		return false
+	}
+	m := strings.TrimPrefix(r.Message, "the ")
+	return m == KindName(r.Kind)+" failed" || m == string(r.Kind)+" failed"
 }
 
 // DiffLines tells in words what changed from one snapshot to another: what
