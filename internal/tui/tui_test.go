@@ -11,6 +11,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
@@ -797,6 +798,43 @@ func TestMaintenanceByHand(t *testing.T) {
 	r.press("r", "m")
 	r.wantScreen("> Check the repositories")
 	r.wantNoScreen("Prune: remove")
+}
+
+func TestLegendKeepsTheKeysOfTheTabApartFromTheGlobalOnes(t *testing.T) {
+	r := healthy(newRig(t)).load()
+	for _, width := range []int{200, 120, 80, 60} {
+		r.m.width = width
+		r.press("2")
+		lines := strings.Split(r.m.footer(), "\n")
+		if !strings.HasPrefix(ansi.Strip(lines[0]), "Snapshots  enter restore") {
+			t.Errorf("width %d: the legend does not start with the keys of the tab: %q", width, ansi.Strip(lines[0]))
+		}
+		tabKeys, global := -1, -1
+		for i, l := range lines {
+			l = ansi.Strip(l)
+			if strings.Contains(l, "forget preview") {
+				tabKeys = i
+			}
+			if strings.Contains(l, "b backup") {
+				global = i
+			}
+			if strings.Contains(l, "keep/unkeep") && strings.Contains(l, "quit") || strings.Contains(l, "forget preview") && strings.Contains(l, "b backup") {
+				t.Errorf("width %d: keys of the tab and global keys share line %d: %q", width, i, l)
+			}
+			if len([]rune(l)) > width {
+				t.Errorf("width %d: line %d is %d wide", width, i, len([]rune(l)))
+			}
+		}
+		if tabKeys < 0 || global <= tabKeys {
+			t.Errorf("width %d: the global keys do not come after the keys of the tab:\n%s", width, ansi.Strip(r.m.footer()))
+		}
+	}
+	// the overview has no keys of its own: only the global ones
+	r.m.width = 120
+	r.press("1")
+	if f := ansi.Strip(r.m.footer()); !strings.HasPrefix(f, "b backup") || strings.Contains(f, "Overview") {
+		t.Errorf("legend of the overview: %q", f)
+	}
 }
 
 func TestSchedule(t *testing.T) {

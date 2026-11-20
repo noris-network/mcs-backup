@@ -153,9 +153,14 @@ func (m *Model) footerHeight() int {
 }
 
 // legend lists the keys that work on a tab; forget is set while Snapshots
-// shows the forget preview instead of the list.
+// shows the forget preview instead of the list. The keys of the tab come
+// first, under its name, and the keys that work everywhere on lines of their
+// own below them.
 func (m *Model) legend(t tab, cancel, forget bool) string {
-	common := []hint{{"b", "backup"}, {"v", "restore test"}, {"m", "maintenance"}, {"s", "schedule"}, {"l", "log"}, {"w", "web UI"}, {"r", "refresh"}, {"?", "help"}, {"q", "quit"}}
+	global := []hint{{"b", "backup"}, {"v", "restore test"}, {"m", "maintenance"}, {"s", "schedule"}, {"l", "log"}, {"w", "web UI"}, {"r", "refresh"}, {"?", "help"}, {"q", "quit"}}
+	if cancel {
+		global = append([]hint{{"c", "cancel"}}, global...)
+	}
 	var keys []hint
 	switch {
 	case t == tabSnapshots && forget:
@@ -167,22 +172,42 @@ func (m *Model) legend(t tab, cancel, forget bool) string {
 	case t == tabAccess:
 		keys = []hint{{"p", "show/hide secrets"}, {"y", "paste view"}}
 	}
-	if cancel {
-		keys = append([]hint{{"c", "cancel"}}, keys...)
+	var lines []string
+	if len(keys) > 0 {
+		lines = m.hintLines(tabNames[t], keys)
 	}
-	keys = append(keys, common...)
+	return strings.Join(append(lines, m.hintLines("", global)...), "\n")
+}
+
+// hintLines lays keys out in lines no wider than the terminal, behind label
+// if there is one; the further lines start under the first key.
+func (m *Model) hintLines(label string, keys []hint) []string {
+	prefix, indent := "", ""
+	if label != "" {
+		prefix = styleTitle.Render(label) + "  "
+		indent = strings.Repeat(" ", lipgloss.Width(label)+2)
+	}
 	var lines []string
 	cur := make([]string, 0, len(keys))
-	n := 0
+	n := len(indent)
+	flush := func() {
+		lead := indent
+		if len(lines) == 0 {
+			lead = prefix
+		}
+		lines = append(lines, lead+strings.Join(cur, styleDim.Render(" · ")))
+		cur, n = cur[:0], len(indent)
+	}
 	for _, h := range keys {
 		item := styleKey.Render(h.key) + " " + styleDim.Render(h.text)
 		w := lipgloss.Width(item) + 3
 		if n+w > m.width && len(cur) > 0 {
-			lines, cur, n = append(lines, strings.Join(cur, styleDim.Render(" · "))), nil, 0
+			flush()
 		}
 		cur, n = append(cur, item), n+w
 	}
-	return strings.Join(append(lines, strings.Join(cur, styleDim.Render(" · "))), "\n")
+	flush()
+	return lines
 }
 
 func (m *Model) page(avail int) string {
