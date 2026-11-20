@@ -762,6 +762,43 @@ func TestLogSkipsQuickRunsAndSwitches(t *testing.T) {
 	r.wantNoScreen("a line of")
 }
 
+func TestMaintenanceByHand(t *testing.T) {
+	r := healthy(newRig(t))
+	status := r.fake.StatusFn
+	r.fake.StatusFn = func(ctx context.Context) (service.Status, error) {
+		st, _ := status(ctx)
+		st.Schedule.Next[service.KindPrune] = t0.Add(50 * time.Hour)
+		return st, nil
+	}
+	r.load()
+	r.wantScreen("m maintenance")
+	r.press("m")
+	r.wantScreen("Maintenance", "the next prune 2026-03-03", "a scheduled backup waits", "> Check the repositories", "Prune: remove the data")
+	r.press("enter")
+	if len(r.fake.CallsTo("StartCheck")) != 1 || r.m.dlg != nil {
+		t.Fatalf("enter did not start the check: %v", r.fake)
+	}
+	r.wantScreen("check started")
+	r.press("m", "down", "enter")
+	if len(r.fake.CallsTo("StartPrune")) != 1 {
+		t.Fatalf("the second item did not start the prune: %v", r.fake)
+	}
+	r.press("m", "esc")
+	if r.m.dlg != nil || len(r.fake.CallsTo("StartCheck"))+len(r.fake.CallsTo("StartPrune")) != 2 {
+		t.Error("esc started something or left the menu open")
+	}
+
+	// an append-only repository without a secondary one has nothing to prune
+	r.fake.StatusFn = func(ctx context.Context) (service.Status, error) {
+		st, _ := status(ctx)
+		st.AppendOnly = true
+		return st, nil
+	}
+	r.press("r", "m")
+	r.wantScreen("> Check the repositories")
+	r.wantNoScreen("Prune: remove")
+}
+
 func TestSchedule(t *testing.T) {
 	r := healthy(newRig(t)).load()
 	r.press("s")

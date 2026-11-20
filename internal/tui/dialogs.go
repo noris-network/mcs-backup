@@ -228,6 +228,36 @@ func (d *menuDialog) view(width, _ int) string {
 	return box(d.title, b.String(), "enter choose · esc close", width)
 }
 
+// newMaintenanceDialog starts a check or a prune by hand. Both run on their
+// schedules anyway, and both lock the repository while they run.
+func newMaintenanceDialog(st *service.Status, now time.Time) *menuDialog {
+	text := "Check and prune run on their schedules"
+	var next []string
+	if st != nil {
+		for _, k := range []service.Kind{service.KindCheck, service.KindPrune} {
+			if t, ok := st.Schedule.Next[k]; ok {
+				next = append(next, "the next "+string(k)+" "+present.In(now, t))
+			}
+		}
+	}
+	if len(next) > 0 {
+		text += " (" + strings.Join(next, ", ") + ")"
+	}
+	text += ". Started now, they lock the repository while they run: a scheduled backup waits until they are done."
+	d := &menuDialog{title: "Maintenance", text: text, items: []menuItem{
+		{"Check the repositories: every snapshot is complete, the index is sound", func(m *Model) tea.Cmd {
+			return m.start("check", func() (service.Operation, error) { return m.svc.StartCheck(m.ctx) })
+		}},
+	}}
+	// an append-only repository keeps everything; a secondary one may not be append-only
+	if st == nil || !st.AppendOnly || st.Copy != nil {
+		d.items = append(d.items, menuItem{"Prune: remove the data that no snapshot needs any more", func(m *Model) tea.Cmd {
+			return m.start("prune", func() (service.Operation, error) { return m.svc.StartPrune(m.ctx) })
+		}})
+	}
+	return d
+}
+
 // newScheduleDialog says how the scheduled backups run and offers what fits:
 // to disable or pause them when they run, to enable them otherwise (and to
 // change a pause), nothing when there is no backup schedule.

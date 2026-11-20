@@ -155,7 +155,7 @@ func (m *Model) footerHeight() int {
 // legend lists the keys that work on a tab; forget is set while Snapshots
 // shows the forget preview instead of the list.
 func (m *Model) legend(t tab, cancel, forget bool) string {
-	common := []hint{{"b", "backup"}, {"v", "restore test"}, {"s", "schedule"}, {"l", "log"}, {"w", "web UI"}, {"r", "refresh"}, {"?", "help"}, {"q", "quit"}}
+	common := []hint{{"b", "backup"}, {"v", "restore test"}, {"m", "maintenance"}, {"s", "schedule"}, {"l", "log"}, {"w", "web UI"}, {"r", "refresh"}, {"?", "help"}, {"q", "quit"}}
 	var keys []hint
 	switch {
 	case t == tabSnapshots && forget:
@@ -726,6 +726,7 @@ Files       in Snapshots: o  browse the selected snapshot, / finds a file in all
 Changes     in Snapshots: d  what the selected snapshot lost, gained and changed
 Cancel      c  stop the running operation or the pending retry
 Test        v  restore test: restore a sample of the latest snapshot and check it
+Maintenance m  check the repositories or prune them now, not only on their schedules
 Keep        in Snapshots: K  keep / unkeep the selected snapshot
 Acknowledge in Snapshots: a  accept a much smaller snapshot
 Forget      in Snapshots: f  what the retention would delete
