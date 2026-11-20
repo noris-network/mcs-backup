@@ -44,6 +44,8 @@ type liveData struct {
 	ForgetHeld  bool
 	AppendOnly  bool
 	VerifyReady bool
+	// CanPrune: a repository is not append-only, so prune has something to do.
+	CanPrune bool
 	// Fragment is set when htmx refreshes the part; it then brings the
 	// indicator of the header along (Health, HealthLevel).
 	Fragment            bool
@@ -96,7 +98,8 @@ func (h *Handler) liveData(r *http.Request) (liveData, error) {
 	if err != nil {
 		return liveData{}, err
 	}
-	d := liveData{Op: st.Operation, Retry: st.Retry, Web: st.WebUI, ForgetHeld: st.ForgetHeld, AppendOnly: st.AppendOnly, VerifyReady: st.VerifyConfigured}
+	d := liveData{Op: st.Operation, Retry: st.Retry, Web: st.WebUI, ForgetHeld: st.ForgetHeld, AppendOnly: st.AppendOnly, VerifyReady: st.VerifyConfigured,
+		CanPrune: !st.AppendOnly || st.Copy != nil}
 	d.Cards = present.Cards(st, h.o.Now())
 	label, level := present.Health(st)
 	d.Health, d.HealthLevel = label, string(level)
@@ -428,6 +431,16 @@ func (h *Handler) backup(r *http.Request) (string, error) {
 func (h *Handler) verify(r *http.Request) (string, error) {
 	_, err := h.svc.StartVerify(r.Context(), service.VerifyRequest{})
 	return "Restore test started.", err
+}
+
+func (h *Handler) prune(r *http.Request) (string, error) {
+	_, err := h.svc.StartPrune(r.Context())
+	return "Prune started.", err
+}
+
+func (h *Handler) check(r *http.Request) (string, error) {
+	_, err := h.svc.StartCheck(r.Context())
+	return "Check started.", err
 }
 
 func (h *Handler) cancel(r *http.Request) (string, error) {

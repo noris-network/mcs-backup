@@ -107,6 +107,8 @@ func (h *Handler) routes() {
 	auth("POST /restore", h.action("/", h.restore))
 	auth("POST /backup", h.action("/", h.backup))
 	auth("POST /verify", h.action("/", h.verify))
+	auth("POST /prune", h.action("/", h.prune))
+	auth("POST /check", h.action("/", h.check))
 	auth("POST /cancel", h.action("/", h.cancel))
 	auth("POST /schedule", h.action("/", h.schedule))
 	auth("POST /notify-test", h.action("/", h.notifyTest))

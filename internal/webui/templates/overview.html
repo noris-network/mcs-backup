@@ -48,6 +48,15 @@
       </div>
     </section>
 
+    <section class="panel">
+      <h2>Maintenance</h2>
+      <div class="btnrow">
+        <form method="post" action="/check"><button>Check the repositories</button></form>
+        {{if .Data.CanPrune}}<form method="post" action="/prune"><button>Prune now</button></form>{{end}}
+      </div>
+      <p class="dim hint">Check and prune run on their schedules anyway. Started now, they lock the repository while they run: a scheduled backup waits until they are done.{{if .Data.CanPrune}} Prune removes the data that no snapshot needs any more.{{end}}</p>
+    </section>
+
     {{if .CanOff}}
     <section class="panel">
       <h2>Web UI</h2>

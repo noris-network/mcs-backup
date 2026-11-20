@@ -119,7 +119,7 @@ func TestEverythingNeedsALogin(t *testing.T) {
 		method, path, _ := strings.Cut(p, " ")
 		s.do(method, path, nil).want(t, http.StatusUnauthorized, "mcs-backup web")
 	}
-	for _, p := range []string{"/backup", "/verify", "/cancel", "/schedule", "/notify-test", "/forget/approve", "/restore", "/restore/check", "/locks/unlock", "/web/off", "/snapshots/x/keep"} {
+	for _, p := range []string{"/backup", "/verify", "/prune", "/check", "/cancel", "/schedule", "/notify-test", "/forget/approve", "/restore", "/restore/check", "/locks/unlock", "/web/off", "/snapshots/x/keep"} {
 		s.do("POST", p, url.Values{}).want(t, http.StatusUnauthorized)
 	}
 	if len(s.fake.Calls()) != 0 {
@@ -416,6 +416,32 @@ func TestAppendOnlyHidesTagActions(t *testing.T) {
 	}
 	if strings.Contains(s.do("GET", "/locks", nil).body, "remove-all") {
 		t.Error("remove all locks is offered on an append-only repository")
+	}
+}
+
+func TestMaintenanceByHand(t *testing.T) {
+	s := newSite(t, "")
+	s.login()
+	s.do("GET", "/", nil).want(t, http.StatusOK, "Maintenance", `action="/check"`, `action="/prune"`, "a scheduled backup waits")
+	s.do("POST", "/check", url.Values{}).want(t, http.StatusSeeOther)
+	s.do("GET", "/", nil).want(t, http.StatusOK, "Check started.")
+	s.do("POST", "/prune", url.Values{}).want(t, http.StatusSeeOther)
+	s.do("GET", "/", nil).want(t, http.StatusOK, "Prune started.")
+	if len(s.fake.CallsTo("StartCheck")) != 1 || len(s.fake.CallsTo("StartPrune")) != 1 {
+		t.Errorf("calls: %v", s.fake)
+	}
+
+	// an append-only repository without a secondary one has nothing to prune
+	status := s.fake.StatusFn
+	s.fake.StatusFn = func(ctx context.Context) (service.Status, error) {
+		st, err := status(ctx)
+		st.AppendOnly = true
+		return st, err
+	}
+	page := s.do("GET", "/", nil)
+	page.want(t, http.StatusOK, `action="/check"`)
+	if strings.Contains(page.body, `action="/prune"`) {
+		t.Error("prune is offered on an append-only repository")
 	}
 }
 
