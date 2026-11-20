@@ -46,6 +46,10 @@ func NewHandler(svc service.Service, log *slog.Logger) http.Handler {
 		q := r.URL.Query()
 		return s.svc.Files(r.Context(), service.FilesRequest{Snapshot: q.Get("snapshot"), Path: q.Get("path")})
 	}))
+	mux.HandleFunc("GET /v1/files/content", reply(s, func(r *http.Request) (any, error) {
+		q := r.URL.Query()
+		return s.svc.ReadFile(r.Context(), service.FileRequest{Snapshot: q.Get("snapshot"), Path: q.Get("path")})
+	}))
 	mux.HandleFunc("GET /v1/find", reply(s, func(r *http.Request) (any, error) {
 		q := r.URL.Query()
 		return s.svc.Find(r.Context(), service.FindRequest{

@@ -154,3 +154,44 @@ func TestFindRefusesWhatItCannotAnswer(t *testing.T) {
 		t.Errorf("err = %v", err)
 	}
 }
+
+func TestReadFile(t *testing.T) {
+	r := restoreRig(t)
+	r.main.On(t, "dump", resticfake.Response{Stdout: "key = value\nübel = 1\n"})
+	c, err := r.e.ReadFile(t.Context(), service.FileRequest{Snapshot: "snap1", Path: "etc/app.conf"})
+	if err != nil || c.Text != "key = value\nübel = 1\n" || c.Binary || c.Truncated || c.Snapshot != "snap1" || c.Path != "/etc/app.conf" {
+		t.Fatalf("ReadFile() = %+v, %v", c, err)
+	}
+	// it only looks: a prune or a check that holds the lock does not stop it
+	if got := r.main.CallsTo(t, "dump")[0]; !slices.Equal(got, []string{"dump", "--no-lock", "--", "snap1", "/etc/app.conf"}) {
+		t.Errorf("args = %q", got)
+	}
+
+	t.Run("long", func(t *testing.T) {
+		r := restoreRig(t)
+		// the cut falls into the middle of an ä
+		r.main.On(t, "dump", resticfake.Response{Stdout: strings.Repeat("x", service.MaxFileText-1) + "ä" + strings.Repeat("y", 1000)})
+		c, err := r.e.ReadFile(t.Context(), service.FileRequest{Path: "/big.txt"})
+		if err != nil || !c.Truncated || c.Binary || len(c.Text) != service.MaxFileText-1 {
+			t.Errorf("ReadFile() = truncated %v, binary %v, %d bytes, %v", c.Truncated, c.Binary, len(c.Text), err)
+		}
+	})
+	t.Run("binary", func(t *testing.T) {
+		r := restoreRig(t)
+		r.main.On(t, "dump", resticfake.Response{Stdout: "\x89PNG\r\n\x1a\n\x00\x00"})
+		c, err := r.e.ReadFile(t.Context(), service.FileRequest{Path: "/a.png"})
+		if err != nil || !c.Binary || c.Text != "" {
+			t.Errorf("ReadFile() = %+v, %v", c, err)
+		}
+	})
+	t.Run("missing", func(t *testing.T) {
+		r := restoreRig(t)
+		r.main.On(t, "dump", resticfake.Response{Stderr: "Fatal: cannot dump file: path \"/nope\" not found in snapshot\n", Exit: 1})
+		if _, err := r.e.ReadFile(t.Context(), service.FileRequest{Path: "/nope"}); err == nil || !strings.Contains(err.Error(), "not found") {
+			t.Errorf("err = %v", err)
+		}
+		if _, err := r.e.ReadFile(t.Context(), service.FileRequest{}); err == nil {
+			t.Error("an empty path is no file")
+		}
+	})
+}

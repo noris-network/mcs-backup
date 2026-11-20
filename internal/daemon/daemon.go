@@ -38,6 +38,7 @@ type Engine interface {
 	Locks(ctx context.Context) ([]service.Lock, error)
 	Files(ctx context.Context, req service.FilesRequest) (service.FileList, error)
 	Find(ctx context.Context, req service.FindRequest) (service.FindResult, error)
+	ReadFile(ctx context.Context, req service.FileRequest) (service.FileContent, error)
 	Diff(ctx context.Context, req service.DiffRequest) (service.DiffResult, error)
 	RestorePreflight(ctx context.Context, req service.RestoreRequest) (service.RestorePreflight, error)
 	VerifyConfigured() bool

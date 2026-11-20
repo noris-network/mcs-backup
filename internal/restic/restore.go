@@ -95,3 +95,10 @@ func (r *Repo) Dump(ctx context.Context, snapshot, file string, w io.Writer) err
 	_, err := r.run(ctx, positional([]string{"dump"}, snapshot, file), runOpts{stdout: w})
 	return err
 }
+
+// Peek writes a file of a snapshot to w without locking the repository, to
+// look at it: it works while a prune or a check holds the lock.
+func (r *Repo) Peek(ctx context.Context, snapshot, file string, w io.Writer) error {
+	_, err := r.run(ctx, positional([]string{"dump", "--no-lock"}, snapshot, file), runOpts{stdout: w})
+	return err
+}

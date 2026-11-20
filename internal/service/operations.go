@@ -316,6 +316,30 @@ type FileList struct {
 	Truncated bool `json:"truncated,omitzero"`
 }
 
+// MaxFileText is how much of a file ReadFile returns.
+const MaxFileText = 256 << 10
+
+// FileRequest asks for the content of a file in a snapshot.
+type FileRequest struct {
+	// Snapshot is an ID, a prefix of one or "latest" (the default).
+	Snapshot string `json:"snapshot,omitempty"`
+	// Path is the file as it is in the snapshot.
+	Path string `json:"path"`
+}
+
+// FileContent is the start of a file in a snapshot, to look at it.
+type FileContent struct {
+	// Snapshot is the ID of the snapshot the file was read from.
+	Snapshot string `json:"snapshot"`
+	Path     string `json:"path"`
+	// Text is the content, at most MaxFileText bytes; empty for a binary file.
+	Text string `json:"text,omitempty"`
+	// Binary: the file is not text (it has NUL bytes or is not UTF-8).
+	Binary bool `json:"binary,omitzero"`
+	// Truncated: the file is longer than MaxFileText.
+	Truncated bool `json:"truncated,omitzero"`
+}
+
 // FindRequest searches the snapshots of this instance for files.
 type FindRequest struct {
 	// Pattern is a glob that is matched against the name and the whole path,
@@ -467,6 +491,9 @@ type Service interface {
 	// files, to see what a restore would bring back and from which snapshot.
 	Files(ctx context.Context, req FilesRequest) (FileList, error)
 	Find(ctx context.Context, req FindRequest) (FindResult, error)
+	// ReadFile returns the start of a file in a snapshot, to look at it
+	// without restoring it.
+	ReadFile(ctx context.Context, req FileRequest) (FileContent, error)
 	// Diff tells what changed between two snapshots, to judge a backup that
 	// is suspiciously small.
 	Diff(ctx context.Context, req DiffRequest) (DiffResult, error)

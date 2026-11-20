@@ -96,6 +96,14 @@ func TestRoundTrips(t *testing.T) {
 		t.Errorf("request = %+v", req)
 	}
 
+	fake.ReadFileFn = func(_ context.Context, req service.FileRequest) (service.FileContent, error) {
+		return service.FileContent{Snapshot: req.Snapshot, Path: req.Path, Text: "a = 1\n", Truncated: true}, nil
+	}
+	fc, err := c.ReadFile(ctx, service.FileRequest{Snapshot: "abc", Path: "/a b/ü&x.conf"})
+	if err != nil || fc.Snapshot != "abc" || fc.Path != "/a b/ü&x.conf" || fc.Text != "a = 1\n" || !fc.Truncated {
+		t.Errorf("ReadFile() = %+v, %v", fc, err)
+	}
+
 	fake.FindFn = func(_ context.Context, req service.FindRequest) (service.FindResult, error) {
 		return service.FindResult{Searched: 4, Versions: []service.FileVersion{{Path: req.Pattern, Newest: service.SnapshotRef{ID: "n"}, Snapshots: 2}}}, nil
 	}

@@ -168,6 +168,15 @@ func (c *Client) Files(ctx context.Context, req service.FilesRequest) (service.F
 	return get[service.FileList](ctx, c, "/v1/files?"+q.Encode())
 }
 
+// ReadFile implements service.Service.
+func (c *Client) ReadFile(ctx context.Context, req service.FileRequest) (service.FileContent, error) {
+	q := url.Values{"path": {req.Path}}
+	if req.Snapshot != "" {
+		q.Set("snapshot", req.Snapshot)
+	}
+	return get[service.FileContent](ctx, c, "/v1/files/content?"+q.Encode())
+}
+
 // Find implements service.Service.
 func (c *Client) Find(ctx context.Context, req service.FindRequest) (service.FindResult, error) {
 	q := url.Values{"pattern": {req.Pattern}}

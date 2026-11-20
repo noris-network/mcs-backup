@@ -212,6 +212,12 @@ func (d *Daemon) Files(ctx context.Context, req service.FilesRequest) (service.F
 	return list, d.redact.Error(err)
 }
 
+// ReadFile implements service.Service.
+func (d *Daemon) ReadFile(ctx context.Context, req service.FileRequest) (service.FileContent, error) {
+	c, err := d.eng.ReadFile(ctx, req)
+	return c, d.redact.Error(err)
+}
+
 // Find implements service.Service.
 func (d *Daemon) Find(ctx context.Context, req service.FindRequest) (service.FindResult, error) {
 	res, err := d.eng.Find(ctx, req)

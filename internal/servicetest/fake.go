@@ -30,6 +30,7 @@ type Fake struct {
 	RetentionFn        func(ctx context.Context) (service.RetentionInfo, error)
 	LocksFn            func(ctx context.Context) ([]service.Lock, error)
 	FilesFn            func(ctx context.Context, req service.FilesRequest) (service.FileList, error)
+	ReadFileFn         func(ctx context.Context, req service.FileRequest) (service.FileContent, error)
 	FindFn             func(ctx context.Context, req service.FindRequest) (service.FindResult, error)
 	DiffFn             func(ctx context.Context, req service.DiffRequest) (service.DiffResult, error)
 	RestorePreflightFn func(ctx context.Context, req service.RestoreRequest) (service.RestorePreflight, error)
@@ -122,6 +123,14 @@ func (f *Fake) Files(ctx context.Context, req service.FilesRequest) (service.Fil
 		return f.FilesFn(ctx, req)
 	}
 	return service.FileList{}, nil
+}
+
+func (f *Fake) ReadFile(ctx context.Context, req service.FileRequest) (service.FileContent, error) {
+	f.record(ctx, "ReadFile", req)
+	if f.ReadFileFn != nil {
+		return f.ReadFileFn(ctx, req)
+	}
+	return service.FileContent{Path: req.Path}, nil
 }
 
 func (f *Fake) Find(ctx context.Context, req service.FindRequest) (service.FindResult, error) {

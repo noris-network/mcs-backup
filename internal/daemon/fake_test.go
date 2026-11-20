@@ -126,6 +126,10 @@ func (f *fakeEngine) Files(_ context.Context, req service.FilesRequest) (service
 	return service.FileList{Path: req.Path}, f.filesErr
 }
 
+func (f *fakeEngine) ReadFile(_ context.Context, req service.FileRequest) (service.FileContent, error) {
+	return service.FileContent{Path: req.Path}, f.filesErr
+}
+
 func (f *fakeEngine) Find(context.Context, service.FindRequest) (service.FindResult, error) {
 	return service.FindResult{Searched: 1}, f.filesErr
 }

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bytes"
 	"cmp"
 	"context"
 	"errors"
@@ -8,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"unicode/utf8"
 
 	"github.com/noris-network/mcs-backup/v2/internal/restic"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
@@ -53,6 +55,68 @@ func (e *Engine) Files(ctx context.Context, req service.FilesRequest) (service.F
 	}
 	return list, fmt.Errorf("snapshot %s has no %s", short(snap.ID), candidates[0])
 }
+
+// ReadFile returns the start of a file in a snapshot: at most
+// service.MaxFileText bytes, and no text for a binary file.
+func (e *Engine) ReadFile(ctx context.Context, req service.FileRequest) (service.FileContent, error) {
+	var c service.FileContent
+	if req.Path == "" {
+		return c, errors.New("which file? the path is empty")
+	}
+	snaps, err := e.main.Snapshots(ctx)
+	if err != nil {
+		return c, fmt.Errorf("list snapshots: %w", err)
+	}
+	snap, err := e.resolve(snaps, cmp.Or(req.Snapshot, "latest"))
+	if err != nil {
+		return c, err
+	}
+	c.Snapshot, c.Path = snap.ID, path.Join("/", filepath.ToSlash(req.Path))
+
+	// restic stops when the writer is full: the rest of the file is not needed
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	w := &capWriter{max: service.MaxFileText, full: cancel}
+	if err := e.main.Peek(ctx, snap.ID, c.Path, w); err != nil && !w.truncated {
+		return c, err
+	}
+	data := w.buf
+	c.Truncated = w.truncated
+	text := data
+	if c.Truncated { // the cut may have split a character
+		for i := 0; i < utf8.UTFMax && len(text) > 0 && !utf8.Valid(text); i++ {
+			text = text[:len(text)-1]
+		}
+	}
+	if bytes.IndexByte(data, 0) >= 0 || !utf8.Valid(text) {
+		c.Binary = true
+		return c, nil
+	}
+	c.Text = string(text)
+	return c, nil
+}
+
+// capWriter keeps the first max bytes written to it and calls full when
+// more come.
+type capWriter struct {
+	max       int
+	buf       []byte
+	truncated bool
+	full      func()
+}
+
+func (w *capWriter) Write(p []byte) (int, error) {
+	if room := w.max - len(w.buf); len(p) > room {
+		w.buf = append(w.buf, p[:room]...)
+		w.truncated = true
+		w.full()
+		return room, errFull
+	}
+	w.buf = append(w.buf, p...)
+	return len(p), nil
+}
+
+var errFull = errors.New("enough of the file was read")
 
 // listDir reads the entries of dir into list. It reports whether the snapshot
 // has dir at all.
