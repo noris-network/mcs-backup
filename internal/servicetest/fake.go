@@ -40,6 +40,8 @@ type Fake struct {
 	StartBackupFn      func(ctx context.Context, req service.BackupRequest) (service.Operation, error)
 	StartRestoreFn     func(ctx context.Context, req service.RestoreRequest) (service.Operation, error)
 	StartVerifyFn      func(ctx context.Context, req service.VerifyRequest) (service.Operation, error)
+	StartPruneFn       func(ctx context.Context) (service.Operation, error)
+	StartCheckFn       func(ctx context.Context) (service.Operation, error)
 	ApproveForgetFn    func(ctx context.Context, confirm string) (service.Operation, error)
 	CancelFn           func(ctx context.Context) error
 	KeepFn             func(ctx context.Context, ref string) (service.TagResult, error)
@@ -200,6 +202,22 @@ func (f *Fake) StartVerify(ctx context.Context, req service.VerifyRequest) (serv
 		return f.StartVerifyFn(ctx, req)
 	}
 	return service.Operation{ID: "op1", Kind: service.KindVerify}, nil
+}
+
+func (f *Fake) StartPrune(ctx context.Context) (service.Operation, error) {
+	f.record(ctx, "StartPrune")
+	if f.StartPruneFn != nil {
+		return f.StartPruneFn(ctx)
+	}
+	return service.Operation{ID: "op1", Kind: service.KindPrune}, nil
+}
+
+func (f *Fake) StartCheck(ctx context.Context) (service.Operation, error) {
+	f.record(ctx, "StartCheck")
+	if f.StartCheckFn != nil {
+		return f.StartCheckFn(ctx)
+	}
+	return service.Operation{ID: "op1", Kind: service.KindCheck}, nil
 }
 
 func (f *Fake) ApproveForget(ctx context.Context, confirm string) (service.Operation, error) {

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"iter"
 	"net"
@@ -153,6 +154,18 @@ func TestRoundTrips(t *testing.T) {
 
 	if _, err := c.StartVerify(ctx, service.VerifyRequest{Mode: "full"}); err != nil || fake.CallsTo("StartVerify")[0].Args[0] != (service.VerifyRequest{Mode: "full"}) {
 		t.Errorf("StartVerify: %v %v", err, fake.CallsTo("StartVerify"))
+	}
+	if op, err := c.StartPrune(ctx); err != nil || op.Kind != service.KindPrune || len(fake.CallsTo("StartPrune")) != 1 {
+		t.Errorf("StartPrune: %+v %v", op, err)
+	}
+	if op, err := c.StartCheck(ctx); err != nil || op.Kind != service.KindCheck || len(fake.CallsTo("StartCheck")) != 1 {
+		t.Errorf("StartCheck: %+v %v", op, err)
+	}
+	fake.StartPruneFn = func(context.Context) (service.Operation, error) {
+		return service.Operation{}, fmt.Errorf("%w: prune removes data", service.ErrAppendOnly)
+	}
+	if _, err := c.StartPrune(ctx); !errors.Is(err, service.ErrAppendOnly) {
+		t.Errorf("StartPrune on an append-only repository: %v", err)
 	}
 	if _, err := c.ApproveForget(ctx, "forget"); err != nil || fake.CallsTo("ApproveForget")[0].Args[0] != "forget" {
 		t.Errorf("ApproveForget: %v", err)

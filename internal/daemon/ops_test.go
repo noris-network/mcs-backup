@@ -385,9 +385,43 @@ func TestAppendOnlyRefusesDestructiveActions(t *testing.T) {
 		if _, err := d.ApproveForget(ctx, service.ConfirmForget); !errors.Is(err, service.ErrAppendOnly) {
 			t.Errorf("ApproveForget: %v", err)
 		}
-		if d.eng.called("unlock-all") != 0 || d.eng.called("approve") != 0 {
+		if _, err := d.StartPrune(ctx); !errors.Is(err, service.ErrAppendOnly) {
+			t.Errorf("StartPrune: %v", err)
+		}
+		if d.eng.called("unlock-all") != 0 || d.eng.called("approve") != 0 || d.eng.called("prune") != 0 {
 			t.Error("the engine was called")
 		}
+		// a check changes nothing
+		if _, err := d.StartCheck(ctx); err != nil {
+			t.Errorf("StartCheck: %v", err)
+		}
+		synctest.Wait()
+	})
+}
+
+func TestPruneAndCheckByHand(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		d := newTestDaemon(t, nil)
+		ctx, stop := start(t, d)
+		synctest.Wait()
+		for _, tc := range []struct {
+			start func(context.Context) (service.Operation, error)
+			kind  service.Kind
+		}{{d.StartPrune, service.KindPrune}, {d.StartCheck, service.KindCheck}} {
+			op, err := tc.start(service.WithSource(ctx, "tui"))
+			if err != nil || op.Kind != tc.kind || op.Source != "tui" {
+				t.Fatalf("start %s = %+v, %v", tc.kind, op, err)
+			}
+			synctest.Wait()
+			st, _ := d.Status(ctx)
+			if r := st.LastRuns[tc.kind]; r.Result != service.ResultSuccess || r.Message != string(tc.kind)+" finished" {
+				t.Errorf("%s: last run = %+v", tc.kind, r)
+			}
+			if d.eng.called(string(tc.kind)) != 1 {
+				t.Errorf("%s: the engine was called %d times", tc.kind, d.eng.called(string(tc.kind)))
+			}
+		}
+		stop()
 	})
 }
 

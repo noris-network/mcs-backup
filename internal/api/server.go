@@ -84,6 +84,12 @@ func NewHandler(svc service.Service, log *slog.Logger) http.Handler {
 	mux.HandleFunc("POST /v1/verify", accepted(s, func(r *http.Request, req service.VerifyRequest) (service.Operation, error) {
 		return s.svc.StartVerify(r.Context(), req)
 	}))
+	mux.HandleFunc("POST /v1/prune", accepted(s, func(r *http.Request, _ struct{}) (service.Operation, error) {
+		return s.svc.StartPrune(r.Context())
+	}))
+	mux.HandleFunc("POST /v1/check", accepted(s, func(r *http.Request, _ struct{}) (service.Operation, error) {
+		return s.svc.StartCheck(r.Context())
+	}))
 	mux.HandleFunc("POST /v1/retention/approve", accepted(s, func(r *http.Request, req confirmBody) (service.Operation, error) {
 		return s.svc.ApproveForget(r.Context(), req.Confirm)
 	}))

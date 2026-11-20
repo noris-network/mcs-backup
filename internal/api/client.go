@@ -262,6 +262,16 @@ func (c *Client) StartVerify(ctx context.Context, req service.VerifyRequest) (se
 	return post[service.Operation](ctx, c, "/v1/verify", req)
 }
 
+// StartPrune implements service.Service.
+func (c *Client) StartPrune(ctx context.Context) (service.Operation, error) {
+	return post[service.Operation](ctx, c, "/v1/prune", nil)
+}
+
+// StartCheck implements service.Service.
+func (c *Client) StartCheck(ctx context.Context) (service.Operation, error) {
+	return post[service.Operation](ctx, c, "/v1/check", nil)
+}
+
 // ApproveForget implements service.Service.
 func (c *Client) ApproveForget(ctx context.Context, confirm string) (service.Operation, error) {
 	return post[service.Operation](ctx, c, "/v1/retention/approve", confirmBody{Confirm: confirm})

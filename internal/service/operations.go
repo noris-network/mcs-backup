@@ -482,12 +482,17 @@ type Service interface {
 	// Env returns the restic environment; secrets are masked unless reveal is set.
 	Env(ctx context.Context, reveal bool) (EnvInfo, error)
 
-	// StartBackup, StartRestore, StartVerify and ApproveForget start an
-	// operation in the background and return at once. ErrBusy is returned
-	// while another operation runs.
+	// StartBackup, StartRestore, StartVerify, StartPrune, StartCheck and
+	// ApproveForget start an operation in the background and return at once.
+	// ErrBusy is returned while another operation runs.
 	StartBackup(ctx context.Context, req BackupRequest) (Operation, error)
 	StartRestore(ctx context.Context, req RestoreRequest) (Operation, error)
 	StartVerify(ctx context.Context, req VerifyRequest) (Operation, error)
+	// StartPrune removes the data that no snapshot needs any more, from every
+	// repository that is not append-only (ErrAppendOnly if none is).
+	StartPrune(ctx context.Context) (Operation, error)
+	// StartCheck checks the structure of the repositories.
+	StartCheck(ctx context.Context) (Operation, error)
 	// ApproveForget runs the forget that the retention guard held back.
 	ApproveForget(ctx context.Context, confirm string) (Operation, error)
 	// Cancel stops the running operation and discards a pending retry.

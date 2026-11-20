@@ -227,6 +227,19 @@ func (d *Daemon) StartVerify(ctx context.Context, req service.VerifyRequest) (se
 	})
 }
 
+// StartPrune implements service.Service.
+func (d *Daemon) StartPrune(ctx context.Context) (service.Operation, error) {
+	if d.cfg.AppendOnly && (d.cfg.Copy == nil || d.cfg.Copy.AppendOnly) {
+		return service.Operation{}, fmt.Errorf("%w: prune removes data", service.ErrAppendOnly)
+	}
+	return d.startPrune(ctx)
+}
+
+// StartCheck implements service.Service.
+func (d *Daemon) StartCheck(ctx context.Context) (service.Operation, error) {
+	return d.startCheck(ctx)
+}
+
 func (d *Daemon) startPrune(ctx context.Context) (service.Operation, error) {
 	return d.launch(ctx, service.KindPrune, "", func(ctx context.Context, sink engine.Sink) outcome {
 		res := d.eng.Prune(ctx, sink)
