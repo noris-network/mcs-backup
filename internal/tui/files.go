@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path"
 	"slices"
+	"strconv"
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
@@ -205,9 +206,14 @@ func (d *filesDialog) view(width, height int) string {
 			head.WriteString("Nothing found.\n")
 		}
 		n = len(d.found.Versions)
+		// the counts have one width, so that the sizes stand under each other
+		cw := 1
+		for _, v := range d.found.Versions {
+			cw = max(cw, len(strconv.Itoa(v.Snapshots)))
+		}
 		entry = func(i int) string {
 			v := d.found.Versions[i]
-			in := fmt.Sprintf("%s  in %d, newest %s", fileSize(v.File), v.Snapshots, present.Short(v.Newest.ID))
+			in := fmt.Sprintf("%s  in %*d, newest %s", fileSize(v.File), cw, v.Snapshots, present.Short(v.Newest.ID))
 			if w-lipgloss.Width(in) > 60 { // the path comes first: the time only where it has room
 				in += " " + present.Stamp(v.Newest.Time)
 			}

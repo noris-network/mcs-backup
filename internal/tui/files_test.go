@@ -108,6 +108,30 @@ func TestFindAFileInAllSnapshots(t *testing.T) {
 	if r.m.dlg != nil {
 		t.Error("esc does not close the file browser")
 	}
+
+	// the sizes stand under each other, also with counts of two widths
+	r.fake.FindFn = func(context.Context, service.FindRequest) (service.FindResult, error) {
+		return service.FindResult{Searched: 12, Versions: []service.FileVersion{
+			{Path: "/a.jpg", Type: "file", Size: 7 << 20, Mtime: t0, Newest: newest, Oldest: newest, Snapshots: 11},
+			{Path: "/b.jpg", Type: "file", Size: 20 << 20, Mtime: t0, Newest: newest, Oldest: newest, Snapshots: 9},
+		}}, nil
+	}
+	r.press("2", "o", "/")
+	r.typeText("*.jpg")
+	r.press("enter")
+	end := func(text string) int {
+		t.Helper()
+		for l := range strings.SplitSeq(r.screen(), "\n") {
+			if before, _, ok := strings.Cut(l, text); ok {
+				return len([]rune(before)) + len([]rune(text))
+			}
+		}
+		t.Fatalf("%q is not on the screen:\n%s", text, r.screen())
+		return 0
+	}
+	if a, b := end("7.0 MiB"), end("20.0 MiB"); a != b {
+		t.Errorf("the sizes end in columns %d and %d:\n%s", a, b, r.screen())
+	}
 }
 
 func TestFileBrowserShowsWhatIsWrong(t *testing.T) {
