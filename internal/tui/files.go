@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
@@ -32,7 +33,18 @@ type (
 		res     service.FindResult
 		err     error
 	}
+	contentMsg struct {
+		content service.FileContent
+		err     error
+	}
 )
+
+func fetchContent(ctx context.Context, svc service.Service, snapshot, file string) tea.Cmd {
+	return func() tea.Msg {
+		c, err := svc.ReadFile(ctx, service.FileRequest{Snapshot: snapshot, Path: file})
+		return contentMsg{c, err}
+	}
+}
 
 func fetchFiles(ctx context.Context, svc service.Service, snapshot, dir string) tea.Cmd {
 	return func() tea.Msg {
@@ -67,6 +79,11 @@ type filesDialog struct {
 
 	searching bool // the pattern is being typed
 	input     textinput.Model
+
+	// content is the file that is shown instead of the list, top and lines
+	// scroll it
+	content    *service.FileContent
+	top, lines int
 }
 
 // openFiles opens the file browser at the top of a snapshot.
@@ -130,6 +147,20 @@ func (m *Model) gotFind(msg findMsg) {
 	d.found, d.pattern, d.cursor, d.err = &msg.res, msg.pattern, 0, ""
 }
 
+// gotContent shows a file that was read.
+func (m *Model) gotContent(msg contentMsg) {
+	d, ok := m.dlg.(*filesDialog)
+	if !ok {
+		return
+	}
+	d.busy = ""
+	if msg.err != nil {
+		d.err = describe(msg.err)
+		return
+	}
+	d.content, d.top, d.err = &msg.content, 0, ""
+}
+
 func (d *filesDialog) rows() int {
 	if d.found != nil {
 		return len(d.found.Versions)
@@ -161,6 +192,18 @@ func (d *filesDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 	s := k.String()
 	if s == "ctrl+c" {
 		return nil, true
+	}
+	if d.content != nil {
+		switch s {
+		case "esc", "q", "left", "h", "backspace":
+			d.content = nil // back to the list
+		case "r":
+			m.dlg = newRestoreDialogFor(present.Short(d.content.Snapshot), d.content.Path, m.pipeMode())
+			return nil, true
+		default:
+			scrollKey(s, &d.top, d.lines)
+		}
+		return nil, false
 	}
 	if d.searching {
 		switch s {
@@ -205,6 +248,9 @@ func (d *filesDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 			return d.open(m, snap, path.Dir(f.Path)), false
 		case f.Type == "dir":
 			return d.open(m, snap, f.Path), false
+		case f.Type == "file":
+			d.wait("reading " + f.Path)
+			return fetchContent(m.ctx, m.svc, snap, f.Path), false
 		}
 	case "left", "h", "backspace":
 		if d.found == nil && d.list != nil && d.list.Path != "/" {
@@ -222,6 +268,9 @@ func (d *filesDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 
 func (d *filesDialog) view(width, height int) string {
 	w := listText(width)
+	if d.content != nil {
+		return d.contentView(width, height)
+	}
 	// above and below the entries: they get the room that is left
 	var head, tail strings.Builder
 	title := "Files"
@@ -294,6 +343,56 @@ func (d *filesDialog) view(width, height int) string {
 		hint = fmt.Sprintf("%d of %d · ", d.cursor+1, n) + hint
 	}
 	return listBox(title, b.String(), hint, width)
+}
+
+// contentView shows the file that was read, with what it is not: binary, or
+// longer than what was read.
+func (d *filesDialog) contentView(width, height int) string {
+	c, w := d.content, listText(width)
+	var shown []string
+	switch {
+	case c.Binary:
+		shown = append(shown, styleDim.Render(wrap("This is not a text file, so it is not shown here. r restores it.", w)))
+	default:
+		for l := range strings.SplitSeq(strings.TrimSuffix(c.Text, "\n"), "\n") {
+			shown = append(shown, wrapAtSpaces(printable(l), w)...)
+		}
+		if c.Truncated {
+			shown = append(shown, "", styleDim.Render(wrap(fmt.Sprintf("Only the first %s are shown. r restores the whole file.", present.Bytes(service.MaxFileText)), w)))
+		}
+	}
+	lines, pos := scroll(shown, height-boxLines, &d.top)
+	d.lines = len(lines)
+	hint := "↑↓ pgup pgdn scroll · r restore · esc back"
+	if pos != "" {
+		hint = pos + " · " + hint
+	}
+	title := truncate(c.Path, max(w-20, 20)) + " in snapshot " + present.Short(c.Snapshot)
+	return listBox(title, strings.Join(lines, "\n"), hint, width)
+}
+
+// printable makes a line of a file safe to show: a tab becomes spaces up to
+// the next stop, a control character, which could steer the terminal, a
+// replacement sign.
+func printable(line string) string {
+	var b strings.Builder
+	col := 0
+	for _, r := range line {
+		switch {
+		case r == '\t':
+			n := 4 - col%4
+			b.WriteString(strings.Repeat(" ", n))
+			col += n
+		case r == '\r': // the end of a line from Windows
+		case unicode.IsControl(r):
+			b.WriteRune('\uFFFD')
+			col++
+		default:
+			b.WriteRune(r)
+			col++
+		}
+	}
+	return b.String()
 }
 
 // row draws one entry: the name on the left, the details on the right. A

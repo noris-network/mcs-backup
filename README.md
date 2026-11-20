@@ -138,8 +138,8 @@ kubectl logs -f -n shop shop-0 -c mcs-backup                     # the log of th
 ```
 
 To bring back a single file, press `o` in the snapshots tab: it browses the
-files of the snapshot, `/` finds a file in all snapshots and `r` restores the
-selected entry. The web UI has the same on its "Files" page.
+files of the snapshot, `enter` shows a file as it is in the snapshot, `/` finds
+a file in all snapshots and `r` restores the selected entry. The web UI has the same on its "Files" page.
 
 ## Web UI
 

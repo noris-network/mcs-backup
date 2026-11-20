@@ -11,6 +11,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/noris-network/mcs-backup/v2/internal/present"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
 
@@ -39,9 +40,19 @@ func TestBrowseASnapshotAndRestoreAFile(t *testing.T) {
 		t.Errorf("request = %+v", req)
 	}
 
-	r.press("down", "enter") // a file does not open
+	// a file opens: its content is shown, safe for the terminal
+	r.fake.ReadFileFn = func(_ context.Context, req service.FileRequest) (service.FileContent, error) {
+		return service.FileContent{Snapshot: req.Snapshot, Path: req.Path, Text: "line one\n\tindented \x1b[31mred\n"}, nil
+	}
+	r.press("down", "enter")
+	r.wantScreen("/readme.txt in snapshot cccccccc", "line one", "    indented \uFFFD[31mred", "r restore · esc back")
+	if req := r.fake.CallsTo("ReadFile")[0].Args[0].(service.FileRequest); present.Short(req.Snapshot) != "cccccccc" || req.Path != "/readme.txt" {
+		t.Errorf("request = %+v", req)
+	}
+	r.press("esc") // back to the list, on the file
+	r.wantScreen("Files in snapshot cccccccc", "> readme.txt")
 	if n := len(r.fake.CallsTo("Files")); n != 1 {
-		t.Errorf("%d listings after enter on a file", n)
+		t.Errorf("%d listings after looking at a file", n)
 	}
 	r.press("up", "enter")
 	r.wantScreen("/my docs", "> a b.txt", "3.0 MiB")
@@ -63,6 +74,27 @@ func TestBrowseASnapshotAndRestoreAFile(t *testing.T) {
 	if req.Snapshot != "cccccccc" || len(req.Includes) != 1 || req.Includes[0] != "/my docs/a b.txt" {
 		t.Errorf("preflight request = %+v", req)
 	}
+}
+
+func TestLookAtAFileThatIsNoTextOrLong(t *testing.T) {
+	r := tree(healthy(newRig(t))).load()
+	content := service.FileContent{Path: "/readme.txt", Binary: true}
+	r.fake.ReadFileFn = func(_ context.Context, req service.FileRequest) (service.FileContent, error) {
+		content.Snapshot = req.Snapshot
+		return content, nil
+	}
+	r.press("2", "o", "down", "enter")
+	r.wantScreen("This is not a text file, so it is not shown here. r restores it.")
+	r.press("esc")
+	content = service.FileContent{Path: "/readme.txt", Text: strings.Repeat("a line\n", 200), Truncated: true}
+	r.press("enter")
+	r.wantScreen("1-", "of 202") // it scrolls: 200 lines and the note
+	r.press("end")
+	r.wantScreen("Only the first 256.0 KiB are shown. r restores the whole file.")
+	// r restores the file that is shown
+	r.press("r")
+	r.wantScreen("Restore", "cccccccc", "/readme.txt")
+	r.wantNoScreen("Only the first")
 }
 
 func TestFindAFileInAllSnapshots(t *testing.T) {

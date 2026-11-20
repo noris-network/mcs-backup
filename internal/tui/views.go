@@ -747,7 +747,7 @@ Move        ↑ ↓  or  j k, pgup pgdn, home end
 Backup      b  start a backup (with a note)
 Restore     in Snapshots: enter restores the selected snapshot, t the latest; p in the check shows what would change
 Retry       x  repeat a failed restore without the safety snapshot
-Files       in Snapshots: o  browse the selected snapshot, / finds a file in all
+Files       in Snapshots: o  browse the selected snapshot (enter shows a file), / finds a file in all
 Changes     in Snapshots: d  what the selected snapshot lost, gained and changed
 Cancel      c  stop the running operation or the pending retry
 Test        v  restore test: restore a sample of the latest snapshot and check it

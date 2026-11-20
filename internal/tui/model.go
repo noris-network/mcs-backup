@@ -160,6 +160,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case findMsg:
 		m.gotFind(msg)
+	case contentMsg:
+		m.gotContent(msg)
 	case pasteMsg:
 		m.dlg = &pasteDialog{title: "restic environment", intro: "These lines set up restic for this repository and contain the secrets. Select them with the mouse, copy them and paste them into a shell.", text: msg.text}
 	case linkMsg:
