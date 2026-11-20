@@ -123,7 +123,7 @@ func (s *Server) registerRead() {
 	}
 	mcp.AddTool(s.srv, &mcp.Tool{
 		Name:        "get_operation",
-		Description: "The operation that is running now, if any. With wait_seconds it waits until the operation ends (or the time is up) and then returns its result. Use it after start_backup, start_verify or a restore.",
+		Description: "The operation that is running now, if any. With wait_seconds it waits until the operation ends (or the time is up) and then returns its result. Use it after a start_* tool or a restore.",
 		Annotations: readOnly,
 	}, func(c context.Context, _ *mcp.CallToolRequest, in opIn) (*mcp.CallToolResult, any, error) {
 		return s.operation(ctx(c), time.Duration(in.WaitSeconds)*time.Second)

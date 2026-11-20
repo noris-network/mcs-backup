@@ -24,8 +24,9 @@ socket. It starts nothing on its own: connect an agent to it, for example
 What the agent may do is decided here, not by the agent:
 
   (default)            look: status, snapshots, retention, logs, locks, restore checks
-  --allow-write        also start backups and restore tests, cancel, keep snapshots,
-                       remove stale locks, pause the schedule, restore into an empty directory
+  --allow-write        also start backups, restore tests, checks and prunes, cancel, keep
+                       snapshots, remove stale locks, pause the schedule, restore into an
+                       empty directory
   --allow-destructive  also restore over live data, accept a much smaller backup, approve a
                        held forget and remove all locks (implies --allow-write)
 

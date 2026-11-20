@@ -36,7 +36,7 @@ Tools above the chosen level are not registered at all, so the agent never sees 
 | Level | Flag | Tools |
 | --- | --- | --- |
 | read | (default) | `get_status`, `list_snapshots`, `get_retention`, `get_restore_preflight`, `get_operation` (with `wait_seconds`), `get_log`, `list_locks`, `list_files`, `find_files`, `get_snapshot_diff`, `get_restic_env` (names only) |
-| write | `--allow-write` | `start_backup`, `start_verify`, `cancel_operation`, `keep_snapshot`, `unkeep_snapshot`, `unlock_stale_locks`, `set_schedule` (enable, disable, maintenance), `test_notification`, `restore_to_directory` (new or empty directories only) |
+| write | `--allow-write` | `start_backup`, `start_verify`, `start_check`, `start_prune`, `cancel_operation`, `keep_snapshot`, `unkeep_snapshot`, `unlock_stale_locks`, `set_schedule` (enable, disable, maintenance), `test_notification`, `restore_to_directory` (new or empty directories only) |
 | destructive | `--allow-destructive` (implies write) | `restore_overwrite` (live data or non-empty directories), `acknowledge_snapshot`, `approve_forget`, `unlock_all_locks` |
 
 With an [append-only](append-only.md) repository the tools that change tags

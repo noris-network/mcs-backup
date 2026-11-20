@@ -92,7 +92,7 @@ func (a *agent) call(name string, args map[string]any) (string, bool) {
 
 var (
 	readTools        = []string{"find_files", "get_log", "get_operation", "get_restic_env", "get_restore_preflight", "get_retention", "get_snapshot_diff", "get_status", "list_files", "list_locks", "list_snapshots"}
-	writeTools       = []string{"cancel_operation", "keep_snapshot", "restore_to_directory", "set_schedule", "start_backup", "start_verify", "test_notification", "unkeep_snapshot", "unlock_stale_locks"}
+	writeTools       = []string{"cancel_operation", "keep_snapshot", "restore_to_directory", "set_schedule", "start_backup", "start_check", "start_prune", "start_verify", "test_notification", "unkeep_snapshot", "unlock_stale_locks"}
 	destructiveTools = []string{"acknowledge_snapshot", "approve_forget", "restore_overwrite", "unlock_all_locks"}
 )
 
@@ -127,18 +127,25 @@ func TestToolsFollowTheAccessLevel(t *testing.T) {
 func TestAppendOnlyHasNoTagOrDeleteTools(t *testing.T) {
 	a := connect(t, mcpserver.Options{Destructive: true}, func(_ *servicetest.Fake, st *service.Status) { st.AppendOnly = true })
 	names := a.names()
-	for _, gone := range []string{"keep_snapshot", "unkeep_snapshot", "acknowledge_snapshot", "approve_forget", "unlock_all_locks"} {
+	for _, gone := range []string{"keep_snapshot", "unkeep_snapshot", "acknowledge_snapshot", "approve_forget", "unlock_all_locks", "start_prune"} {
 		if slices.Contains(names, gone) {
 			t.Errorf("%s is offered on an append-only repository", gone)
 		}
 	}
-	for _, kept := range []string{"start_backup", "restore_overwrite", "unlock_stale_locks", "get_status"} {
+	for _, kept := range []string{"start_backup", "start_check", "restore_overwrite", "unlock_stale_locks", "get_status"} {
 		if !slices.Contains(names, kept) {
 			t.Errorf("%s is missing", kept)
 		}
 	}
 	if !strings.Contains(a.init.Instructions, "append-only") {
 		t.Errorf("instructions do not mention append-only:\n%s", a.init.Instructions)
+	}
+	// a secondary repository that is not append-only can be pruned
+	b := connect(t, mcpserver.Options{Write: true}, func(_ *servicetest.Fake, st *service.Status) {
+		st.AppendOnly, st.Copy = true, &service.RepoStatus{Up: true}
+	})
+	if !slices.Contains(b.names(), "start_prune") {
+		t.Error("start_prune is missing although the secondary repository can be pruned")
 	}
 }
 
@@ -410,7 +417,9 @@ func TestKeepUnkeepUnlockSchedule(t *testing.T) {
 	a.call("cancel_operation", nil)
 	a.call("test_notification", nil)
 	a.call("start_verify", map[string]any{"mode": "full"})
-	for _, name := range []string{"Keep", "Unkeep", "Unlock", "Cancel", "NotifyTest", "StartVerify"} {
+	a.call("start_check", nil)
+	a.call("start_prune", nil)
+	for _, name := range []string{"Keep", "Unkeep", "Unlock", "Cancel", "NotifyTest", "StartVerify", "StartCheck", "StartPrune"} {
 		if len(a.fake.CallsTo(name)) != 1 {
 			t.Errorf("%s not called once: %v", name, a.fake)
 		}

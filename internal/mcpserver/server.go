@@ -43,8 +43,10 @@ type Server struct {
 	// appendOnly: the repository is append-only, so tools that change tags
 	// or delete are not offered.
 	appendOnly bool
-	host       string
-	srv        *mcp.Server
+	// prunable: a repository is not append-only, so prune has something to do.
+	prunable bool
+	host     string
+	srv      *mcp.Server
 }
 
 // New builds the server. It asks the service once for what it needs to decide
@@ -60,7 +62,7 @@ func New(ctx context.Context, svc service.Service, o Options) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{svc: svc, o: o, appendOnly: st.AppendOnly, host: st.Host}
+	s := &Server{svc: svc, o: o, appendOnly: st.AppendOnly, host: st.Host, prunable: !st.AppendOnly || st.Copy != nil}
 	s.srv = mcp.NewServer(&mcp.Implementation{Name: "mcs-backup", Version: o.Version}, &mcp.ServerOptions{
 		Instructions: s.instructions(st),
 		Logger:       o.Log,

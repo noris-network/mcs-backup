@@ -52,6 +52,34 @@ func (s *Server) registerWrite() {
 	})
 
 	mcp.AddTool(s.srv, &mcp.Tool{
+		Name: "start_check",
+		Description: "Start a check of the repositories: that every snapshot is complete and the index is sound (restic check). It runs on its schedule anyway. " +
+			"The repository is locked while it runs, so a scheduled backup waits. Returns at once; wait with get_operation.",
+		Annotations: additive,
+	}, func(c context.Context, _ *mcp.CallToolRequest, _ none) (*mcp.CallToolResult, any, error) {
+		op, err := s.svc.StartCheck(ctx(c))
+		if err != nil {
+			return nil, nil, explain(err)
+		}
+		return started(op)
+	})
+
+	if s.prunable {
+		mcp.AddTool(s.srv, &mcp.Tool{
+			Name: "start_prune",
+			Description: "Start a prune: removes the data that no snapshot needs any more (left by forget) from the repositories that are not append-only. It deletes no snapshot. " +
+				"It runs on its schedule anyway; start it when space has to be freed now. The repository is locked while it runs, which can take long on a big repository, so a scheduled backup waits. Returns at once; wait with get_operation.",
+			Annotations: additive,
+		}, func(c context.Context, _ *mcp.CallToolRequest, _ none) (*mcp.CallToolResult, any, error) {
+			op, err := s.svc.StartPrune(ctx(c))
+			if err != nil {
+				return nil, nil, explain(err)
+			}
+			return started(op)
+		})
+	}
+
+	mcp.AddTool(s.srv, &mcp.Tool{
 		Name:        "cancel_operation",
 		Description: "Stop the running operation and discard a pending retry. restic releases its lock first, which can take a few seconds.",
 		Annotations: additive,
