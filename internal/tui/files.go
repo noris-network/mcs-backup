@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
@@ -58,7 +59,11 @@ type filesDialog struct {
 	want     string // the entry to put the cursor on when the directory arrives
 	page     int    // entries in view at the last drawing
 	busy     string // what is being fetched
+	since    time.Time
 	err      string
+	// clock is the frame of the spinner and the time, for showing that the
+	// browser waits for restic and for how long
+	clock func() (frame int, now time.Time)
 
 	searching bool // the pattern is being typed
 	input     textinput.Model
@@ -66,8 +71,31 @@ type filesDialog struct {
 
 // openFiles opens the file browser at the top of a snapshot.
 func (m *Model) openFiles(snapshot string) tea.Cmd {
-	m.dlg = &filesDialog{snapshot: snapshot, busy: "reading snapshot " + snapshot}
+	d := &filesDialog{snapshot: snapshot, clock: func() (int, time.Time) { return m.frame, m.o.Now() }}
+	d.wait("reading snapshot " + snapshot)
+	m.dlg = d
 	return fetchFiles(m.ctx, m.svc, snapshot, "")
+}
+
+// wait notes what the browser waits for; busyLine shows it, with a spinner
+// and, after a second, for how long: listing a snapshot takes a while.
+func (d *filesDialog) wait(what string) {
+	d.busy, d.err = what, ""
+	if d.clock != nil {
+		_, d.since = d.clock()
+	}
+}
+
+func (d *filesDialog) busyLine() string {
+	if d.clock == nil {
+		return styleDim.Render(d.busy + " …")
+	}
+	frame, now := d.clock()
+	line := styleAccent.Render(spinFrames[frame%len(spinFrames)]) + " " + d.busy + " …"
+	if s := now.Sub(d.since); s >= time.Second {
+		line += styleDim.Render("  " + present.Duration(s))
+	}
+	return line
 }
 
 // gotFiles and gotFind hand what was fetched to the file browser.
@@ -125,7 +153,7 @@ func (d *filesDialog) selected() (snapshot string, f service.File, ok bool) {
 }
 
 func (d *filesDialog) open(m *Model, snapshot, dir string) tea.Cmd {
-	d.busy, d.err = "reading "+dir, ""
+	d.wait("reading " + dir)
 	return fetchFiles(m.ctx, m.svc, snapshot, dir)
 }
 
@@ -143,7 +171,7 @@ func (d *filesDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 			if d.searching = false; pattern == "" {
 				return nil, false
 			}
-			d.busy, d.err = "searching all snapshots for "+pattern, ""
+			d.wait("searching all snapshots for " + pattern)
 			return fetchFind(m.ctx, m.svc, pattern), false
 		default:
 			return typing(&d.input, k), false
@@ -199,6 +227,10 @@ func (d *filesDialog) view(width, height int) string {
 	title := "Files"
 	var entry func(i int) string
 	n := 0
+	// what the browser waits for comes first, where the eye is
+	if d.busy != "" {
+		head.WriteString(d.busyLine() + "\n\n")
+	}
 	switch {
 	case d.found != nil:
 		title = fmt.Sprintf("Files matching %s in %s", d.pattern, present.Count(d.found.Searched, "snapshot"))
@@ -239,9 +271,6 @@ func (d *filesDialog) view(width, height int) string {
 	}
 	if d.searching {
 		tail.WriteString("\nFind in all snapshots (case is ignored)\n" + field(&d.input, w) + "\n")
-	}
-	if d.busy != "" {
-		tail.WriteString("\n" + styleDim.Render(d.busy+" …") + "\n")
 	}
 	if d.err != "" {
 		tail.WriteString("\n" + styleBad.Render(wrap(d.err, w)) + "\n")

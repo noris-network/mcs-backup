@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
 
@@ -276,5 +278,31 @@ func TestListsShowWhereTheCursorIs(t *testing.T) {
 	r.press("home", "pgdown")
 	if c := r.m.cursor[tabSnapshots]; c != r.m.listRows || c < 5 {
 		t.Errorf("pgdown: cursor %d, %d rows in view", c, r.m.listRows)
+	}
+}
+
+func TestTheBrowserShowsThatItWaits(t *testing.T) {
+	frame, now := 3, t0
+	d := &filesDialog{clock: func() (int, time.Time) { return frame, now }}
+	d.wait("reading snapshot cccccccc")
+	view := ansi.Strip(d.view(100, 30))
+	lines := strings.Split(view, "\n")
+	if !strings.Contains(lines[3], spinFrames[3]+" reading snapshot cccccccc …") {
+		t.Errorf("the wait is not at the top with a spinner:\n%s", view)
+	}
+	if strings.Contains(view, "0s") {
+		t.Errorf("a wait under a second shows its time:\n%s", view)
+	}
+	// it moves, and after a while it says for how long
+	frame, now = 4, t0.Add(3*time.Second)
+	if view := ansi.Strip(d.view(100, 30)); !strings.Contains(view, spinFrames[4]+" reading snapshot cccccccc …  3s") {
+		t.Errorf("the wait does not move or tell its time:\n%s", view)
+	}
+	// with a list, the wait for the next directory stands above it
+	d.list = &service.FileList{Snapshot: snap("cccccccc", time.Hour), Path: "/docs", Files: []service.File{{Path: "/docs/a", Type: "file"}}}
+	d.wait("reading /docs/notes")
+	view = ansi.Strip(d.view(100, 30))
+	if i, j := strings.Index(view, "reading /docs/notes"), strings.Index(view, "> a"); i < 0 || j < 0 || i > j {
+		t.Errorf("the wait is not above the list:\n%s", view)
 	}
 }
