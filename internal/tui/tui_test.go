@@ -565,7 +565,7 @@ func TestForgetPreviewAndApproval(t *testing.T) {
 	r.wantScreen("ORIGIN")
 
 	r.press("1", "F")
-	r.wantScreen("Approve the held forget")
+	r.wantScreen("Approve the held forget", "would remove 2 of 3 snapshots")
 	r.m.dlg.(*confirmDialog).in.SetValue("forget")
 	r.press("enter")
 	if calls := r.fake.CallsTo("ApproveForget"); len(calls) != 1 || calls[0].Args[0] != "forget" {

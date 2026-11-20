@@ -441,7 +441,11 @@ func (m *Model) tabKey(s string) tea.Cmd {
 
 func (m *Model) overviewKey(s string) tea.Cmd {
 	if s == "F" && m.status != nil && m.status.ForgetHeld && !m.appendOnly() {
-		m.dlg = newConfirmDialog("Approve the held forget", "The retention guard held back a forget that would remove many snapshots. Review them in Snapshots, then type "+service.ConfirmForget+" to run it now.", service.ConfirmForget,
+		what := "many snapshots"
+		if r := m.retention; r != nil && r.Held {
+			what = fmt.Sprintf("%d of %d snapshots", len(r.Remove), r.Total)
+		}
+		m.dlg = newConfirmDialog("Approve the held forget", "The retention guard held back a forget that would remove "+what+". Review them in Snapshots, then type "+service.ConfirmForget+" to run it now.", service.ConfirmForget,
 			func(word string) tea.Cmd {
 				return m.start("forget", func() (service.Operation, error) { return m.svc.ApproveForget(m.ctx, word) })
 			})
