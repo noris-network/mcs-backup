@@ -49,6 +49,8 @@ func (a *app) newRootCmd() *cobra.Command {
 		a.newRestoreCmd(),
 		a.newCancelCmd(),
 		a.newVerifyCmd(),
+		a.newMaintenanceCmd("prune"),
+		a.newMaintenanceCmd("check"),
 		a.newKeepCmd("keep"),
 		a.newKeepCmd("unkeep"),
 		a.newAcknowledgeCmd(),

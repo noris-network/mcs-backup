@@ -498,6 +498,23 @@ func TestAdminCommands(t *testing.T) {
 			t.Errorf("request = %+v", req)
 		}
 	})
+	t.Run("prune and check", func(t *testing.T) {
+		c := newCLI(t)
+		c.finishing(service.KindPrune, service.ResultSuccess)
+		if code := c.run("prune"); code != 0 || len(c.fake.CallsTo("StartPrune")) != 1 {
+			t.Fatal(code, c.err())
+		}
+		c.finishing(service.KindCheck, service.ResultSuccess)
+		if code := c.run("check"); code != 0 || len(c.fake.CallsTo("StartCheck")) != 1 {
+			t.Fatal(code, c.err())
+		}
+		c.fake.StartPruneFn = func(context.Context) (service.Operation, error) {
+			return service.Operation{}, fmt.Errorf("%w: prune removes data", service.ErrAppendOnly)
+		}
+		if code := c.run("prune"); code == 0 || !strings.Contains(c.err(), "append-only") {
+			t.Errorf("prune on an append-only repository: exit %d, stderr %q", code, c.err())
+		}
+	})
 	t.Run("keep and unkeep", func(t *testing.T) {
 		c := newCLI(t)
 		if code := c.run("keep", "abcdef0123"); code != 0 || !strings.Contains(c.out(), "keep: snapshot abcdef01 is now") {

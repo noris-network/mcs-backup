@@ -424,6 +424,44 @@ func (a *app) newVerifyCmd() *cobra.Command {
 	return cmd
 }
 
+// newMaintenanceCmd starts a prune or a check, which otherwise run on their
+// schedule.
+func (a *app) newMaintenanceCmd(name string) *cobra.Command {
+	var noWait bool
+	cmd := &cobra.Command{
+		Use:   "prune",
+		Short: "Remove the data that no snapshot needs any more (otherwise runs on PRUNE_SCHEDULE)",
+		Long: `Remove the data that no snapshot needs any more from the repositories that are
+not append-only. It runs on PRUNE_SCHEDULE anyway; start it by hand to free the
+space now, after a forget for example. The repository is locked while it runs:
+backups wait until it is done.`,
+		Args: usageArgs(cobra.NoArgs),
+	}
+	if name == "check" {
+		cmd.Use = "check"
+		cmd.Short = "Check the structure of the repositories (otherwise runs on CHECK_SCHEDULE)"
+		cmd.Long = `Check the structure of the repositories: that every snapshot is complete and
+the index is sound. It runs on CHECK_SCHEDULE anyway. It reads the index and
+the trees, not all the data: the restore test (verify) shows that the data
+can be restored.`
+	}
+	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
+		svc, closeSvc := a.service(cmd)
+		defer closeSvc()
+		start := svc.StartPrune
+		if name == "check" {
+			start = svc.StartCheck
+		}
+		op, err := start(cmd.Context())
+		if err != nil {
+			return err
+		}
+		return a.waitFor(cmd.Context(), cmd, svc, op, noWait)
+	}
+	cmd.Flags().BoolVar(&noWait, "no-wait", false, "return as soon as it has started")
+	return cmd
+}
+
 func (a *app) newKeepCmd(name string) *cobra.Command {
 	short := "Protect a snapshot from forget"
 	if name == "unkeep" {

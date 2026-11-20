@@ -81,6 +81,7 @@ one.
 | `restore [<snapshot>] [--target dir] [--include path] [--merge]` | Restore. Without `--target` it replaces the data in place, asks for confirmation and takes a safety snapshot first. `--at "2026-11-08 14:00"` picks the newest regular snapshot from before that time; `--dry-run` restores nothing and shows what would be overwritten, deleted and created. |
 | `restore-if-empty` | Disaster recovery for init containers: restores only into an empty `BACKUP_ROOT`, and does not contact the repository otherwise. |
 | `verify [--full]` | The restore test. Runs weekly by default. |
+| `prune`, `check` | Free the space that no snapshot needs any more; check the structure of the repositories. They run on their schedules anyway (prune weekly, check monthly by default). |
 | `keep` / `unkeep <snapshot>` | Protect a snapshot from the retention or release it. |
 | `acknowledge <snapshot>` | Accept a backup that was flagged as suspiciously small. |
 | `forget` / `approve-forget` | Show what the retention would delete; release a held forget. |
