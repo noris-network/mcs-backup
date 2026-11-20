@@ -93,6 +93,10 @@ func TestVerifyFull(t *testing.T) {
 	if left := entries(t, base); len(left) != 0 {
 		t.Errorf("sandbox not cleaned up: %q", left)
 	}
+	// restic counts the directories with the files, and the log ends with the result
+	if !strings.Contains(r.logText(), "files and directories restored and verified") {
+		t.Errorf("log:\n%s", r.logText())
+	}
 }
 
 func TestVerifyConfiguredFullMode(t *testing.T) {
@@ -107,6 +111,9 @@ func TestVerifyFailures(t *testing.T) {
 		r, base := verifyRig(t, false)
 		r.main.On(t, "restore", resticfake.Response{Stderr: "Fatal: There were 1 errors\n", Exit: 1})
 		res := r.e.Verify(t.Context(), service.VerifyRequest{}, r.sink())
+		if !strings.Contains(r.logText(), "verify main: the restore test failed: ") {
+			t.Errorf("the log does not end with the failure:\n%s", r.logText())
+		}
 		if res.Result != service.ResultFailure || !strings.Contains(res.Error, "There were 1 errors") {
 			t.Fatalf("result = %+v", res)
 		}

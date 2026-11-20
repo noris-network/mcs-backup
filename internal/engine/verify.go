@@ -123,9 +123,17 @@ func (e *Engine) verifyRepo(ctx context.Context, repo *restic.Repo, name, mode s
 	sink.logf("verify %s: testing snapshot %s", name, short(snap.ID))
 
 	if e.cfg.PipeMode() {
-		return e.verifyPipe(ctx, repo, snap, rr, sink)
+		rr = e.verifyPipe(ctx, repo, snap, rr, sink)
+	} else {
+		rr = e.verifyFiles(ctx, repo, snap, mode, rr, sink)
 	}
-	return e.verifyFiles(ctx, repo, snap, mode, rr, sink)
+	// the log ends with what came of it, like the log of a backup
+	if rr.Error != "" {
+		sink.logf("verify %s: %s: %s", name, rr.Message, rr.Error)
+	} else {
+		sink.logf("verify %s: %s", name, rr.Message)
+	}
+	return rr
 }
 
 // verifyPipe streams the snapshot into VERIFY_SCRIPT.
@@ -250,7 +258,11 @@ func (e *Engine) verifyFiles(ctx context.Context, repo *restic.Repo, snap restic
 			return fail(err, "the verify script rejected the restored data")
 		}
 	}
-	rr.Message = fmt.Sprintf("snapshot %s: %d %s restored and verified", short(snap.ID), rr.Files, plural(rr.Files, "file"))
+	what := fmt.Sprintf("%d %s", rr.Files, plural(rr.Files, "file"))
+	if mode == VerifyFull {
+		what = restoredCount(int64(rr.Files)) // restic counts the directories as well
+	}
+	rr.Message = fmt.Sprintf("snapshot %s: %s restored and verified", short(snap.ID), what)
 	return rr
 }
 
