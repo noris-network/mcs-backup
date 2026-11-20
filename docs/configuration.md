@@ -91,8 +91,8 @@ switches the schedule off.
 | --- | --- | --- |
 | `CRON_SCHEDULE` | – (no scheduled backups) | When backups run. |
 | `CRON_SCHEDULE_FILE` | – | File with the expression, re-read when it changes. Not together with `CRON_SCHEDULE`. |
-| `PRUNE_SCHEDULE` | `0 3 * * 0` | When `prune` runs (also on the secondary repository). |
-| `CHECK_SCHEDULE` | `0 4 1 * *` | When `check` runs. |
+| `PRUNE_SCHEDULE` | `0 3 * * 0` | When `prune` runs (also on the secondary repository). `mcs-backup prune` starts one now. |
+| `CHECK_SCHEDULE` | `0 4 1 * *` | When `check` runs. `mcs-backup check` starts one now. |
 | `VERIFY_SCHEDULE` | `0 5 * * 6` | When the [restore test](#restore-test) runs. |
 | `BACKUP_CATCH_UP` | `true` | After a start, a suspend, or the end of a maintenance window: run one backup if the repository has no snapshot or the last scheduled time is newer than the last snapshot. Needs `CRON_SCHEDULE`. |
 
