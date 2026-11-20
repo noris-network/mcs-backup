@@ -141,9 +141,9 @@ mcs-backup web disable
 `MCS_BACKUP_WEB_ADDR=127.0.0.1:8484` has it on from the start. The login is
 always required, also on localhost: `mcs-backup web` fetches a **one-time link**
 that is valid for two minutes and logs the browser in with a session cookie, so
-no permanent secret ends up in a URL or a history. In a pod or over SSH the
-link is printed together with the `kubectl port-forward` command that makes the
-port reachable. Behind an ingress you can set `MCS_BACKUP_WEB_TOKEN` for
+no permanent secret ends up in a URL or a history. In a pod the link comes
+after the `kubectl port-forward` command that makes the port reachable: start
+that first, then open the link. Behind an ingress you can set `MCS_BACKUP_WEB_TOKEN` for
 HTTP Basic Auth instead.
 
 The web UI speaks plain HTTP. Outside of localhost put it behind a proxy that

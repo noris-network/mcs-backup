@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -63,20 +64,16 @@ func (a *app) browser(ctx context.Context) func(string) error {
 	return func(link string) error { return exec.CommandContext(ctx, opener, link).Run() } //nolint:gosec // the opener is fixed, the link is made by the service
 }
 
-// webHint says how to reach a web UI link from another machine.
+// webHint returns the port forward that the web UI of a pod needs before its
+// link works on the machine of the user, empty outside Kubernetes.
 func (a *app) webHint(link string) string {
 	u, err := url.Parse(link)
-	if err != nil || u.Port() == "" {
+	if err != nil || u.Port() == "" || a.getenv("KUBERNETES_SERVICE_HOST") == "" {
 		return ""
 	}
-	port := u.Port()
-	switch {
-	case a.getenv("KUBERNETES_SERVICE_HOST") != "":
-		ns, _ := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-		pod := a.getenv("HOSTNAME")
-		return fmt.Sprintf("kubectl port-forward -n %s pod/%s %s:%s", strings.TrimSpace(string(ns)), pod, port, port)
-	case a.getenv("SSH_CONNECTION") != "":
-		return fmt.Sprintf("ssh -L %s:127.0.0.1:%s <this host>", port, port)
+	cmd := "kubectl port-forward"
+	if ns, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil && strings.TrimSpace(string(ns)) != "" {
+		cmd += " -n " + strings.TrimSpace(string(ns))
 	}
-	return ""
+	return fmt.Sprintf("%s pod/%s %s:%s", cmd, cmp.Or(a.getenv("HOSTNAME"), "<pod>"), u.Port(), u.Port())
 }

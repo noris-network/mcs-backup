@@ -488,9 +488,13 @@ func (d *linkDialog) key(m *Model, k tea.KeyPressMsg) (tea.Cmd, bool) {
 // view puts the link on a line of its own, so that a triple click selects
 // exactly the link.
 func (d *linkDialog) view(_, _ int) string {
-	text := styleTitle.Render("Web UI") + "\n" + styleDim.Render("Open this link in a browser. It works once and for two minutes:") + "\n\n" + d.url + "\n"
+	text := styleTitle.Render("Web UI") + "\n"
 	if d.hint != "" {
-		text += "\n" + styleDim.Render("From another machine:") + "\n" + d.hint + "\n"
+		// in a pod the port has to be forwarded first: the link works only once it is
+		text += styleDim.Render("First forward the port, on your machine:") + "\n\n" + d.hint + "\n\n" +
+			styleDim.Render("Then open this link in a browser. It works once and for two minutes:") + "\n\n" + d.url + "\n"
+	} else {
+		text += styleDim.Render("Open this link in a browser. It works once and for two minutes:") + "\n\n" + d.url + "\n"
 	}
 	keys := "d switch the web UI off · esc close"
 	if d.canOpen {

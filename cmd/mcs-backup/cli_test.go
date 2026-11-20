@@ -22,11 +22,13 @@ var cliNow = time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
 
 // cli runs the command line against a fake service.
 type cli struct {
-	t      *testing.T
-	fake   *servicetest.Fake
-	stdin  string
-	tty    bool
-	env    []string
+	t     *testing.T
+	fake  *servicetest.Fake
+	stdin string
+	tty   bool
+	env   []string
+	// vars are what getenv finds, such as KUBERNETES_SERVICE_HOST
+	vars   map[string]string
 	stdout bytes.Buffer
 	stderr bytes.Buffer
 }
@@ -46,7 +48,7 @@ func (c *cli) runCtx(ctx context.Context, args ...string) int {
 	c.stderr.Reset()
 	a := &app{
 		stdout: &c.stdout, stderr: &c.stderr, stdin: strings.NewReader(c.stdin),
-		getenv: func(string) string { return "" }, environ: func() []string { return c.env },
+		getenv: func(k string) string { return c.vars[k] }, environ: func() []string { return c.env },
 		interactive: c.tty, dial: func(string) service.Service { return c.fake },
 		now: func() time.Time { return cliNow }, poll: 10 * time.Millisecond,
 	}

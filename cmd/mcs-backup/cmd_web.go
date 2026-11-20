@@ -17,8 +17,8 @@ func (a *app) newWebCmd() *cobra.Command {
 		Short: "Open the web UI (switches it on if needed)",
 		Long: `Switch the web UI on if it is off, get a one-time login link from the service and
 open it in the browser of this machine. In a pod, over SSH or without a graphical
-session the link is printed instead, together with the command that makes the port
-reachable from your machine.
+session the link is printed instead; in a pod after the kubectl port-forward command
+that makes the port reachable from your machine, which has to run first.
 
 The link works once and for two minutes; it logs the browser in with a session
 cookie. Nothing permanent is put into a URL. The web UI stays on until it is
@@ -54,10 +54,12 @@ the service restarts (unless MCS_BACKUP_WEB_ADDR is set).`,
 					return nil
 				}
 			}
-			fmt.Fprintf(a.stdout, "Open this link in a browser (it works once, for two minutes):\n\n  %s\n", link)
+			// in a pod the port has to be forwarded first: the link works only once it is
 			if hint := a.webHint(link); hint != "" {
-				fmt.Fprintf(a.stdout, "\nFrom your machine, first run:\n\n  %s\n", hint)
+				fmt.Fprintf(a.stdout, "First forward the port, on your machine:\n\n  %s\n\nThen open this link in a browser (it works once, for two minutes):\n\n  %s\n", hint, link)
+				return nil
 			}
+			fmt.Fprintf(a.stdout, "Open this link in a browser (it works once, for two minutes):\n\n  %s\n", link)
 			return nil
 		},
 	}

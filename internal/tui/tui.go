@@ -21,8 +21,8 @@ type Options struct {
 	// Open opens a URL in the browser of this machine; nil if that is not
 	// possible (for example in a pod).
 	Open func(url string) error
-	// Hint tells how to reach a web UI link from another machine, for
-	// example with a kubectl port-forward command; nil or empty for none.
+	// Hint is what has to run before a web UI link works, the kubectl
+	// port-forward command in a pod; nil or empty for nothing.
 	Hint func(link string) string
 }
 

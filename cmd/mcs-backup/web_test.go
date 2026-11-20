@@ -41,6 +41,29 @@ func TestWebSwitchesOnAndPrintsTheLink(t *testing.T) {
 	}
 }
 
+func TestWebInAPodNamesThePortForwardFirst(t *testing.T) {
+	c := newCLI(t)
+	c.vars = map[string]string{"KUBERNETES_SERVICE_HOST": "10.0.0.1", "HOSTNAME": "app-0"}
+	c.fake.WebUIFn = func(context.Context) (service.WebUIStatus, error) {
+		return service.WebUIStatus{Enabled: true, Addr: "127.0.0.1:8484"}, nil
+	}
+	c.fake.LoginLinkFn = func(context.Context) (string, error) { return "http://127.0.0.1:8484/login?code=abc", nil }
+	if code := c.run("web"); code != 0 {
+		t.Fatalf("exit %d: %s", code, c.err())
+	}
+	out := c.out()
+	fwd, link := strings.Index(out, "pod/app-0 8484:8484"), strings.Index(out, "http://127.0.0.1:8484/login?code=abc")
+	if fwd < 0 || link < 0 || fwd > link || !strings.HasPrefix(out, "First forward the port") || !strings.Contains(out, "Then open this link") {
+		t.Errorf("output:\n%s", out)
+	}
+
+	// elsewhere, also over SSH, the link alone
+	c.vars = map[string]string{"SSH_CONNECTION": "1.2.3.4 5 6.7.8.9 22"}
+	if code := c.run("web"); code != 0 || strings.Contains(c.out(), "forward") || strings.Contains(c.out(), "ssh") {
+		t.Errorf("exit %d, output:\n%s", code, c.out())
+	}
+}
+
 func TestWebEnableDisableStatus(t *testing.T) {
 	c := newCLI(t)
 	until := cliNow.Add(30 * time.Minute)

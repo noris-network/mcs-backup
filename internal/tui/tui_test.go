@@ -864,7 +864,11 @@ func TestWebUILoginLink(t *testing.T) {
 	if calls := r.fake.CallsTo("SetWebUI"); len(calls) != 1 || !calls[0].Args[0].(service.WebUIRequest).Enable {
 		t.Errorf("the web UI should be switched on: %v", r.fake)
 	}
-	r.wantScreen("http://127.0.0.1:8080/login?code=abc", "once and for two minutes", "kubectl port-forward")
+	r.wantScreen("First forward the port", "kubectl port-forward", "Then open this link", "http://127.0.0.1:8080/login?code=abc", "once and for two minutes")
+	// the port forward comes first: the link only works once it runs
+	if s := r.screen(); strings.Index(s, "kubectl port-forward") > strings.Index(s, "http://127.0.0.1:8080/login") {
+		t.Errorf("the link comes before the port forward:\n%s", s)
+	}
 	r.wantNoScreen("│", "╭") // no frame around the link: a triple click selects it alone
 	r.press("o")
 	if r.opened != "http://127.0.0.1:8080/login?code=abc" {
@@ -885,6 +889,12 @@ func TestWebUILoginLinkWithoutABrowser(t *testing.T) {
 	r.press("w")
 	r.wantScreen("http://127.0.0.1:8080/login?code=abc", "kubectl port-forward", "d switch the web UI off")
 	r.wantNoScreen("o open here")
+	// outside a pod there is nothing to forward
+	r.press("esc")
+	r.m.o.Hint = nil
+	r.press("w")
+	r.wantScreen("Open this link in a browser", "http://127.0.0.1:8080/login?code=abc")
+	r.wantNoScreen("forward", "kubectl")
 	r.press("o")
 	if r.m.dlg == nil {
 		t.Error("o closed the dialog")

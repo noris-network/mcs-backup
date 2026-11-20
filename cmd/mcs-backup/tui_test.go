@@ -20,8 +20,9 @@ func TestWebHint(t *testing.T) {
 		want string
 	}{
 		{"local", nil, ""},
-		{"ssh", map[string]string{"SSH_CONNECTION": "1.2.3.4 5 6.7.8.9 22"}, "ssh -L 8080:127.0.0.1:8080"},
-		{"pod", map[string]string{"KUBERNETES_SERVICE_HOST": "10.0.0.1", "HOSTNAME": "app-0"}, "kubectl port-forward -n "},
+		// over SSH the user knows how they got there; only a pod needs a hint
+		{"ssh", map[string]string{"SSH_CONNECTION": "1.2.3.4 5 6.7.8.9 22"}, ""},
+		{"pod", map[string]string{"KUBERNETES_SERVICE_HOST": "10.0.0.1", "HOSTNAME": "app-0"}, "kubectl port-forward"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			a := &app{getenv: func(k string) string { return tc.env[k] }}
@@ -29,7 +30,7 @@ func TestWebHint(t *testing.T) {
 			if !strings.Contains(got, tc.want) || (tc.want == "" && got != "") {
 				t.Errorf("webHint = %q, want it to contain %q", got, tc.want)
 			}
-			if tc.name == "pod" && !strings.Contains(got, "pod/app-0 8080:8080") {
+			if tc.name == "pod" && (!strings.HasSuffix(got, " pod/app-0 8080:8080") || strings.Contains(got, "-n  ")) {
 				t.Errorf("webHint = %q", got)
 			}
 		})
