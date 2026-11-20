@@ -38,6 +38,7 @@ func (a *app) newRootCmd() *cobra.Command {
 		a.newEnvCmd(),
 		a.newTUICmd(),
 		a.newWebCmd(),
+		a.newKcCmd(),
 		a.newMCPCmd(),
 		a.newRestoreIfEmptyCmd(),
 		a.newStatusCmd(),

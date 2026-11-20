@@ -1,15 +1,11 @@
 package main
 
 import (
-	"cmp"
 	"context"
 	"errors"
-	"fmt"
 	"net/url"
-	"os"
 	"os/exec"
 	"runtime"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -68,12 +64,12 @@ func (a *app) browser(ctx context.Context) func(string) error {
 // link works on the machine of the user, empty outside Kubernetes.
 func (a *app) webHint(link string) string {
 	u, err := url.Parse(link)
-	if err != nil || u.Port() == "" || a.getenv("KUBERNETES_SERVICE_HOST") == "" {
+	if err != nil || u.Port() == "" {
 		return ""
 	}
-	cmd := "kubectl port-forward"
-	if ns, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil && strings.TrimSpace(string(ns)) != "" {
-		cmd += " -n " + strings.TrimSpace(string(ns))
+	p, ok := a.podRef()
+	if !ok {
+		return ""
 	}
-	return fmt.Sprintf("%s pod/%s %s:%s", cmd, cmp.Or(a.getenv("HOSTNAME"), "<pod>"), u.Port(), u.Port())
+	return p.portForward(u.Port())
 }

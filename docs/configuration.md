@@ -184,6 +184,8 @@ you select; see [hooks.md](hooks.md#notifications) and the examples for
 | `MCS_BACKUP_LOG_FORMAT` | `json` | `json` or `text`. Logs go to stdout. |
 | `MCS_BACKUP_DEBUG` | `false` | Debug logging. |
 | `MCS_BACKUP_CONFIG` | – | YAML file, see above. |
+| `MCS_BACKUP_CONTAINER` | `mcs-backup` | Name of the container in the pod, for the kubectl lines of `mcs-backup kc`: Kubernetes does not tell a container its own name. |
+| `POD_NAMESPACE` | namespace of the service account | Namespace for the kubectl lines of `mcs-backup kc` and of the web UI link, e.g. from the downward API when no service account token is mounted. |
 
 `<tmp>` is `$TMPDIR` or `/tmp`. See [migration-1x.md](migration-1x.md) for
 variables of version 1 that are ignored or renamed.

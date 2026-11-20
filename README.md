@@ -91,6 +91,7 @@ one.
 | `restic …` | restic with the environment of this instance. |
 | `info`, `config check` | Check the configuration and the access to the repositories. |
 | `tui`, `web`, `mcp` | The other user interfaces, see below. |
+| `kc` | In a pod: the kubectl command lines for the TUI, the status, the web UI, MCP and the log, with namespace, pod and container filled in, to copy. |
 
 All commands accept `--json`. Exit codes: 0 ok, 1 failed, 2 usage or
 configuration error (including a missing confirmation), 3 the service is not
@@ -122,6 +123,19 @@ running operation and its progress, and everything the command line can do:
 start and cancel operations, restore with a dialog that shows the target, the
 free space and the hooks, keep snapshots, handle locks and the schedule. Press
 `?` for the keys.
+
+In Kubernetes, `kubectl exec <pod> -c mcs-backup -- mcs-backup kc` prints the
+command line that starts the TUI in that pod, and the ones for the web UI, MCP
+and the log, ready to copy:
+
+```console
+kubectl exec -it -n shop shop-0 -c mcs-backup -- mcs-backup tui  # the TUI
+kubectl exec -n shop shop-0 -c mcs-backup -- mcs-backup status   # the status
+kubectl port-forward -n shop pod/shop-0 8484:8484                # the web UI: forward the port first
+kubectl exec -n shop shop-0 -c mcs-backup -- mcs-backup web      # then get the login link
+kubectl exec -i -n shop shop-0 -c mcs-backup -- mcs-backup mcp   # an AI agent (MCP)
+kubectl logs -f -n shop shop-0 -c mcs-backup                     # the log of the service
+```
 
 To bring back a single file, press `o` in the snapshots tab: it browses the
 files of the snapshot, `/` finds a file in all snapshots and `r` restores the
