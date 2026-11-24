@@ -309,6 +309,9 @@ func TestLoadWarnings(t *testing.T) {
 		"COPY_APPEND_ONLY=true",
 		"PIPE_IN_SCRIPT="+writeScript(t, "in", 0o755),
 	))
+	if c.AutoUnlockAfter != MinAutoUnlockAfter {
+		t.Errorf("AutoUnlockAfter = %v, want it raised to %v", c.AutoUnlockAfter, MinAutoUnlockAfter)
+	}
 	for _, want := range []string{"INFLUXDB_URL", "LOKI_URL", "AUTO_UNLOCK_AFTER", "BACKUP_PRUNE_INTERVAL", "COPY_APPEND_ONLY", "PIPE_IN_SCRIPT"} {
 		if !slices.ContainsFunc(c.Warnings, func(w string) bool { return strings.Contains(w, want) }) {
 			t.Errorf("no warning mentions %s: %q", want, c.Warnings)

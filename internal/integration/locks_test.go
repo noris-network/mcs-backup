@@ -6,14 +6,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/noris-network/mcs-backup/v2/internal/config"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
 
 // lockedForget sets the scene: a frozen restic holds a lock that is never
 // renewed, and the next backup needs an exclusive lock to forget the old one.
-func lockedForget(t *testing.T, extra ...string) (*inst, service.RunResult) {
+func lockedForget(t *testing.T, unlockAfter time.Duration) (*inst, service.RunResult) {
 	t.Helper()
-	i := newInst(t, append([]string{`RETENTION_POLICY={"last":1}`}, extra...)...)
+	i := newInst(t, `RETENTION_POLICY={"last":1}`)
+	// the configuration allows no lock age the test could wait for
+	i.tweak = func(c *config.Config) { c.AutoUnlockAfter = unlockAfter }
 	i.write("a.txt", "1")
 	i.start()
 	i.mustBackup("one", false)
@@ -24,7 +27,7 @@ func lockedForget(t *testing.T, extra ...string) (*inst, service.RunResult) {
 }
 
 func TestStaleLockIsRemovedAutomatically(t *testing.T) {
-	i, res := lockedForget(t, "AUTO_UNLOCK_AFTER=2s")
+	i, res := lockedForget(t, 2*time.Second)
 	if res.Result != service.ResultSuccess {
 		t.Fatalf("result = %s (%s %s)\n%s", res.Result, res.Message, res.Error, i.log)
 	}
@@ -37,7 +40,7 @@ func TestStaleLockIsRemovedAutomatically(t *testing.T) {
 }
 
 func TestYoungLockIsLeftAlone(t *testing.T) {
-	i, res := lockedForget(t, "AUTO_UNLOCK_AFTER=10m")
+	i, res := lockedForget(t, 10*time.Minute)
 	if res.Result == service.ResultSuccess {
 		t.Fatalf("the backup claims success although it could not forget: %+v", res)
 	}
@@ -51,7 +54,7 @@ func TestYoungLockIsLeftAlone(t *testing.T) {
 }
 
 func TestWithoutAutoUnlockTheLockStays(t *testing.T) {
-	i, res := lockedForget(t)
+	i, res := lockedForget(t, 0)
 	if res.Result == service.ResultSuccess {
 		t.Fatalf("result = %s, want a warning about the forget", res.Result)
 	}

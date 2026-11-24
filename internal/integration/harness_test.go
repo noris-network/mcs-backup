@@ -78,9 +78,11 @@ type inst struct {
 	cloud []string
 
 	cfg *config.Config
-	eng *engine.Engine
-	d   *daemon.Daemon
-	log *syncBuf
+	// tweak changes the loaded configuration to what no environment can ask for
+	tweak func(*config.Config)
+	eng   *engine.Engine
+	d     *daemon.Daemon
+	log   *syncBuf
 
 	cancel context.CancelFunc
 	done   chan error
@@ -118,6 +120,9 @@ func (i *inst) start() {
 	cfg, err := config.Load(i.env)
 	if err != nil {
 		i.t.Fatalf("config: %v", err)
+	}
+	if i.tweak != nil {
+		i.tweak(cfg)
 	}
 	i.cfg = cfg
 	log := slog.New(slog.NewTextHandler(i.log, &slog.HandlerOptions{Level: slog.LevelDebug}))

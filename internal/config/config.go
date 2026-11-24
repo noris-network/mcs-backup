@@ -15,6 +15,11 @@ import (
 	"time"
 )
 
+// MinAutoUnlockAfter is the shortest AUTO_UNLOCK_AFTER: restic refreshes the
+// lock of a running process every five minutes, so a lock that is younger than
+// twice that may belong to one.
+const MinAutoUnlockAfter = 10 * time.Minute
+
 // Config is the validated runtime configuration.
 type Config struct {
 	// Repository is the main restic repository. It is empty when the
@@ -41,6 +46,7 @@ type Config struct {
 	Server   Server
 
 	// AutoUnlockAfter removes locks if all are older than this; 0 disables it.
+	// It is never below MinAutoUnlockAfter.
 	AutoUnlockAfter time.Duration
 
 	Restic        ResticArgs
@@ -283,8 +289,10 @@ func (l *loader) config() *Config {
 		ForgetMaxDelete: l.percent("FORGET_MAX_DELETE", 25),
 	}
 	c.AutoUnlockAfter = l.duration("AUTO_UNLOCK_AFTER", 0)
-	if c.AutoUnlockAfter > 0 && c.AutoUnlockAfter < 10*time.Minute {
-		l.warn("AUTO_UNLOCK_AFTER is below 10m: locks of running restic processes could be removed (restic refreshes locks every 5m)")
+	if c.AutoUnlockAfter > 0 && c.AutoUnlockAfter < MinAutoUnlockAfter {
+		l.warn(fmt.Sprintf("AUTO_UNLOCK_AFTER is %v, %v is used: a running restic refreshes its lock every 5m, a younger lock may belong to one",
+			c.AutoUnlockAfter, MinAutoUnlockAfter))
+		c.AutoUnlockAfter = MinAutoUnlockAfter
 	}
 
 	c.Verify = l.verify(c)
