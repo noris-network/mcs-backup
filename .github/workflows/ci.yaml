@@ -86,7 +86,16 @@ jobs:
 
       - name: Install restic and rest-server (macOS)
         if: runner.os == 'macOS'
-        run: brew install restic rest-server
+        env:
+          REST_SERVER_VERSION: 0.14.0
+        run: |
+          arch=$([ "${{ runner.arch }}" = ARM64 ] && echo arm64 || echo amd64)
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL "https://github.com/restic/rest-server/releases/download/v${REST_SERVER_VERSION}/rest-server_${REST_SERVER_VERSION}_darwin_${arch}.tar.gz" \
+            | tar -xzO "rest-server_${REST_SERVER_VERSION}_darwin_${arch}/rest-server" > "$RUNNER_TEMP/bin/rest-server"
+          chmod +x "$RUNNER_TEMP/bin/rest-server"
+          brew install restic
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       - name: Unit tests
         run: go test -race -count=1 ./...
