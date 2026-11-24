@@ -89,7 +89,7 @@ type filesDialog struct {
 // openFiles opens the file browser at the top of a snapshot.
 func (m *Model) openFiles(snapshot string) tea.Cmd {
 	d := &filesDialog{snapshot: snapshot, clock: func() (int, time.Time) { return m.frame, m.o.Now() }}
-	d.wait("reading snapshot " + snapshot)
+	d.wait("reading snapshot " + present.Short(snapshot))
 	m.dlg = d
 	return fetchFiles(m.ctx, m.svc, snapshot, "")
 }

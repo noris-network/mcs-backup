@@ -36,7 +36,7 @@ func TestBrowseASnapshotAndRestoreAFile(t *testing.T) {
 	r := tree(healthy(newRig(t))).load()
 	r.press("2", "o") // the files of the newest snapshot
 	r.wantScreen("Files in snapshot cccccccc", "> my docs/", "readme.txt", "2.0 KiB")
-	if req := r.fake.CallsTo("Files")[0].Args[0].(service.FilesRequest); req.Snapshot != "cccccccc" || req.Path != "" {
+	if req := r.fake.CallsTo("Files")[0].Args[0].(service.FilesRequest); present.Short(req.Snapshot) != "cccccccc" || len(req.Snapshot) != 64 || req.Path != "" {
 		t.Errorf("request = %+v", req)
 	}
 

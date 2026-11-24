@@ -490,7 +490,7 @@ func (m *Model) snapshotKey(s string) tea.Cmd {
 		})
 	case "o":
 		if ok {
-			return m.openFiles(snap.ShortID)
+			return m.openFiles(snap.ID) // the full ID spares the service a lookup
 		}
 		return m.openFiles("latest")
 	}
