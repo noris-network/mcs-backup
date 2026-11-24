@@ -233,7 +233,12 @@ func (e *Engine) verifyFiles(ctx context.Context, repo *restic.Repo, snap restic
 
 	sink.logf("restoring into %s and verifying", sandbox)
 	var sum restic.RestoreSummary
-	err = e.retryLocked(ctx, repo, e.cfg.AppendOnly, sink, func() error {
+	// the locks of the tested repository are removed the way that one allows
+	appendOnly := e.cfg.AppendOnly
+	if repo == e.second {
+		appendOnly = e.cfg.Copy.AppendOnly
+	}
+	err = e.retryLocked(ctx, repo, appendOnly, sink, func() error {
 		var err error
 		sum, err = repo.Restore(ctx, opts, func(s restic.RestoreStatus) {
 			sink.progress(service.Progress{Percent: s.PercentDone, FilesDone: s.FilesRestored, FilesTotal: s.TotalFiles, BytesDone: s.BytesRestored, BytesTotal: s.TotalBytes})
