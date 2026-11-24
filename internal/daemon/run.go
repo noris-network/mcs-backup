@@ -138,6 +138,11 @@ func (d *Daemon) finishBackup(r *running, req service.BackupRequest, attempt int
 		d.forgetHeld = true
 	case res.Forget.Ran || res.CopyForget.Ran:
 		d.forgetHeld = false
+	case worked(res.Forget, d.cfg.AppendOnly) && (!d.eng.HasSecond() || worked(res.CopyForget, d.cfg.Copy.AppendOnly)):
+		// the retention was worked out everywhere and has nothing to remove:
+		// what was held back before is no longer due, for example after
+		// snapshots were marked to be kept
+		d.forgetHeld = false
 	}
 	newlyHeld := d.forgetHeld && !wasHeld
 
@@ -167,6 +172,13 @@ func (d *Daemon) finishBackup(r *running, req service.BackupRequest, attempt int
 			Message: fmt.Sprintf("forget would remove %d of %d snapshots and is held back: approve it if that is intended", res.Forget.Removed, res.Forget.Total)})
 	}
 	d.drain()
+}
+
+// worked reports whether the retention of a repository was worked out in a
+// backup, which it is not in an append-only one, after a suspicious backup or
+// when the step failed.
+func worked(o engine.ForgetOutcome, appendOnly bool) bool {
+	return !appendOnly && o.Total > 0 && o.Error == ""
 }
 
 // notifyRun sends the notification for a final result. A run that will be

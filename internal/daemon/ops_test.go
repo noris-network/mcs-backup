@@ -237,6 +237,46 @@ func TestRunLogIsBounded(t *testing.T) {
 	}
 }
 
+func TestRetentionIsNoLongerHeldOnceNothingIsDue(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		forget := engine.ForgetOutcome{Held: true, Removed: 4, Total: 12}
+		d := newTestDaemon(t, func(f *fakeEngine) {
+			f.backup = func(context.Context, service.BackupRequest, engine.Sink) engine.BackupResult {
+				return engine.BackupResult{Result: service.ResultSuccess, Snapshot: "new1", Forget: forget}
+			}
+		})
+		ctx, stop := start(t, d)
+		synctest.Wait()
+		backup := func() service.Status {
+			t.Helper()
+			if _, err := d.StartBackup(ctx, service.BackupRequest{}); err != nil {
+				t.Fatal(err)
+			}
+			synctest.Wait()
+			st, _ := d.Status(ctx)
+			return st
+		}
+		if st := backup(); !st.ForgetHeld {
+			t.Fatalf("status = %+v", st)
+		}
+		// a backup whose retention was not worked out says nothing
+		forget = engine.ForgetOutcome{}
+		if st := backup(); !st.ForgetHeld {
+			t.Error("a backup without forget (suspicious, failed) released the held retention")
+		}
+		forget = engine.ForgetOutcome{Total: 12, Error: "repository is locked"}
+		if st := backup(); !st.ForgetHeld {
+			t.Error("a failed forget released the held retention")
+		}
+		// the snapshots were marked to be kept: nothing is due any more
+		forget = engine.ForgetOutcome{Total: 13}
+		if st := backup(); st.ForgetHeld {
+			t.Error("the retention stays held although it has nothing to remove")
+		}
+		stop()
+	})
+}
+
 func TestRetentionHeldAndApproval(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		d := newTestDaemon(t, func(f *fakeEngine) {
