@@ -38,7 +38,22 @@ func (e *Engine) RestoreNeedsConfirm(req service.RestoreRequest) bool {
 		return true
 	}
 	target, err := filepath.Abs(req.Target)
-	return err != nil || filepath.Clean(target) == filepath.Clean(e.cfg.Root)
+	return err != nil || sameDir(target, e.cfg.Root)
+}
+
+// sameDir reports whether a and b name the same directory, also when one of
+// them goes through a symbolic link: a restore into a link to BACKUP_ROOT
+// replaces the live data like one into BACKUP_ROOT itself.
+func sameDir(a, b string) bool {
+	if filepath.Clean(a) == filepath.Clean(b) {
+		return true
+	}
+	ra, err := filepath.EvalSymlinks(a)
+	if err != nil {
+		return false // it does not exist, so it is not the live data
+	}
+	rb, err := filepath.EvalSymlinks(b)
+	return err == nil && ra == rb
 }
 
 func (e *Engine) planRestore(ctx context.Context, req service.RestoreRequest) (restorePlan, error) {
@@ -60,7 +75,9 @@ func (e *Engine) planRestore(ctx context.Context, req service.RestoreRequest) (r
 			return p, err
 		}
 	}
-	p.InPlace = filepath.Clean(p.Target) == filepath.Clean(e.cfg.Root)
+	if p.InPlace = sameDir(p.Target, e.cfg.Root); p.InPlace {
+		p.Target = e.cfg.Root // one name for the live data, whatever way led to it
+	}
 
 	if p.PipeMode {
 		// the data goes into the application, not into a directory

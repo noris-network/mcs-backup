@@ -178,6 +178,29 @@ func TestRestoreNeedsConfirmation(t *testing.T) {
 	}
 }
 
+func TestRestoreThroughALinkToTheLiveDataIsInPlace(t *testing.T) {
+	r := restoreRig(t)
+	link := filepath.Join(t.TempDir(), "alias")
+	if err := os.Symlink(r.root, link); err != nil {
+		t.Fatal(err)
+	}
+	if !r.e.RestoreNeedsConfirm(service.RestoreRequest{Snapshot: "snap1", Target: link}) {
+		t.Error("a restore into a link to BACKUP_ROOT needs no confirmation")
+	}
+	p, err := r.e.RestorePreflight(t.Context(), service.RestoreRequest{Snapshot: "snap1", Target: link})
+	if err != nil || !p.InPlace || !p.SafetySnapshot || p.Target != r.root {
+		t.Errorf("preflight = %+v, %v", p, err)
+	}
+	res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "snap1", Target: link}, r.sink())
+	if res.Result != service.ResultFailure || !strings.Contains(res.Error, "confirm with") || len(r.main.CallsTo(t, "restore")) != 0 {
+		t.Errorf("result = %+v, calls %q", res, r.main.Calls(t))
+	}
+	// a directory that is not there yet is not the live data
+	if r.e.RestoreNeedsConfirm(service.RestoreRequest{Snapshot: "snap1", Target: filepath.Join(t.TempDir(), "new")}) {
+		t.Error("a new directory needs confirmation")
+	}
+}
+
 func TestRestoreSafetySnapshotFailure(t *testing.T) {
 	log := filepath.Join(t.TempDir(), "hooks.log")
 	post := script(t, `echo "post $MCS_BACKUP_RESULT" >> "$HOOKLOG"`)
