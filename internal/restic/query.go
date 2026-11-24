@@ -92,11 +92,13 @@ func (r *Repo) query(ctx context.Context, args []string, v any) error {
 // runQuery is run for a command that reads the repository. A bucket or container
 // that does not exist ends it at once with ErrStorageMissing, which is an
 // ErrRepoMissing: restic itself would retry for minutes, as it does for a network
-// error. Creating the repository with init creates the bucket as well.
+// error. Creating the repository with init creates the bucket as well. The
+// process is killed for that: a query holds no lock, so nothing is lost, and
+// restic would not end on its own.
 func (r *Repo) runQuery(ctx context.Context, args []string) ([]byte, error) {
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
-	out, err := r.run(ctx, args, runOpts{stderrLine: func(line []byte) {
+	out, err := r.run(ctx, args, runOpts{kill: storageMissing, stderrLine: func(line []byte) {
 		if storageMissing(line) {
 			cancel(ErrStorageMissing)
 		}

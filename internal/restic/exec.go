@@ -93,6 +93,11 @@ type runOpts struct {
 	stdout     io.Writer // raw stdout; captured if nil and no stdoutLine
 	stdoutLine func([]byte)
 	stderrLine func([]byte)
+	// kill is asked for every line of stderr; when it says true the process is
+	// killed at once. Output that a dead end produces must not wait for the
+	// process, which would retry for minutes or run out its grace after the
+	// interrupt. What restic has written up to then is in the tail.
+	kill func(line []byte) bool
 	// combined receives stdout and stderr (for text output commands).
 	combined io.Writer
 }
@@ -121,8 +126,15 @@ func (r *Repo) run(ctx context.Context, args []string, o runOpts) ([]byte, error
 		default:
 			cmd.Stdout = &captured
 		}
-		if o.stderrLine != nil {
-			lw := jsonLines(o.stderrLine)
+		if o.stderrLine != nil || o.kill != nil {
+			lw := jsonLines(func(line []byte) {
+				if o.kill != nil && o.kill(line) {
+					_ = cmd.Process.Kill() // idempotent: killing a dead process again is not an error
+				}
+				if o.stderrLine != nil {
+					o.stderrLine(line)
+				}
+			})
 			closers = append(closers, lw.Flush)
 			cmd.Stderr = io.MultiWriter(lw, tail)
 		} else {
