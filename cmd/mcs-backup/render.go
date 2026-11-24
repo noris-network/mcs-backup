@@ -37,7 +37,7 @@ func (a *app) renderSnapshots(snaps []service.Snapshot) {
 			files, size = strconv.FormatInt(s.Files, 10), present.Bytes(s.Bytes)
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", s.ShortID, present.Stamp(s.Time), present.Duration(a.now().Sub(s.Time)), s.Origin,
-			files, size, strings.Join(present.SnapshotFlags(s), ","), s.Note)
+			files, size, strings.Join(present.SnapshotFlags(s), ","), present.CleanName(s.Note))
 	}
 	_ = w.Flush()
 }
@@ -50,7 +50,8 @@ func (a *app) renderLocks(locks []service.Lock) {
 	w := tabwriter.NewWriter(a.stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tAGE\tEXCLUSIVE\tHOST\tUSER\tPID\tSTALE")
 	for _, l := range locks {
-		fmt.Fprintf(w, "%s\t%s\t%v\t%s\t%s\t%d\t%v\n", present.Short(l.ID), present.Duration(l.Age.Std()), l.Exclusive, l.Hostname, l.Username, l.PID, l.Stale)
+		fmt.Fprintf(w, "%s\t%s\t%v\t%s\t%s\t%d\t%v\n", present.Short(l.ID), present.Duration(l.Age.Std()), l.Exclusive,
+			present.CleanName(l.Hostname), present.CleanName(l.Username), l.PID, l.Stale)
 	}
 	_ = w.Flush()
 }

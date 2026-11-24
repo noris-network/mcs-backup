@@ -16,6 +16,7 @@ import (
 
 	"github.com/noris-network/mcs-backup/v2/internal/config"
 	"github.com/noris-network/mcs-backup/v2/internal/hooks"
+	"github.com/noris-network/mcs-backup/v2/internal/present"
 	"github.com/noris-network/mcs-backup/v2/internal/restic"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
@@ -196,7 +197,7 @@ func (e *Engine) autoUnlock(ctx context.Context, repo *restic.Repo, appendOnly b
 	for _, l := range locks {
 		if now.Sub(l.Time) < e.cfg.AutoUnlockAfter {
 			sink.logf("repository is locked by %s (pid %d), lock is only %v old: not removing it",
-				l.Hostname, l.PID, now.Sub(l.Time).Round(time.Second))
+				present.CleanName(l.Hostname), l.PID, now.Sub(l.Time).Round(time.Second))
 			return false
 		}
 	}

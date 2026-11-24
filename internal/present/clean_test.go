@@ -1,6 +1,10 @@
 package present
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/noris-network/mcs-backup/v2/internal/service"
+)
 
 func TestClean(t *testing.T) {
 	for _, tt := range []struct{ in, text, name string }{
@@ -15,5 +19,12 @@ func TestClean(t *testing.T) {
 		if got := CleanName(tt.in); got != tt.name {
 			t.Errorf("CleanName(%q) = %q, want %q", tt.in, got, tt.name)
 		}
+	}
+}
+
+func TestNoteSuffixIsClean(t *testing.T) {
+	// a note is a tag, and a tag may come from another writer of the repository
+	if got := NoteSuffix(service.Snapshot{Note: "a\x1b[2Jb\nc"}); got != ", note: a\ufffd[2Jb\ufffdc" {
+		t.Errorf("NoteSuffix = %q", got)
 	}
 }

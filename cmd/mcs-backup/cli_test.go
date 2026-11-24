@@ -619,6 +619,13 @@ func TestLocksAndLog(t *testing.T) {
 	if c.run("locks"); !strings.Contains(c.out(), "01234567") || !strings.Contains(c.out(), "pod-1") || !strings.Contains(c.out(), "true") {
 		t.Errorf("output = %q", c.out())
 	}
+	// the host and the user of a lock are what another machine wrote into the repository
+	c.fake.LocksFn = func(context.Context) ([]service.Lock, error) {
+		return []service.Lock{{ID: "0123456789ab", Hostname: "pod\x1b[2J", Username: "ro\not"}}, nil
+	}
+	if c.run("locks"); strings.ContainsAny(c.out(), "\x1b") || !strings.Contains(c.out(), "pod\ufffd[2J") || !strings.Contains(c.out(), "ro\ufffdot") {
+		t.Errorf("output = %q", c.out())
+	}
 
 	if c.run("log"); c.out() != "There is no log of a backup yet.\n" {
 		t.Errorf("output = %q", c.out())

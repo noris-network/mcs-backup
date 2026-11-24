@@ -240,12 +240,13 @@ func SnapshotFlags(s service.Snapshot) []string {
 	return f
 }
 
-// NoteSuffix returns ", note: …" for a snapshot with a note.
+// NoteSuffix returns ", note: …" for a snapshot with a note. The note is a
+// tag of the snapshot, which another writer of the repository may have set.
 func NoteSuffix(s service.Snapshot) string {
 	if s.Note == "" {
 		return ""
 	}
-	return ", note: " + s.Note
+	return ", note: " + CleanName(s.Note)
 }
 
 // PreflightRows describes what a restore would do.
