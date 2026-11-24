@@ -2,7 +2,6 @@
 package hooks
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -11,15 +10,12 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/noris-network/mcs-backup/v2/internal/lineio"
 )
 
 // killGrace is how long a script gets to react to SIGTERM before it is killed.
 const killGrace = 10 * time.Second
-
-// maxLine is the longest line of output passed on in one piece. A script that
-// prints without line breaks (a progress bar, binary data) must not fill the
-// memory: longer lines are passed on in pieces.
-const maxLine = 64 << 10
 
 // outputTail is how much of a script's output is kept for error messages.
 const outputTail = 4 << 10
@@ -97,7 +93,7 @@ func (r *Runner) Pipe(ctx context.Context, name, script string, args []string, p
 	return errors.Join(errs...)
 }
 
-func (r *Runner) command(ctx context.Context, name, script string, args, extraEnv []string) (*exec.Cmd, *tailBuffer, func()) {
+func (r *Runner) command(ctx context.Context, name, script string, args, extraEnv []string) (*exec.Cmd, *lineio.Tail, func()) {
 	cmd := exec.CommandContext(ctx, script, args...) //nolint:gosec // running the configured scripts is the purpose
 	cmd.Dir = r.Dir
 	cmd.Env = append(append([]string(nil), r.Env...), extraEnv...)
@@ -106,18 +102,17 @@ func (r *Runner) command(ctx context.Context, name, script string, args, extraEn
 	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM) }
 	cmd.WaitDelay = killGrace
 
-	tail := &tailBuffer{max: outputTail}
-	lw := &lineWriter{fn: func(line string) {
-		if r.Output != nil {
-			r.Output(name, line)
-		}
-	}}
+	tail := &lineio.Tail{Max: outputTail}
+	lw := &lineio.Writer{}
+	if r.Output != nil {
+		lw.Fn = func(line []byte) { r.Output(name, string(line)) }
+	}
 	w := io.MultiWriter(lw, tail)
 	cmd.Stdout, cmd.Stderr = w, w
-	return cmd, tail, lw.flush
+	return cmd, tail, lw.Flush
 }
 
-func (r *Runner) wrap(ctx context.Context, name string, err error, tail *tailBuffer) error {
+func (r *Runner) wrap(ctx context.Context, name string, err error, tail *lineio.Tail) error {
 	var out error
 	if ee, ok := errors.AsType[*exec.ExitError](err); ok {
 		out = &ExitError{Name: name, Code: ee.ExitCode(), Output: tail.String()}
@@ -128,48 +123,4 @@ func (r *Runner) wrap(ctx context.Context, name string, err error, tail *tailBuf
 		return errors.Join(cause, out)
 	}
 	return out
-}
-
-type tailBuffer struct {
-	max int
-	buf []byte
-}
-
-func (t *tailBuffer) Write(p []byte) (int, error) {
-	t.buf = append(t.buf, p...)
-	if len(t.buf) > t.max {
-		t.buf = t.buf[len(t.buf)-t.max:]
-	}
-	return len(p), nil
-}
-
-func (t *tailBuffer) String() string { return strings.TrimSpace(string(t.buf)) }
-
-type lineWriter struct {
-	fn  func(string)
-	buf []byte
-}
-
-func (w *lineWriter) Write(p []byte) (int, error) {
-	w.buf = append(w.buf, p...)
-	for {
-		i := bytes.IndexByte(w.buf, '\n')
-		switch {
-		case i >= 0:
-			w.fn(strings.TrimRight(string(w.buf[:i]), "\r"))
-			w.buf = w.buf[i+1:]
-		case len(w.buf) >= maxLine:
-			w.fn(string(w.buf[:maxLine]))
-			w.buf = w.buf[maxLine:]
-		default:
-			return len(p), nil
-		}
-	}
-}
-
-func (w *lineWriter) flush() {
-	if len(w.buf) > 0 {
-		w.fn(strings.TrimRight(string(w.buf), "\r"))
-		w.buf = nil
-	}
 }

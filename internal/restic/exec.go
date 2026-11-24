@@ -11,8 +11,9 @@ import (
 	"os"
 	"os/exec"
 	"slices"
-	"strings"
 	"time"
+
+	"github.com/noris-network/mcs-backup/v2/internal/lineio"
 )
 
 // interruptGrace is how long restic gets to release its lock after SIGINT
@@ -102,7 +103,7 @@ func (r *Repo) run(ctx context.Context, args []string, o runOpts) ([]byte, error
 	cmd.Stdin = o.stdin
 
 	var captured bytes.Buffer
-	tail := &tailBuffer{max: stderrTail}
+	tail := &lineio.Tail{Max: stderrTail}
 	var closers []func()
 
 	switch {
@@ -112,8 +113,8 @@ func (r *Repo) run(ctx context.Context, args []string, o runOpts) ([]byte, error
 	default:
 		switch {
 		case o.stdoutLine != nil:
-			lw := &lineWriter{fn: o.stdoutLine}
-			closers = append(closers, lw.flush)
+			lw := jsonLines(o.stdoutLine)
+			closers = append(closers, lw.Flush)
 			cmd.Stdout = lw
 		case o.stdout != nil:
 			cmd.Stdout = o.stdout
@@ -121,8 +122,8 @@ func (r *Repo) run(ctx context.Context, args []string, o runOpts) ([]byte, error
 			cmd.Stdout = &captured
 		}
 		if o.stderrLine != nil {
-			lw := &lineWriter{fn: o.stderrLine}
-			closers = append(closers, lw.flush)
+			lw := jsonLines(o.stderrLine)
+			closers = append(closers, lw.Flush)
 			cmd.Stderr = io.MultiWriter(lw, tail)
 		} else {
 			cmd.Stderr = tail
@@ -155,52 +156,12 @@ func (r *Repo) wrapError(ctx context.Context, command, stderr string, err error)
 	return out
 }
 
-// tailBuffer keeps the last max bytes written to it.
-type tailBuffer struct {
-	max int
-	buf []byte
-}
-
-func (t *tailBuffer) Write(p []byte) (int, error) {
-	t.buf = append(t.buf, p...)
-	if len(t.buf) > t.max {
-		t.buf = t.buf[len(t.buf)-t.max:]
-	}
-	return len(p), nil
-}
-
-func (t *tailBuffer) String() string { return strings.TrimSpace(string(t.buf)) }
-
-// lineWriter calls fn for every complete line written to it.
-type lineWriter struct {
-	fn  func([]byte)
-	buf []byte
-}
-
-func (w *lineWriter) Write(p []byte) (int, error) {
-	w.buf = append(w.buf, p...)
-	for {
-		i := bytes.IndexByte(w.buf, '\n')
-		var next int
-		switch {
-		case i >= 0:
-			next = i + 1
-		case len(w.buf) >= maxLine:
-			i, next = maxLine, maxLine
-		default:
-			return len(p), nil
+// jsonLines returns a writer for output that has one message per line: fn
+// receives every line that is not empty, without the white space around it.
+func jsonLines(fn func([]byte)) *lineio.Writer {
+	return &lineio.Writer{Max: maxLine, Fn: func(line []byte) {
+		if line = bytes.TrimSpace(line); len(line) > 0 {
+			fn(line)
 		}
-		if line := bytes.TrimSpace(w.buf[:i]); len(line) > 0 {
-			w.fn(line)
-		}
-		w.buf = w.buf[next:]
-	}
-}
-
-// flush handles a final line without newline.
-func (w *lineWriter) flush() {
-	if line := bytes.TrimSpace(w.buf); len(line) > 0 {
-		w.fn(line)
-	}
-	w.buf = nil
+	}}
 }

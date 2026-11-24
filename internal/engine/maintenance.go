@@ -34,7 +34,9 @@ type MaintenanceResult struct {
 // Append-only repositories are skipped.
 func (e *Engine) Prune(ctx context.Context, sink Sink) MaintenanceResult {
 	return e.maintain(ctx, e.cfg.Timeouts.Prune, "prune", sink, func(ctx context.Context, repo *restic.Repo, _ bool) error {
-		return repo.Prune(ctx, e.cfg.Restic.Prune, sink.writer())
+		out := sink.writer()
+		defer out.Flush()
+		return repo.Prune(ctx, e.cfg.Restic.Prune, out)
 	}, true)
 }
 
@@ -42,7 +44,9 @@ func (e *Engine) Prune(ctx context.Context, sink Sink) MaintenanceResult {
 // also works on append-only repositories.
 func (e *Engine) Check(ctx context.Context, sink Sink) MaintenanceResult {
 	return e.maintain(ctx, e.cfg.Timeouts.Check, "check", sink, func(ctx context.Context, repo *restic.Repo, _ bool) error {
-		return repo.Check(ctx, e.cfg.Restic.Check, sink.writer())
+		out := sink.writer()
+		defer out.Flush()
+		return repo.Check(ctx, e.cfg.Restic.Check, out)
 	}, false)
 }
 

@@ -4,19 +4,17 @@
 package engine
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"math/rand/v2"
-	"strings"
 	"time"
 
 	"github.com/noris-network/mcs-backup/v2/internal/clean"
 	"github.com/noris-network/mcs-backup/v2/internal/config"
 	"github.com/noris-network/mcs-backup/v2/internal/hooks"
+	"github.com/noris-network/mcs-backup/v2/internal/lineio"
 	"github.com/noris-network/mcs-backup/v2/internal/restic"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
@@ -113,27 +111,13 @@ func (s Sink) logf(format string, args ...any) {
 	}
 }
 
-// writer returns a writer that passes each line to the log.
-func (s Sink) writer() io.Writer { return &lineLog{fn: s.Log} }
-
-type lineLog struct {
-	fn  func(string)
-	buf []byte
-}
-
-func (w *lineLog) Write(p []byte) (int, error) {
-	if w.fn == nil {
-		return len(p), nil
+// writer returns a writer that passes each line to the log. Flush it once
+// the process that writes to it is done.
+func (s Sink) writer() *lineio.Writer {
+	if s.Log == nil {
+		return &lineio.Writer{}
 	}
-	w.buf = append(w.buf, p...)
-	for {
-		i := bytes.IndexByte(w.buf, '\n')
-		if i < 0 {
-			return len(p), nil
-		}
-		w.fn(strings.TrimRight(string(w.buf[:i]), "\r"))
-		w.buf = w.buf[i+1:]
-	}
+	return &lineio.Writer{Fn: func(line []byte) { s.Log(string(line)) }}
 }
 
 // PhaseResult is the outcome of a part of an operation.

@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/noris-network/mcs-backup/v2/internal/lineio"
 )
 
 // Version is a restic release number.
@@ -148,7 +150,7 @@ func (r *Repo) LsSnapshot(ctx context.Context, onSnapshot func(Snapshot), snapsh
 			yield(Node{}, err)
 			return
 		}
-		tail := &tailBuffer{max: stderrTail}
+		tail := &lineio.Tail{Max: stderrTail}
 		cmd.Stderr = tail
 		if err := cmd.Start(); err != nil {
 			yield(Node{}, fmt.Errorf("restic ls: %w", err))

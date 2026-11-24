@@ -144,25 +144,3 @@ func TestPipeScriptFailsEarly(t *testing.T) {
 		t.Errorf("the broken pipe is only a consequence and should not be reported: %v", err)
 	}
 }
-
-func TestOutputWithoutLineBreaksIsPassedOnInPieces(t *testing.T) {
-	var lines []string
-	w := &lineWriter{fn: func(l string) { lines = append(lines, l) }}
-	chunk := strings.Repeat("x", 1000)
-	for range 150 { // 150 000 bytes, written as a progress bar would
-		if _, err := w.Write([]byte(chunk)); err != nil {
-			t.Fatal(err)
-		}
-		if len(w.buf) > maxLine {
-			t.Fatalf("the buffer holds %d bytes", len(w.buf))
-		}
-	}
-	_, _ = w.Write([]byte("\nlast"))
-	w.flush()
-	if len(lines) != 4 || len(lines[0]) != maxLine || len(lines[1]) != maxLine || lines[3] != "last" {
-		t.Errorf("%d lines, want two full pieces, the rest and the last line", len(lines))
-	}
-	if n := len(lines[0]) + len(lines[1]) + len(lines[2]); n != 150_000 {
-		t.Errorf("%d bytes passed on, want all 150000", n)
-	}
-}

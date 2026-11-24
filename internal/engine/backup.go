@@ -338,7 +338,9 @@ func (e *Engine) copyPhase(ctx context.Context, res *BackupResult, sink Sink) {
 	pr := &PhaseResult{Result: service.ResultSuccess}
 	res.Copy = pr
 	err := e.retryLocked(ctx, e.second, e.cfg.Copy.AppendOnly, sink, func() error {
-		return e.second.Copy(ctx, e.main, restic.CopyOptions{Snapshots: []string{res.Snapshot}}, sink.writer())
+		out := sink.writer()
+		defer out.Flush()
+		return e.second.Copy(ctx, e.main, restic.CopyOptions{Snapshots: []string{res.Snapshot}}, out)
 	})
 	if err != nil {
 		pr.Result, pr.Error = classify(ctx, err), err.Error()
