@@ -2,10 +2,13 @@ package daemon
 
 import (
 	"encoding/json/v2"
+	"errors"
+	"fmt"
 	"maps"
 	"os"
 	"path/filepath"
 	"slices"
+	"syscall"
 	"time"
 
 	"github.com/noris-network/mcs-backup/v2/internal/metrics"
@@ -29,23 +32,75 @@ type persistedRuns struct {
 	Logs     map[service.Kind]persistedLog      `json:"logs"`
 }
 
+// The files of the state directory.
+const (
+	stateFile = "state.json"
+	runsFile  = "runs.json"
+)
+
 type persistedLog struct {
 	Start   time.Time `json:"start"`
 	Lines   []string  `json:"lines"`
 	Dropped int       `json:"dropped,omitzero"`
 }
 
-func (d *Daemon) stateFile() string {
-	return filepath.Join(d.cfg.Server.StateDir, "state.json")
+// statePath returns the path of a file of the state directory, or false if
+// the directory must not be used. It is looked at once: what is refused at the start stays
+// refused, however it changes later.
+func (d *Daemon) statePath(name string) (string, bool) {
+	d.stateOnce.Do(func() {
+		dir := filepath.Clean(d.cfg.Server.StateDir)
+		if err := privateDir(dir); err != nil {
+			d.log.Warn("the state directory is not used: maintenance windows and the last runs will not survive a restart;"+
+				" set MCS_BACKUP_STATE_DIR to a directory of this service", "dir", dir, "error", err)
+			return
+		}
+		d.stateOK = true
+	})
+	return filepath.Join(d.cfg.Server.StateDir, name), d.stateOK
 }
 
-func (d *Daemon) runsFile() string {
-	return filepath.Join(d.cfg.Server.StateDir, "runs.json")
+// privateDir creates dir if it is missing and reports whether state can be
+// kept in it. Where everybody may create files, in /tmp for example, somebody
+// else can make the directory first, plant a maintenance window that stops
+// the backups, or a link that makes the service overwrite another file. There
+// the directory must be a real one, belong to the service and be writable for
+// nobody else. Elsewhere who may write is the decision of the administrator:
+// a volume that belongs to a group is fine.
+func privateDir(dir string) error {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	parent, err := os.Stat(filepath.Dir(dir))
+	if err != nil {
+		return err
+	}
+	if parent.Mode().Perm()&0o002 == 0 {
+		return nil
+	}
+	fi, err := os.Lstat(dir)
+	if err != nil {
+		return err
+	}
+	if !fi.IsDir() {
+		return errors.New("it is not a directory of its own")
+	}
+	if st, ok := fi.Sys().(*syscall.Stat_t); ok && int(st.Uid) != os.Geteuid() {
+		return fmt.Errorf("it belongs to another user (uid %d)", st.Uid)
+	}
+	if fi.Mode().Perm()&0o022 != 0 {
+		return fmt.Errorf("others may write to it (mode %04o)", fi.Mode().Perm())
+	}
+	return nil
 }
 
 // loadRuns restores the last runs and their logs.
 func (d *Daemon) loadRuns() {
-	data, err := os.ReadFile(d.runsFile())
+	path, ok := d.statePath(runsFile)
+	if !ok {
+		return
+	}
+	data, err := os.ReadFile(path) //nolint:gosec // a file of the state directory
 	if err != nil {
 		if !os.IsNotExist(err) {
 			d.log.Warn("cannot read the last runs", "error", err)
@@ -71,6 +126,10 @@ func (d *Daemon) loadRuns() {
 // saveRuns writes the last runs and their logs; it is called when a run ends.
 // The texts are stored as clients see them, with the secrets hidden.
 func (d *Daemon) saveRuns() {
+	path, ok := d.statePath(runsFile)
+	if !ok {
+		return
+	}
 	d.mu.Lock()
 	p := persistedRuns{LastRuns: maps.Clone(d.lastRuns), Logs: map[service.Kind]persistedLog{}}
 	for kind, l := range d.logs {
@@ -82,7 +141,7 @@ func (d *Daemon) saveRuns() {
 	d.mu.Unlock()
 	data, err := json.Marshal(p)
 	if err == nil {
-		err = writeFile(d.runsFile(), data)
+		err = writeFile(path, data)
 	}
 	if err != nil {
 		d.log.Warn("cannot save the last runs, a restart will forget them", "error", err)
@@ -103,7 +162,11 @@ func writeFile(path string, data []byte) error {
 
 // loadState restores a maintenance window that is still open.
 func (d *Daemon) loadState() {
-	data, err := os.ReadFile(d.stateFile())
+	path, ok := d.statePath(stateFile)
+	if !ok {
+		return
+	}
+	data, err := os.ReadFile(path) //nolint:gosec // a file of the state directory
 	if err != nil {
 		if !os.IsNotExist(err) {
 			d.log.Warn("cannot read the state file", "error", err)
@@ -128,7 +191,10 @@ func (d *Daemon) loadState() {
 
 // saveState writes the persistent state, or removes the file if there is none.
 func (d *Daemon) saveState(p persisted) {
-	path := d.stateFile()
+	path, ok := d.statePath(stateFile)
+	if !ok {
+		return
+	}
 	if p.MaintenanceUntil.IsZero() {
 		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 			d.log.Warn("cannot remove the state file", "error", err)

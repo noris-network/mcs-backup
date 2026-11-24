@@ -129,6 +129,10 @@ type Daemon struct {
 	sched  *schedule.Scheduler
 	reg    *prometheus.Registry
 
+	// the state directory is examined once, see statePath
+	stateOnce sync.Once
+	stateOK   bool
+
 	// opsCtx is the parent of all operations; it ends at shutdown, after the
 	// operations were asked to stop.
 	opsCtx    context.Context
