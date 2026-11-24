@@ -94,7 +94,21 @@ type inst struct {
 func newInst(t *testing.T, extra ...string) *inst {
 	t.Helper()
 	t.Parallel() // opening a repository costs restic about half a second of key derivation
-	home := t.TempDir()
+	// macOS reaches its temporary directory through a symlink (/var to
+	// /private/var): restic reports the physical paths, so the tests must use
+	// them too, or paths and parents never match.
+	home, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// the Unix socket path is limited to 108 bytes, which the instance
+	// directories outgrow on long test names: the socket lives in its own
+	// short directory instead.
+	sockDir, err := os.MkdirTemp("", "it")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(sockDir) })
 	i := &inst{t: t, root: filepath.Join(home, "data"), repo: filepath.Join(home, "repo"), home: home, log: &syncBuf{}}
 	if err := os.MkdirAll(i.root, 0o755); err != nil {
 		t.Fatal(err)
@@ -104,7 +118,7 @@ func newInst(t *testing.T, extra ...string) *inst {
 		"RESTIC_REPOSITORY=" + i.repo, "RESTIC_PASSWORD=it-password", "RESTIC_CACHE_DIR=" + filepath.Join(home, "cache"),
 		"BACKUP_ROOT=" + i.root, "MCS_BACKUP_RESTIC=" + resticBin,
 		`RETENTION_POLICY={"last":10}`,
-		"MCS_BACKUP_STATE_DIR=" + filepath.Join(home, "state"), "MCS_BACKUP_SOCKET=" + filepath.Join(home, "s.sock"),
+		"MCS_BACKUP_STATE_DIR=" + filepath.Join(home, "state"), "MCS_BACKUP_SOCKET=" + filepath.Join(sockDir, "s.sock"),
 		"PRUNE_SCHEDULE=", "CHECK_SCHEDULE=", "VERIFY_SCHEDULE=",
 		"VERIFY_DIR=" + filepath.Join(home, "verify"),
 	}, extra...)
