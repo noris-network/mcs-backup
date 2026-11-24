@@ -131,6 +131,12 @@ func (r *Repo) Locks(ctx context.Context) ([]Lock, error) {
 // Ls streams the nodes of a snapshot, optionally restricted to paths. The
 // restic process ends when the loop stops early.
 func (r *Repo) Ls(ctx context.Context, snapshot string, paths ...string) iter.Seq2[Node, error] {
+	return r.LsSnapshot(ctx, nil, snapshot, paths...)
+}
+
+// LsSnapshot is Ls that also hands the snapshot to onSnapshot, which restic
+// describes on the first line: that saves asking for the list of snapshots.
+func (r *Repo) LsSnapshot(ctx context.Context, onSnapshot func(Snapshot), snapshot string, paths ...string) iter.Seq2[Node, error] {
 	return func(yield func(Node, error) bool) {
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
@@ -153,6 +159,9 @@ func (r *Repo) Ls(ctx context.Context, snapshot string, paths ...string) iter.Se
 		rd := bufio.NewReader(stdout)
 		for !stopped {
 			line, readErr := rd.ReadBytes('\n')
+			if s, ok := parseSnapshotLine(line); ok && onSnapshot != nil {
+				onSnapshot(s)
+			}
 			if node, ok := parseNode(line); ok && !yield(node, nil) {
 				stopped = true
 			}
@@ -186,6 +195,23 @@ func parseNode(line []byte) (Node, bool) {
 		return Node{}, false
 	}
 	return n.Node, true
+}
+
+// parseSnapshotLine decodes the first line of `restic ls --json`, which
+// describes the snapshot.
+func parseSnapshotLine(line []byte) (Snapshot, bool) {
+	var s struct {
+		Snapshot
+		MessageType string `json:"message_type"`
+		StructType  string `json:"struct_type"`
+	}
+	if len(strings.TrimSpace(string(line))) == 0 || json.Unmarshal(line, &s) != nil {
+		return Snapshot{}, false
+	}
+	if (s.MessageType != "snapshot" && s.StructType != "snapshot") || s.ID == "" {
+		return Snapshot{}, false
+	}
+	return s.Snapshot, true
 }
 
 // findOutputMax bounds the output of `restic find` that is read: restic prints

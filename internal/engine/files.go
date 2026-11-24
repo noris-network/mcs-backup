@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/noris-network/mcs-backup/v2/internal/restic"
@@ -32,19 +33,26 @@ const (
 // root in front: both ways of naming a file work.
 func (e *Engine) Files(ctx context.Context, req service.FilesRequest) (service.FileList, error) {
 	var list service.FileList
-	snaps, err := e.main.Snapshots(ctx)
-	if err != nil {
-		return list, fmt.Errorf("list snapshots: %w", err)
-	}
-	snap, err := e.resolve(snaps, cmp.Or(req.Snapshot, "latest"))
-	if err != nil {
-		return list, err
+	// a browser goes on with the full ID: restic describes the snapshot when
+	// it lists it, which saves asking for all snapshots every time
+	snap := restic.Snapshot{ID: req.Snapshot}
+	var described func(restic.Snapshot)
+	if fullID(req.Snapshot) {
+		described = func(s restic.Snapshot) { list.Snapshot = service.FromRestic(s) }
+	} else {
+		snaps, err := e.main.Snapshots(ctx)
+		if err != nil {
+			return list, fmt.Errorf("list snapshots: %w", err)
+		}
+		if snap, err = e.resolve(snaps, cmp.Or(req.Snapshot, "latest")); err != nil {
+			return list, err
+		}
 	}
 	list.Snapshot = service.FromRestic(snap)
 
 	candidates := e.pathsInSnapshot(req.Path)
 	for _, p := range candidates {
-		found, err := e.listDir(ctx, snap.ID, p, &list)
+		found, err := e.listDir(ctx, snap.ID, p, &list, described)
 		if err != nil {
 			return list, err
 		}
@@ -63,13 +71,15 @@ func (e *Engine) ReadFile(ctx context.Context, req service.FileRequest) (service
 	if req.Path == "" {
 		return c, errors.New("which file? the path is empty")
 	}
-	snaps, err := e.main.Snapshots(ctx)
-	if err != nil {
-		return c, fmt.Errorf("list snapshots: %w", err)
-	}
-	snap, err := e.resolve(snaps, cmp.Or(req.Snapshot, "latest"))
-	if err != nil {
-		return c, err
+	snap := restic.Snapshot{ID: req.Snapshot}
+	if !fullID(req.Snapshot) {
+		snaps, err := e.main.Snapshots(ctx)
+		if err != nil {
+			return c, fmt.Errorf("list snapshots: %w", err)
+		}
+		if snap, err = e.resolve(snaps, cmp.Or(req.Snapshot, "latest")); err != nil {
+			return c, err
+		}
 	}
 	c.Snapshot, c.Path = snap.ID, path.Join("/", filepath.ToSlash(req.Path))
 
@@ -96,6 +106,15 @@ func (e *Engine) ReadFile(ctx context.Context, req service.FileRequest) (service
 	return c, nil
 }
 
+// fullID reports whether ref is the full ID of a snapshot, which needs no
+// lookup in the list of snapshots.
+func fullID(ref string) bool {
+	if len(ref) != 64 {
+		return false
+	}
+	return strings.Trim(ref, "0123456789abcdef") == ""
+}
+
 // capWriter keeps the first max bytes written to it and calls full when
 // more come.
 type capWriter struct {
@@ -119,9 +138,9 @@ func (w *capWriter) Write(p []byte) (int, error) {
 var errFull = errors.New("enough of the file was read")
 
 // listDir reads the entries of dir into list. It reports whether the snapshot
-// has dir at all.
-func (e *Engine) listDir(ctx context.Context, snapshot, dir string, list *service.FileList) (found bool, err error) {
-	for n, err := range e.main.Ls(ctx, snapshot, dir) {
+// has dir at all. described, if set, gets the snapshot as restic describes it.
+func (e *Engine) listDir(ctx context.Context, snapshot, dir string, list *service.FileList, described func(restic.Snapshot)) (found bool, err error) {
+	for n, err := range e.main.LsSnapshot(ctx, described, snapshot, dir) {
 		if err != nil {
 			return found, err
 		}

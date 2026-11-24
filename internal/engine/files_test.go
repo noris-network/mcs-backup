@@ -195,3 +195,23 @@ func TestReadFile(t *testing.T) {
 		}
 	})
 }
+
+func TestAFullIDNeedsNoListOfSnapshots(t *testing.T) {
+	r := restoreRig(t)
+	id := strings.Repeat("ab", 32)
+	r.main.On(t, "ls", resticfake.Response{Stdout: `{"message_type":"snapshot","struct_type":"snapshot","id":"` + id + `","short_id":"abababab","time":"2026-11-11T16:35:00Z","paths":["/data"],"tags":["mcs-backup","manual","keep"]}` + "\n" +
+		`{"message_type":"node","struct_type":"node","name":"a.txt","type":"file","path":"/docs/a.txt","size":3}` + "\n"})
+	r.main.On(t, "dump", resticfake.Response{Stdout: "abc"})
+	calls := len(r.main.CallsTo(t, "snapshots"))
+
+	list, err := r.e.Files(t.Context(), service.FilesRequest{Snapshot: id, Path: "/docs"})
+	if err != nil || list.Snapshot.ID != id || list.Snapshot.ShortID != "abababab" || !list.Snapshot.Keep || list.Snapshot.Origin != service.OriginManual || len(list.Files) != 1 {
+		t.Fatalf("Files() = %+v, %v", list, err)
+	}
+	if c, err := r.e.ReadFile(t.Context(), service.FileRequest{Snapshot: id, Path: "/docs/a.txt"}); err != nil || c.Text != "abc" || c.Snapshot != id {
+		t.Fatalf("ReadFile() = %+v, %v", c, err)
+	}
+	if n := len(r.main.CallsTo(t, "snapshots")); n != calls {
+		t.Errorf("the snapshots were listed %d times for a full ID", n-calls)
+	}
+}

@@ -489,6 +489,17 @@ func TestLs(t *testing.T) {
 		t.Errorf("args = %q", got)
 	}
 
+	// the first line describes the snapshot
+	var snap Snapshot
+	for _, err := range r.LsSnapshot(t.Context(), func(s Snapshot) { snap = s }, "abc", "/a") {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if snap.ID == "" || snap.ShortID != snap.ID[:8] || snap.Time.IsZero() || !snap.HasTag("mcs-backup") {
+		t.Errorf("snapshot = %+v", snap)
+	}
+
 	// stopping early is not an error
 	count := 0
 	for _, err := range r.Ls(t.Context(), "abc") {
