@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/noris-network/mcs-backup/v2/internal/present"
+	"github.com/noris-network/mcs-backup/v2/internal/clean"
 )
 
 // Mask replaces a secret.
@@ -94,7 +94,7 @@ func New(environ []string) *Redactor {
 
 // String returns s with the secrets replaced and without control characters
 // other than line breaks and tabs.
-func (r *Redactor) String(s string) string { return present.Clean(r.r.Replace(s)) }
+func (r *Redactor) String(s string) string { return clean.Text(r.r.Replace(s)) }
 
 // Error returns err with the secrets in its message replaced. errors.Is and
 // errors.As still see the original error, so only its message must be shown.

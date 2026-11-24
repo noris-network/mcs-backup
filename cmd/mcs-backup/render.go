@@ -7,6 +7,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/noris-network/mcs-backup/v2/internal/clean"
 	"github.com/noris-network/mcs-backup/v2/internal/present"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
@@ -37,7 +38,7 @@ func (a *app) renderSnapshots(snaps []service.Snapshot) {
 			files, size = strconv.FormatInt(s.Files, 10), present.Bytes(s.Bytes)
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", s.ShortID, present.Stamp(s.Time), present.Duration(a.now().Sub(s.Time)), s.Origin,
-			files, size, strings.Join(present.SnapshotFlags(s), ","), present.CleanName(s.Note))
+			files, size, strings.Join(present.SnapshotFlags(s), ","), clean.Name(s.Note))
 	}
 	_ = w.Flush()
 }
@@ -51,7 +52,7 @@ func (a *app) renderLocks(locks []service.Lock) {
 	fmt.Fprintln(w, "ID\tAGE\tEXCLUSIVE\tHOST\tUSER\tPID\tSTALE")
 	for _, l := range locks {
 		fmt.Fprintf(w, "%s\t%s\t%v\t%s\t%s\t%d\t%v\n", present.Short(l.ID), present.Duration(l.Age.Std()), l.Exclusive,
-			present.CleanName(l.Hostname), present.CleanName(l.Username), l.PID, l.Stale)
+			clean.Name(l.Hostname), clean.Name(l.Username), l.PID, l.Stale)
 	}
 	_ = w.Flush()
 }

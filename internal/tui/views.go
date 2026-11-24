@@ -12,6 +12,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/noris-network/mcs-backup/v2/internal/clean"
 	"github.com/noris-network/mcs-backup/v2/internal/present"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
@@ -497,7 +498,7 @@ func (m *Model) snapshotsPage(avail int) string {
 		}
 		cols := columns(s.ShortID, present.Stamp(s.Time), present.Duration(now.Sub(s.Time)), string(s.Origin), files, size)
 		flags := present.SnapshotFlags(s)
-		note := present.CleanName(s.Note)
+		note := clean.Name(s.Note)
 		var line string
 		if i == m.cursor[tabSnapshots] {
 			line = styleSel.Render(fill("› "+cols+pad(strings.Join(flags, " "))+note, m.width))
@@ -578,7 +579,7 @@ func (m *Model) locksPage() string {
 	host := len("HOST")
 	hosts := make([]string, len(m.locks)) // the name is what another machine wrote into the repository
 	for i, l := range m.locks {
-		hosts[i] = present.CleanName(l.Hostname)
+		hosts[i] = clean.Name(l.Hostname)
 		host = max(host, len(hosts[i]))
 	}
 	host++

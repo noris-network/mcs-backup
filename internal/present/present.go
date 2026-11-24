@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/noris-network/mcs-backup/v2/internal/clean"
 	"github.com/noris-network/mcs-backup/v2/internal/service"
 )
 
@@ -246,7 +247,7 @@ func NoteSuffix(s service.Snapshot) string {
 	if s.Note == "" {
 		return ""
 	}
-	return ", note: " + CleanName(s.Note)
+	return ", note: " + clean.Name(s.Note)
 }
 
 // PreflightRows describes what a restore would do.
@@ -296,7 +297,7 @@ func PreflightRows(p service.RestorePreflight, now time.Time) []Row {
 			}
 			// one row per path: the label stands in front of the first only
 			for i, path := range paths {
-				add(map[bool]string{true: label}[i == 0], "%s", CleanName(path))
+				add(map[bool]string{true: label}[i == 0], "%s", clean.Name(path))
 			}
 			if more := total - len(paths); more > 0 {
 				add("", "… and %d more", more)
@@ -391,7 +392,7 @@ func DiffLines(d service.DiffResult) []string {
 	if len(d.ChangedPaths) > 0 {
 		lines = append(lines, "", "Changed:")
 		for _, p := range d.ChangedPaths {
-			lines = append(lines, "  "+CleanName(p))
+			lines = append(lines, "  "+clean.Name(p))
 		}
 		if more := d.Changed - len(d.ChangedPaths); more > 0 {
 			lines = append(lines, fmt.Sprintf("  … and %d more", more))
@@ -410,7 +411,7 @@ func diffPaths(title string, s service.DiffSide) []string {
 	}
 	lines := []string{"", title + ":"}
 	for _, p := range s.Paths {
-		line := "  " + CleanName(p.Path)
+		line := "  " + clean.Name(p.Path)
 		if p.Entries > 1 {
 			line += fmt.Sprintf("  (%d entries)", p.Entries)
 		}
