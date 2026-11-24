@@ -97,7 +97,7 @@ func (m *Model) openFiles(snapshot string) tea.Cmd {
 // wait notes what the browser waits for; busyLine shows it, with a spinner
 // and, after a second, for how long: listing a snapshot takes a while.
 func (d *filesDialog) wait(what string) {
-	d.busy, d.err = what, ""
+	d.busy, d.err = present.CleanName(what), ""
 	if d.clock != nil {
 		_, d.since = d.clock()
 	}
@@ -298,21 +298,21 @@ func (d *filesDialog) view(width, height int) string {
 			if w-lipgloss.Width(in) > 60 { // the path comes first: the time only where it has room
 				in += " " + present.Stamp(v.Newest.Time)
 			}
-			return d.row(i, fileName(v.File, v.Path), in, w, true)
+			return d.row(i, fileName(v.File, present.CleanName(v.Path)), in, w, true)
 		}
 		if d.found.Truncated {
 			tail.WriteString(styleDim.Render("There are more matches than are shown: narrow the pattern.") + "\n")
 		}
 	case d.list != nil:
 		title = "Files in snapshot " + d.list.Snapshot.ShortID + " of " + present.Stamp(d.list.Snapshot.Time)
-		head.WriteString(styleDim.Render(truncate(d.list.Path, w)) + "\n\n")
+		head.WriteString(styleDim.Render(truncate(present.CleanName(d.list.Path), w)) + "\n\n")
 		if len(d.list.Files) == 0 {
 			head.WriteString("The directory is empty.\n")
 		}
 		n = len(d.list.Files)
 		entry = func(i int) string {
 			f := d.list.Files[i]
-			return d.row(i, fileName(f, path.Base(f.Path)), fileSize(f)+"  "+present.Stamp(f.Mtime), w, false)
+			return d.row(i, fileName(f, present.CleanName(path.Base(f.Path))), fileSize(f)+"  "+present.Stamp(f.Mtime), w, false)
 		}
 		if d.list.Truncated {
 			tail.WriteString(styleDim.Render(fmt.Sprintf("Only the first %d entries are shown: search with /.", len(d.list.Files))) + "\n")
@@ -367,7 +367,7 @@ func (d *filesDialog) contentView(width, height int) string {
 	if pos != "" {
 		hint = pos + " · " + hint
 	}
-	title := truncate(c.Path, max(w-20, 20)) + " in snapshot " + present.Short(c.Snapshot)
+	title := truncate(present.CleanName(c.Path), max(w-20, 20)) + " in snapshot " + present.Short(c.Snapshot)
 	return listBox(title, strings.Join(lines, "\n"), hint, width)
 }
 

@@ -295,7 +295,7 @@ func PreflightRows(p service.RestorePreflight, now time.Time) []Row {
 			}
 			// one row per path: the label stands in front of the first only
 			for i, path := range paths {
-				add(map[bool]string{true: label}[i == 0], "%s", path)
+				add(map[bool]string{true: label}[i == 0], "%s", CleanName(path))
 			}
 			if more := total - len(paths); more > 0 {
 				add("", "… and %d more", more)
@@ -390,7 +390,7 @@ func DiffLines(d service.DiffResult) []string {
 	if len(d.ChangedPaths) > 0 {
 		lines = append(lines, "", "Changed:")
 		for _, p := range d.ChangedPaths {
-			lines = append(lines, "  "+p)
+			lines = append(lines, "  "+CleanName(p))
 		}
 		if more := d.Changed - len(d.ChangedPaths); more > 0 {
 			lines = append(lines, fmt.Sprintf("  … and %d more", more))
@@ -409,7 +409,7 @@ func diffPaths(title string, s service.DiffSide) []string {
 	}
 	lines := []string{"", title + ":"}
 	for _, p := range s.Paths {
-		line := "  " + p.Path
+		line := "  " + CleanName(p.Path)
 		if p.Entries > 1 {
 			line += fmt.Sprintf("  (%d entries)", p.Entries)
 		}

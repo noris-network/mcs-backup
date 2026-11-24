@@ -338,3 +338,21 @@ func TestTheBrowserShowsThatItWaits(t *testing.T) {
 		t.Errorf("the wait is not above the list:\n%s", view)
 	}
 }
+
+func TestNamesInASnapshotCannotSteerTheTerminal(t *testing.T) {
+	r := healthy(newRig(t))
+	r.fake.FilesFn = func(_ context.Context, req service.FilesRequest) (service.FileList, error) {
+		return service.FileList{Snapshot: snap(strings.TrimRight(req.Snapshot, "0"), time.Hour), Path: "/up\x1b]0;x\a", Files: []service.File{
+			{Path: "/up\x1b]0;x\a/evil\x1b[2J\nname", Type: "file", Size: 1, Mtime: t0},
+		}}, nil
+	}
+	r.load()
+	r.press("2", "o")
+	raw := r.m.View().Content
+	for _, bad := range []string{"\x1b[2J", "\x1b]0;", "\a"} {
+		if strings.Contains(raw, bad) {
+			t.Errorf("the screen passes %q on to the terminal", bad)
+		}
+	}
+	r.wantScreen("> evil�[2J�name", "/up�]0;x�")
+}

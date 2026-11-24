@@ -127,12 +127,14 @@ snapshot before it.`,
 	}
 }
 
-// fileName shows a directory with a trailing slash.
+// fileName shows a directory with a trailing slash. A control character in
+// the name must not reach the terminal.
 func fileName(f service.File) string {
+	name := present.CleanName(f.Path)
 	if f.Type == "dir" {
-		return f.Path + "/"
+		return name + "/"
 	}
-	return f.Path
+	return name
 }
 
 // fileSize is the size of a file; other entries have none worth showing.
@@ -144,7 +146,7 @@ func fileSize(f service.File) string {
 }
 
 func (a *app) renderFiles(list service.FileList) {
-	fmt.Fprintf(a.stdout, "%s in snapshot %s of %s\n", list.Path, list.Snapshot.ShortID, present.Stamp(list.Snapshot.Time))
+	fmt.Fprintf(a.stdout, "%s in snapshot %s of %s\n", present.CleanName(list.Path), list.Snapshot.ShortID, present.Stamp(list.Snapshot.Time))
 	if len(list.Files) == 0 {
 		fmt.Fprintln(a.stdout, "The directory is empty.")
 		return

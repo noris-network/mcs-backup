@@ -18,6 +18,8 @@ func TestRedactor(t *testing.T) {
 		"hunter2-secret-and-more":                                  "***",
 		"nothing to hide in /usr/bin":                              "nothing to hide in /usr/bin",
 		"abc stays":                                                "abc stays",
+		// a file name that restic quotes must not steer a terminal
+		"error: open /up/\x1b[2Jx: denied\n\tnext": "error: open /up/�[2Jx: denied\n\tnext",
 	}
 	for in, want := range tests {
 		if got := r.String(in); got != want {

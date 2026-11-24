@@ -1,5 +1,8 @@
 // Package redact hides the secret values of the configuration in text that
-// leaves the service: logs, results, status and notifications.
+// leaves the service: logs, results, status and notifications. The same text
+// quotes restic and the scripts, so control characters are taken out of it as
+// well: a file name or a line of a script must not steer the terminal of
+// whoever reads it.
 package redact
 
 import (
@@ -7,6 +10,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/noris-network/mcs-backup/v2/internal/present"
 )
 
 // Mask replaces a secret.
@@ -87,8 +92,9 @@ func New(environ []string) *Redactor {
 	return &Redactor{r: strings.NewReplacer(args...)}
 }
 
-// String returns s with the secrets replaced.
-func (r *Redactor) String(s string) string { return r.r.Replace(s) }
+// String returns s with the secrets replaced and without control characters
+// other than line breaks and tabs.
+func (r *Redactor) String(s string) string { return present.Clean(r.r.Replace(s)) }
 
 // Error returns err with the secrets in its message replaced. errors.Is and
 // errors.As still see the original error, so only its message must be shown.
