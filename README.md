@@ -198,7 +198,7 @@ yours for the events you select, see [hooks](docs/hooks.md#notifications).
 
 ## Requirements and limits
 
-* restic 0.17 or newer (the image has 0.19.1).
+* restic 0.17 or newer (the image has 0.20.0).
 * Linux and macOS, amd64 and arm64. The container image is Linux only. Windows is
   not supported.
 * restic cannot store an empty snapshot; `ALLOW_EMPTY_SNAPSHOT` only keeps such a

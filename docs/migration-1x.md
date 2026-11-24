@@ -7,7 +7,7 @@ parents for incremental backups, and cleaned up by the retention like any other.
 
 ## Checklist
 
-1. Install restic **0.17 or newer** (the image contains 0.19.1).
+1. Install restic **0.17 or newer** (the image contains 0.20.0).
 2. Start 2.x with the old environment. `mcs-backup config check` lists what is
    wrong or ignored before anything runs.
 3. Give every instance that **shares a repository** its own `MCS_BACKUP_HOST`

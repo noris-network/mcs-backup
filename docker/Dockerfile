@@ -1,5 +1,5 @@
 #       https://hub.docker.com/_/golang
-FROM    --platform=$BUILDPLATFORM golang:1.27.3-alpine3.24 AS builder
+FROM    --platform=$BUILDPLATFORM golang:1.27.4-trixie AS builder
 WORKDIR /src
 ARG     TARGETOS
 ARG     TARGETARCH
@@ -11,12 +11,12 @@ RUN     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
         go build -trimpath -ldflags="-s -w -X 'main.build=$VERSION'" -o /out/mcs-backup ./cmd/mcs-backup
 
 #       https://hub.docker.com/_/alpine
-FROM    alpine:3.24.3
+FROM    alpine:3.24.4
 
 #       https://github.com/restic/restic/releases
-ARG     RESTIC_VERSION=0.19.1
-ARG     RESTIC_SHA256_AMD64=f415415624dcc452f2a02b8c33641791a8c6d6d3b65bbb3543fcf9a25151585c
-ARG     RESTIC_SHA256_ARM64=a5f64aaab53d51e311fa3829124c5b703f2d14cf187d8640b6be3b2b49376465
+ARG     RESTIC_VERSION=0.20.0
+ARG     RESTIC_SHA256_AMD64=0ccd9fa7885074a24603b051e01bf9bd8b5e45d6a1791e9d9887e9e9372107f7
+ARG     RESTIC_SHA256_ARM64=1188daded239bccb5952a01d2ad33e77a0d3dc34f9d9fc1e7fdda618d44938ef
 ARG     TARGETARCH
 
 #       curl stays for hooks and notification commands written for 1.x
