@@ -213,3 +213,41 @@ func TestManagerNeedsAService(t *testing.T) {
 		t.Error("enabled without a service")
 	}
 }
+
+func TestManagerStatusDoesNotWaitForTheShutdown(t *testing.T) {
+	t.Parallel()
+	m := newManager(t, "127.0.0.1:0")
+	st, err := m.Enable("", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// a request that never ends holds the shutdown until it gives up
+	conn, err := (&net.Dialer{}).DialContext(t.Context(), "tcp", st.Addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if _, err := conn.Write([]byte("GET / HTTP/1.1\r\nHost: x\r\n")); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond) // the server has read the start of the request
+
+	off := make(chan struct{})
+	go func() { m.Close(); close(off) }()
+	deadline := time.Now().Add(2 * time.Second)
+	for m.Status().Enabled {
+		if time.Now().After(deadline) {
+			t.Fatal("the status still says on")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	select {
+	case <-off:
+		t.Fatal("the shutdown did not wait for the open request: the test proves nothing")
+	default:
+	}
+	if _, err := m.LoginLink(); err == nil {
+		t.Error("a login link while the web UI shuts down")
+	}
+	<-off
+}

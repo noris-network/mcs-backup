@@ -34,6 +34,11 @@ type Manager struct {
 	o    ManagerOptions
 	auth *Auth
 
+	// op serializes switching on and off, which waits for the server; mu
+	// guards the state below and is never held while waiting, so that the
+	// status can always be read. op is taken before mu.
+	op sync.Mutex
+
 	mu    sync.Mutex
 	svc   service.Service
 	srv   *http.Server
@@ -79,9 +84,13 @@ func (m *Manager) status() service.WebUIStatus {
 // for d (without limit if zero). If it is on already, only the time limit
 // changes, unless addr names another address.
 func (m *Manager) Enable(addr string, d time.Duration) (service.WebUIStatus, error) {
+	m.op.Lock()
+	defer m.op.Unlock()
+
 	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.svc == nil {
+	svc := m.svc
+	if svc == nil {
+		m.mu.Unlock()
 		return service.WebUIStatus{}, errors.New("the web UI is not connected to the service")
 	}
 	if addr == "" {
@@ -91,9 +100,12 @@ func (m *Manager) Enable(addr string, d time.Duration) (service.WebUIStatus, err
 		addr = DefaultAddr
 	}
 	if m.addr != "" && (addr == m.spec || addr == m.addr) {
-		m.setLimit(d)
+		defer m.mu.Unlock()
+		m.setLimitLocked(d)
 		return m.status(), nil
 	}
+	m.mu.Unlock()
+
 	if _, _, err := net.SplitHostPort(addr); err != nil {
 		return service.WebUIStatus{}, fmt.Errorf("invalid web UI address %q: %w", addr, err)
 	}
@@ -103,17 +115,21 @@ func (m *Manager) Enable(addr string, d time.Duration) (service.WebUIStatus, err
 		return service.WebUIStatus{}, fmt.Errorf("the web UI cannot listen on %s: %w", addr, err)
 	}
 	m.auth.Reset()
-	h := NewHandler(m.svc, m.auth, Options{Log: m.o.Log, Now: m.o.Now, Off: func() error { _, err := m.Disable(); return err }})
-	m.srv = &http.Server{Handler: h, ReadHeaderTimeout: 10 * time.Second}
-	m.addr, m.spec = ln.Addr().String(), addr
-	m.done = make(chan struct{})
-	go func(srv *http.Server, done chan struct{}) {
+	h := NewHandler(svc, m.auth, Options{Log: m.o.Log, Now: m.o.Now, Off: func() error { _, err := m.Disable(); return err }})
+	srv := &http.Server{Handler: h, ReadHeaderTimeout: 10 * time.Second}
+	done := make(chan struct{})
+	go func() {
 		defer close(done)
 		if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			m.o.Log.Error("web UI stopped", "error", err)
 		}
-	}(m.srv, m.done)
-	m.setLimit(d)
+	}()
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.srv, m.done = srv, done
+	m.addr, m.spec = ln.Addr().String(), addr
+	m.setLimitLocked(d)
 	m.o.Log.Info("web UI on", "addr", m.addr, "until", m.until)
 	if !isLoopback(ln.Addr()) {
 		m.o.Log.Warn("the web UI listens on a non-loopback address and speaks plain HTTP: put it behind a proxy that terminates TLS", "addr", m.addr)
@@ -121,8 +137,8 @@ func (m *Manager) Enable(addr string, d time.Duration) (service.WebUIStatus, err
 	return m.status(), nil
 }
 
-// setLimit sets or clears the time limit.
-func (m *Manager) setLimit(d time.Duration) {
+// setLimitLocked sets or clears the time limit. The caller holds mu.
+func (m *Manager) setLimitLocked(d time.Duration) {
 	if m.timer != nil {
 		m.timer.Stop()
 		m.timer = nil
@@ -135,9 +151,12 @@ func (m *Manager) setLimit(d time.Duration) {
 	m.until = m.o.Now().Add(d)
 	gen := m.gen
 	m.timer = time.AfterFunc(d, func() {
+		m.op.Lock()
+		defer m.op.Unlock()
 		m.mu.Lock()
-		defer m.mu.Unlock()
-		if m.gen != gen || m.addr == "" {
+		stale := m.gen != gen || m.addr == ""
+		m.mu.Unlock()
+		if stale {
 			return
 		}
 		m.stop()
@@ -145,35 +164,44 @@ func (m *Manager) setLimit(d time.Duration) {
 	})
 }
 
-// stop shuts the server down. The caller holds mu.
+// stop shuts the server down and waits for it. The caller holds op but not
+// mu: the web UI counts as off from the first moment, and its status can be
+// read while the open requests are given time to end.
 func (m *Manager) stop() {
+	m.mu.Lock()
 	if m.timer != nil {
 		m.timer.Stop()
 		m.timer = nil
 	}
 	m.gen++
-	if m.srv == nil {
+	srv, done := m.srv, m.done
+	m.srv, m.done, m.addr, m.spec, m.until = nil, nil, "", "", time.Time{}
+	m.mu.Unlock()
+	if srv == nil {
 		return
 	}
+	m.auth.Reset()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	if err := m.srv.Shutdown(ctx); err != nil {
-		_ = m.srv.Close()
+	if err := srv.Shutdown(ctx); err != nil {
+		_ = srv.Close()
 	}
-	<-m.done
-	m.srv, m.addr, m.spec, m.until = nil, "", "", time.Time{}
-	m.auth.Reset()
+	<-done
 }
 
 // Disable implements the daemon's WebUI interface.
 func (m *Manager) Disable() (service.WebUIStatus, error) {
+	m.op.Lock()
+	defer m.op.Unlock()
 	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.addr != "" {
+	on := m.addr != ""
+	m.mu.Unlock()
+	if on {
 		m.stop()
 		m.o.Log.Info("web UI off")
 	}
-	return m.status(), nil
+	return m.Status(), nil
 }
 
 // Close switches the web UI off for good.
