@@ -21,7 +21,7 @@ func TestWebSwitchesOnAndPrintsTheLink(t *testing.T) {
 	}
 	c.fake.LoginLinkFn = func(context.Context) (string, error) { return "http://127.0.0.1:8484/login?code=abc", nil }
 
-	if code := c.run("web"); code != 0 {
+	if code := c.run("web", "--no-open"); code != 0 {
 		t.Fatalf("exit %d: %s", code, c.err())
 	}
 	if !strings.Contains(c.out(), "http://127.0.0.1:8484/login?code=abc") || !strings.Contains(c.out(), "works once") {
