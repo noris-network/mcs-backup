@@ -22,9 +22,10 @@ exec curl -fsS -m 20 \
 # Forward the event JSON unchanged (Teams/Slack workflows, own endpoints):
 #   exec curl -fsS -m 20 -H 'Content-Type: application/json' --data-binary @- "$NOTIFY_WEBHOOK_URL"
 #
-# healthchecks.io: ping on success, signal a failure otherwise:
+# healthchecks.io: ping on success, signal a failure otherwise. The first
+# success after a failure is backup.recovered, not backup.succeeded:
 #   case $MCS_BACKUP_EVENT in
-#   backup.succeeded) exec curl -fsS -m 20 "$NOTIFY_WEBHOOK_URL" ;;
+#   backup.succeeded | backup.recovered) exec curl -fsS -m 20 "$NOTIFY_WEBHOOK_URL" ;;
 #   backup.failed | backup.suspicious) exec curl -fsS -m 20 "$NOTIFY_WEBHOOK_URL/fail" ;;
 #   esac
-#   (with NOTIFY_WEBHOOK_URL=https://hc-ping.com/<uuid>, NOTIFY_ON=failure,warning,success)
+#   (with NOTIFY_WEBHOOK_URL=https://hc-ping.com/<uuid>, NOTIFY_ON=failure,recovered,success)
