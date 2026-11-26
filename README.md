@@ -14,8 +14,8 @@ little as possible to restic and takes care of the things that go wrong quietly.
   into the repository with hooks.
 * **Safe by default**: no empty snapshots, a much smaller backup is flagged
   instead of replacing good ones, a retention that would delete too much waits
-  for approval, restores take a safety snapshot first, and a weekly restore test
-  proves that the backups can be read back.
+  for approval, a restore over the live data takes a safety snapshot first, and
+  a weekly restore test proves that the backups can be read back.
 * **No false alarms after a restart**: the metrics are filled from the repository
   within seconds of a start.
 * **Optional second copy** to another repository, and append-only repositories.
@@ -40,8 +40,8 @@ docker exec backup mcs-backup backup --note "first backup"
 docker exec -it backup mcs-backup tui
 ```
 
-On a host, install restic (0.17 or newer) and the `mcs-backup` binary, see
-[platforms](docs/platforms.md). In Kubernetes see the
+On a host, install restic (0.17 or newer) and the `mcs-backup` binary from the
+[releases][releases], see [platforms](docs/platforms.md). In Kubernetes, see the
 [sidecar example](docs/examples/kubernetes/sidecar.yaml).
 
 At least a repository, a password and a retention policy are needed (the image
@@ -74,9 +74,10 @@ one.
 | `status [--follow]` | What is going on, what needs attention, in words. |
 | `backup [--note …] [--keep]` | Start a backup now. `--keep` protects the snapshot from the retention. |
 | `backup --maintenance 1h` / `--disable` / `--enable` | Pause or resume the schedule. A maintenance window survives restarts; a plain `--disable` ends with a restart. |
+| `cancel` | Stop the running operation and drop a pending retry. |
 | `snapshots` | The snapshots, newest first, with flags. |
 | `ls [<snapshot> [<path>]]` | What a snapshot holds in a directory. |
-| `find <pattern> [--snapshot …] [-i]` | Which snapshots have a file, and in which versions: the way to the snapshot to restore a lost file from. |
+| `find <pattern> [--snapshot …] [-i]` | Which snapshots have a file, and in which versions: to find the snapshot to restore a lost file from. |
 | `diff [<snapshot> [<older>]]` | What a snapshot lost, gained and changed. Without arguments: what the newest backup lost against the last regular one. |
 | `restore [<snapshot>] [--target dir] [--include path] [--merge]` | Restore. Without `--target` it replaces the data in place, asks for confirmation and takes a safety snapshot first. `--at "2026-11-08 14:00"` picks the newest regular snapshot from before that time; `--dry-run` restores nothing and shows what would be overwritten, deleted and created. |
 | `restore-if-empty` | Disaster recovery for init containers: restores only into an empty `BACKUP_ROOT`, and does not contact the repository otherwise. |
@@ -105,9 +106,10 @@ reachable, 4 another operation is running.
 * **Broken backups replacing good ones.** A backup far smaller than the last one
   (`BACKUP_MAX_SHRINK`) is stored but tagged `suspicious`, and the retention
   stops until a person accepts it.
-* **Typos in the retention.** A forget that would delete a quarter of the
-  snapshots waits for `approve-forget`. The retention touches only the snapshots
-  of its own instance, so repositories can be shared safely.
+* **Typos in the retention.** A forget that would delete more than a quarter of
+  the snapshots (`FORGET_MAX_DELETE`) waits for `approve-forget`. The retention
+  touches only the snapshots of its own instance, so repositories can be shared
+  safely.
 * **Unwanted restores.** In-place restores need a typed confirmation and a safety
   snapshot (tag `pre-restore`) of the current data first.
 * **Silent failures.** The post-hook always runs and learns the outcome; missing
@@ -139,7 +141,9 @@ kubectl logs -f -n shop shop-0 -c mcs-backup                     # the log of th
 
 To bring back a single file, press `o` in the snapshots tab: it browses the
 files of the snapshot, `enter` shows a file as it is in the snapshot, `/` finds
-a file in all snapshots and `r` restores the selected entry. The web UI has the same on its "Files" page.
+a file in all snapshots and `r` restores the selected entry. In the web UI, the
+"files" button of a snapshot and "Find a file …" on the Snapshots page browse,
+search and restore the same way; only showing a file is left to the TUI.
 
 ## Web UI
 
@@ -157,8 +161,8 @@ always required, also on localhost: `mcs-backup web` fetches a **one-time link**
 that is valid for two minutes and logs the browser in with a session cookie, so
 no permanent secret ends up in a URL or a history. In a pod the link comes
 after the `kubectl port-forward` command that makes the port reachable: start
-that first, then open the link. Behind an ingress you can set `MCS_BACKUP_WEB_TOKEN` for
-HTTP Basic Auth instead.
+that first, then open the link. Behind an ingress, `MCS_BACKUP_WEB_TOKEN` adds
+HTTP Basic Auth with a fixed token as another way to log in.
 
 The web UI speaks plain HTTP. Outside of localhost put it behind a proxy that
 terminates TLS. Cross-origin requests are refused, pages are served with a strict
@@ -172,7 +176,7 @@ that an agent can look at the backups and, if you allow it, operate them:
 ```console
 kubectl exec -i <pod> -c mcs-backup -- mcs-backup mcp                      # look only
 kubectl exec -i <pod> -c mcs-backup -- mcs-backup mcp --allow-write        # also start, tag, schedule
-kubectl exec -i <pod> -c mcs-backup -- mcs-backup mcp --allow-destructive  # also restore over live data
+kubectl exec -i <pod> -c mcs-backup -- mcs-backup mcp --allow-destructive  # also restore over live data, approve a held forget
 ```
 
 Tools above the chosen level do not exist for the agent; secrets are never
@@ -184,7 +188,8 @@ Prometheus metrics with the prefix `mcsbackup_` are on `:9000/metrics`.
 [Ready-made alerts, a ServiceMonitor and a Grafana dashboard](docs/examples/monitoring/)
 are included. Logs are JSON on stdout (`MCS_BACKUP_LOG_FORMAT=text` for people).
 For chat, desktop or e-mail notifications, `NOTIFY_COMMAND` runs a command of
-yours for the events you select, see [hooks](docs/hooks.md#notifications).
+yours for the events you select, see [hooks](docs/hooks.md#notifications);
+`mcs-backup notify test` sends a test notification through it.
 
 ## Documentation
 
@@ -218,10 +223,17 @@ The integration tests run the real binary against real restic repositories
 (local and, with `REST_SERVER_BIN`, an append-only rest-server). Go 1.27 or newer
 is required.
 
-Tests against an S3 server (`MCS_TEST_S3_ENDPOINT`, `MCS_TEST_S3_ACCESS_KEY`,
-`MCS_TEST_S3_SECRET_KEY`, optional `MCS_TEST_S3_BUCKET`) exercise the TUI and the web UI
-with real data. `MCS_TEST_S3_DEMO=1 go test -tags integration -run TestS3Demo ./internal/integration/`
-prepares a repository and a `local/s3-demo/mcs-backup` wrapper to try both by hand.
+With an S3 server (`MCS_TEST_S3_ENDPOINT`, `MCS_TEST_S3_ACCESS_KEY`,
+`MCS_TEST_S3_SECRET_KEY`, optional `MCS_TEST_S3_BUCKET`), the integration tests
+also exercise the TUI and the web UI with real data. With the same variables,
+
+```console
+RESTIC_BIN=$(command -v restic) MCS_TEST_S3_DEMO=1 go test -tags integration -run TestS3Demo ./internal/integration/
+```
+
+prepares a repository and a `local/s3-demo/mcs-backup` wrapper to try both by
+hand.
 
 [restic]: https://github.com/restic/restic
+[releases]: https://github.com/noris-network/mcs-backup/releases
 [mcp]: https://modelcontextprotocol.io
