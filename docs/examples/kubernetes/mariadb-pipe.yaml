@@ -35,7 +35,7 @@ data:
     set -eu
     export MYSQL_PWD=$MARIADB_PWD
     exec mariadb -h "$MARIADB_HOST" -u "$MARIADB_USER"
-  # Restore test: the dump has to be complete. mysqldump ends with this line.
+  # Restore test: the dump has to be complete. mariadb-dump ends a complete dump with this line.
   verify.sh: |
     #!/bin/sh
     tail -n 1 | grep -q -- '-- Dump completed'
@@ -87,7 +87,7 @@ spec:
             defaultMode: 0555
       containers:
         - name: mcs-backup
-          image: registry.example.com/mcs-backup-mariadb:2.0.0
+          image: registry.example.com/mcs-backup-mariadb:v2.0.0
           envFrom:
             - configMapRef: {name: db-backup}
             - secretRef: {name: db-backup}

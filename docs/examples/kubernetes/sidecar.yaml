@@ -6,7 +6,10 @@
 #   On errors it exits with 1 and Kubernetes runs it again.
 # * The sidecar backs up the same volume on a schedule.
 # * Everything runs with any UID and a read-only root file system. mcs-backup
-#   and restic write only to /tmp (HOME, restic cache, control socket).
+#   and restic write only to /tmp (HOME, restic cache, control socket, state
+#   directory, sandbox of the restore test). The state directory keeps
+#   maintenance windows and the last runs across container restarts; on the
+#   emptyDir it goes with the pod (MCS_BACKUP_STATE_DIR on a volume keeps it).
 apiVersion: v1
 kind: Secret
 metadata:
@@ -61,12 +64,15 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: shop-data
+        # restic cache and restore test sandbox (up to 256 MiB). Above the
+        # sizeLimit Kubernetes evicts the whole pod, the application too: leave
+        # room for the restic cache, which grows with the repository.
         - name: backup-tmp
           emptyDir:
-            sizeLimit: 2Gi # restic cache and restore sandbox
+            sizeLimit: 2Gi
       initContainers:
         - name: restore-if-empty
-          image: registry.example.com/mcs-backup:2.0.0
+          image: registry.example.com/mcs-backup:v2.0.0
           command: ["mcs-backup", "restore-if-empty"]
           envFrom:
             - configMapRef: {name: shop-backup}
@@ -86,12 +92,12 @@ spec:
             - {name: data, mountPath: /data}
           securityContext: *container-security
         - name: mcs-backup
-          image: registry.example.com/mcs-backup:2.0.0
+          image: registry.example.com/mcs-backup:v2.0.0
           envFrom:
             - configMapRef: {name: shop-backup}
             - secretRef: {name: shop-backup}
           env:
-            - name: GOMEMLIMIT # a bit below the memory limit
+            - name: GOMEMLIMIT # a bit below the memory limit; restic inherits it
               value: 400MiB
           ports:
             - {name: backup-metrics, containerPort: 9000}

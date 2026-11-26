@@ -11,7 +11,8 @@
 # To restore a lost data directory before the application starts, add to the
 # unit of the application:
 #   ExecStartPre=/usr/local/bin/mcs-backup restore-if-empty
-# with the same EnvironmentFile (exit code 1 stops the start; it is retried).
+# with the same EnvironmentFile. Exit code 1 stops the start; with
+# Restart=on-failure in that unit, systemd tries again.
 [Unit]
 Description=mcs-backup
 Wants=network-online.target
