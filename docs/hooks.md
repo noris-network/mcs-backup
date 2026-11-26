@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | `PRE_BACKUP_SCRIPT` | first step of every backup | the backup stops; no snapshot is made |
 | `POST_BACKUP_SCRIPT` | last step of every backup, **always** (also after a failure, a timeout or a cancellation) | the run ends with the result `warning` |
-| `PRE_RESTORE_SCRIPT` | before a restore | the restore stops |
+| `PRE_RESTORE_SCRIPT` | before a restore, and before its safety snapshot | the restore stops |
 | `POST_RESTORE_SCRIPT` | last step of every restore that got as far as the pre-restore hook, **always** (also after a failure, a timeout or a cancellation) | a good restore is reported as failed, although the data is already restored; a failed one keeps its error and gets a warning |
 
 All scripts
@@ -49,6 +49,11 @@ esac
 
 A restore that is refused before it begins (no confirmation, unknown snapshot,
 too little space) runs neither hook.
+
+**The pre-restore hook must not delete the data.** It runs before the safety
+snapshot of an in-place restore, which saves what the hook leaves. Removing the
+files that are not in the snapshot is the job of the restore itself (unless
+`--merge` is given).
 
 ### Restore hooks get arguments
 
