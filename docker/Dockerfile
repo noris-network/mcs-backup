@@ -36,7 +36,6 @@ RUN     set -eux \
         && chmod 777 /mnt
 
 COPY    --from=builder /out/mcs-backup /usr/bin/mcs-backup
-COPY    --chmod=755 scripts/cleanup-backup-root.sh /opt/bin/cleanup-backup-root.sh
 
 #       The container runs with any UID and a read-only root file system: HOME,
 #       the restic cache and the control socket all live in /tmp, so mount an
