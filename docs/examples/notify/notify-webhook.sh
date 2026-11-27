@@ -2,7 +2,7 @@
 # NOTIFY_COMMAND that posts to a web service. Set NOTIFY_WEBHOOK_URL next to it;
 # its value is masked in the log like a password.
 #
-# ntfy / Gotify style (plain text body, title in a header):
+# ntfy (plain text body, title and priority in headers):
 set -eu
 : "${NOTIFY_WEBHOOK_URL:?set NOTIFY_WEBHOOK_URL}"
 
@@ -14,7 +14,7 @@ esac
 exec curl -fsS -m 20 \
 	-H "Title: mcs-backup $MCS_BACKUP_HOST: $MCS_BACKUP_EVENT" \
 	-H "Priority: $priority" \
-	-d "${MCS_BACKUP_MESSAGE}${MCS_BACKUP_ERROR:+ ($MCS_BACKUP_ERROR)}" \
+	--data-raw "${MCS_BACKUP_MESSAGE}${MCS_BACKUP_ERROR:+ ($MCS_BACKUP_ERROR)}" \
 	"$NOTIFY_WEBHOOK_URL"
 
 # Other services:
