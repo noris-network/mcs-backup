@@ -225,7 +225,8 @@ is required.
 
 With an S3 server (`MCS_TEST_S3_ENDPOINT`, `MCS_TEST_S3_ACCESS_KEY`,
 `MCS_TEST_S3_SECRET_KEY`, optional `MCS_TEST_S3_BUCKET`), the integration tests
-also exercise the TUI and the web UI with real data. With the same variables,
+also exercise the TUI and the web UI with real data; `task integration:s3` runs
+only those. With the same variables,
 
 ```console
 RESTIC_BIN=$(command -v restic) MCS_TEST_S3_DEMO=1 go test -tags integration -run TestS3Demo ./internal/integration/
@@ -233,6 +234,15 @@ RESTIC_BIN=$(command -v restic) MCS_TEST_S3_DEMO=1 go test -tags integration -ru
 
 prepares a repository and a `local/s3-demo/mcs-backup` wrapper to try both by
 hand.
+
+Beyond the tests, as the CI runs them (Docker is needed for the last two;
+`DOCKER="sudo docker"` if it needs sudo):
+
+```console
+task fuzz             # every fuzz test for 30s (FUZZTIME=2m for longer)
+task docs:check       # shellcheck, kubeconform, promtool with alert tests, plists, links
+task image:smoke      # build the image, run it as any user with a read-only root
+```
 
 [restic]: https://github.com/restic/restic
 [releases]: https://github.com/noris-network/mcs-backup/releases
