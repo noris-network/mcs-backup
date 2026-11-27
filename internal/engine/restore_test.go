@@ -515,6 +515,9 @@ func TestRestoreIfEmpty(t *testing.T) {
 		if len(r.main.CallsTo(t, "backup")) != 0 {
 			t.Error("there is nothing to take a safety snapshot of")
 		}
+		if want := "snapshot snap1 restored into the empty " + r.root; !strings.Contains(r.logText(), want) {
+			t.Errorf("the log lacks %q:\n%s", want, r.logText())
+		}
 		if hookLog, _ := os.ReadFile(log); string(hookLog) != "pre []\npost []\n" {
 			t.Errorf("hook log = %q", hookLog)
 		}
@@ -595,6 +598,14 @@ func TestRestoreSaysWhereTo(t *testing.T) {
 	r := restoreRig(t)
 	res := r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "snap1", Confirm: "snap1", NoSafetySnapshot: true}, r.sink())
 	if want := "snapshot snap1 restored over the live data in " + r.root + ": 3 files and directories, 10 B"; res.Message != want {
+		t.Errorf("message = %q, want %q", res.Message, want)
+	}
+	// with nothing in BACKUP_ROOT there is no live data to restore over
+	if err := os.RemoveAll(filepath.Join(r.root, "data")); err != nil {
+		t.Fatal(err)
+	}
+	res = r.e.Restore(t.Context(), service.RestoreRequest{Snapshot: "snap1", Confirm: "snap1"}, r.sink())
+	if want := "snapshot snap1 restored into the empty " + r.root + ": 3 files and directories, 10 B"; res.Message != want {
 		t.Errorf("message = %q, want %q", res.Message, want)
 	}
 	target := filepath.Join(t.TempDir(), "out")

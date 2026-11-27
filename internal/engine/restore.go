@@ -168,6 +168,8 @@ func restoredMessage(plan restorePlan, sum restic.RestoreSummary) string {
 	switch {
 	case plan.PipeMode:
 		return msg + " through the restore script"
+	case plan.InPlace && plan.TargetEmpty: // restore-if-empty, a lost volume
+		msg += " into the empty " + plan.Target
 	case plan.InPlace:
 		msg += " over the live data in " + plan.Target
 	default:
