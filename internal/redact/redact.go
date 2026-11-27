@@ -65,12 +65,14 @@ func New(environ []string) *Redactor {
 		if !ok {
 			continue
 		}
+		// String cleans the text before it replaces: a secret with a control
+		// character in it is found in its cleaned form
 		if Secret(name, value) && len(value) >= 4 && !strings.ContainsAny(value, "\n") {
-			seen[value] = true
+			seen[value], seen[clean.Text(value)] = true, true
 		}
 		for _, m := range urlPassword.FindAllStringSubmatch(value, -1) {
 			if len(m[1]) >= 3 {
-				seen[m[1]] = true
+				seen[m[1]], seen[clean.Text(m[1])] = true, true
 			}
 		}
 	}
@@ -94,7 +96,22 @@ func New(environ []string) *Redactor {
 
 // String returns s with the secrets replaced and without control characters
 // other than line breaks and tabs.
-func (r *Redactor) String(s string) string { return clean.Text(r.r.Replace(s)) }
+//
+// The text is cleaned first, so that replacing a control character cannot
+// complete a secret. A mask next to the rest of a secret can spell a secret
+// again ("b" and "b***" give "b***"), so the secrets are replaced until nothing
+// changes. That ends: every replacement makes the text shorter or turns
+// characters other than * into *.
+func (r *Redactor) String(s string) string {
+	s = clean.Text(s)
+	for {
+		t := r.r.Replace(s)
+		if t == s {
+			return s
+		}
+		s = t
+	}
+}
 
 // Error returns err with the secrets in its message replaced. errors.Is and
 // errors.As still see the original error, so only its message must be shown.
