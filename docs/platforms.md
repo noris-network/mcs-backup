@@ -39,10 +39,12 @@ Two property lists are in [examples/launchd/](examples/launchd/):
 Things that are specific to macOS:
 
 * **Full Disk Access.** macOS protects folders such as Desktop, Documents,
-  Downloads and Mail. restic needs access to them or the backup ends with
-  `Operation not permitted` for those paths: *System Settings → Privacy &
-  Security → Full Disk Access →* add the `restic` binary (`command -v restic`).
-  After a Homebrew update of restic the entry may have to be added again.
+  Downloads and Mail. Without access the backup ends with `Operation not
+  permitted` for those paths: *System Settings → Privacy & Security → Full Disk
+  Access →* add `mcs-backup` and the `restic` binary (`command -v restic`).
+  macOS holds the program that launchd starts responsible for what its child
+  processes read, so restic alone may not be enough. After a Homebrew update of
+  restic the entry may have to be added again.
 * **Gatekeeper.** The binaries are not signed or notarized. A file downloaded with
   a browser carries a quarantine flag and will not start; remove it once:
   `xattr -d com.apple.quarantine /usr/local/bin/mcs-backup`. Downloads with
@@ -61,7 +63,7 @@ Things that are specific to macOS:
 
 Set `NOTIFY_COMMAND` to one of the scripts in [examples/notify/](examples/notify/):
 `notify-send.sh` (Linux desktop), `notify-osascript.sh` (macOS) or
-`notify-webhook.sh` (ntfy, Gotify, anything that takes an HTTP POST).
+`notify-webhook.sh` (ntfy, healthchecks.io, anything that takes an HTTP POST).
 See [hooks.md](hooks.md#notifications) for the events.
 
 ## Restore test

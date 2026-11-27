@@ -13,9 +13,11 @@
   Replace "alice" and the repository settings. Keep secrets out of the plist
   where possible: use RESTIC_PASSWORD_FILE and a file with mode 0600.
 
-  Before the first backup, give restic access to protected folders (Desktop,
+  Before the first backup, give access to protected folders (Desktop,
   Documents, Mail, ...): System Settings > Privacy & Security > Full Disk
-  Access > add /opt/homebrew/bin/restic (or the output of `command -v restic`).
+  Access > add /usr/local/bin/mcs-backup and /opt/homebrew/bin/restic (or the
+  output of `command -v restic`). macOS holds the program that launchd starts
+  responsible for what restic reads, so restic alone may not be enough.
   Without it backups end with "Operation not permitted" for those folders.
 -->
 <plist version="1.0">

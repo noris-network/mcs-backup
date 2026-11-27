@@ -15,8 +15,8 @@
 
   The CLI needs the socket: sudo MCS_BACKUP_SOCKET=/var/run/mcs-backup.sock mcs-backup status
 
-  Give restic Full Disk Access (System Settings > Privacy & Security), or
-  protected folders end with "Operation not permitted". Binaries downloaded
+  Give mcs-backup and restic Full Disk Access (System Settings > Privacy &
+  Security), or protected folders end with "Operation not permitted". Binaries downloaded
   with a browser carry a quarantine flag and are not notarized: remove it once
   with  xattr -d com.apple.quarantine /usr/local/bin/mcs-backup
 -->
