@@ -27,13 +27,13 @@ data:
   dump.sh: |
     #!/bin/sh
     set -eu
-    export MYSQL_PWD=$MARIADB_PWD
+    export MYSQL_PWD="$MARIADB_PWD"
     exec mariadb-dump -h "$MARIADB_HOST" -u "$MARIADB_USER" \
       --single-transaction --routines --events --all-databases
   load.sh: |
     #!/bin/sh
     set -eu
-    export MYSQL_PWD=$MARIADB_PWD
+    export MYSQL_PWD="$MARIADB_PWD"
     exec mariadb -h "$MARIADB_HOST" -u "$MARIADB_USER"
   # Restore test: the dump has to be complete. mariadb-dump ends a complete dump with this line.
   verify.sh: |

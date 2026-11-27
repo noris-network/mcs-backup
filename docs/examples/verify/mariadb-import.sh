@@ -11,7 +11,7 @@
 set -eu
 : "${VERIFY_DB_HOST:?set VERIFY_DB_HOST to a scratch server}"
 : "${VERIFY_DB_USER:=root}"
-export MYSQL_PWD=${VERIFY_DB_PASSWORD:-}
+export MYSQL_PWD="${VERIFY_DB_PASSWORD:-}"
 
 sql() { mariadb -h "$VERIFY_DB_HOST" -u "$VERIFY_DB_USER" "$@"; }
 
