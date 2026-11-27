@@ -2,7 +2,7 @@
 
 An append-only repository protects the backups against the machine that makes
 them: if the machine or its credentials are compromised, the attacker can add
-snapshots but cannot delete or overwrite old ones. This is the usual set-up for
+snapshots but cannot delete or overwrite old ones. This is the usual setup for
 an off-site copy, or for the main repository of a host you do not fully trust.
 
 ```console
@@ -15,8 +15,9 @@ COPY_APPEND_ONLY=true       # the secondary copy
 With `APPEND_ONLY` (or `COPY_APPEND_ONLY` for the copy) mcs-backup
 
 * never runs `forget`, `prune` or `unlock --all` there,
-* does not tag snapshots, so `keep`, `unkeep` and `acknowledge` do not exist
-  (the buttons, commands and MCP tools are hidden),
+* does not tag snapshots there. With `APPEND_ONLY`, `keep`, `unkeep` and
+  `acknowledge` are refused, and the web UI and the MCP server do not offer
+  them; with `COPY_APPEND_ONLY` alone, tag changes are not mirrored to the copy,
 * does not need `RETENTION_POLICY`,
 * still checks plausibility: an empty or much smaller backup is reported through
   the metric `mcsbackup_backup_suspicious` and the event `backup.suspicious`, but

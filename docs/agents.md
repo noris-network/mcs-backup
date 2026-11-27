@@ -41,7 +41,8 @@ Tools above the chosen level are not registered at all, so the agent never sees 
 
 With an [append-only](append-only.md) repository the tools that change tags
 (`keep_snapshot`, `unkeep_snapshot`, `acknowledge_snapshot`) and
-`approve_forget`/`unlock_all_locks` are not offered.
+`approve_forget`/`unlock_all_locks` are not offered, and `start_prune` is not
+offered when every repository is append-only.
 
 The tools that can lose data need a `confirm` argument that repeats what is
 being done (the snapshot for a restore, `acknowledge`, `forget`, `remove-all`).
@@ -71,7 +72,7 @@ Exit codes are fixed:
 
 | Code | Meaning |
 | --- | --- |
-| 0 | success (also: a warning, check the JSON `result`) |
+| 0 | success (also: a warning or skipped, check the JSON `result`) |
 | 1 | the operation failed |
 | 2 | wrong usage or configuration, including a missing or wrong confirmation |
 | 3 | the service is not running or the socket is not reachable |

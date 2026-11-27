@@ -147,7 +147,7 @@ variables and as one JSON object on stdin:
 | Variable | Content |
 | --- | --- |
 | `MCS_BACKUP_EVENT` | event name, see below |
-| `MCS_BACKUP_KIND` | `backup`, `copy`, `prune`, `check`, `verify`, `restore` |
+| `MCS_BACKUP_KIND` | `backup`, `copy`, `prune`, `check`, `verify`, `restore`, `forget` (a released held forget) |
 | `MCS_BACKUP_RESULT`, `MCS_BACKUP_MESSAGE`, `MCS_BACKUP_ERROR`, `MCS_BACKUP_SNAPSHOT` | what happened |
 | `MCS_BACKUP_HOST` | the `MCS_BACKUP_HOST` of the instance |
 | `MCS_BACKUP_TIME` | RFC 3339 timestamp |
@@ -166,7 +166,7 @@ removed from the environment of the command.
 
 `all` selects everything. Notifications are sent after the last retry,
 `repository.down` and `repository.up` only when the state changes, and
-`skipped` runs say nothing. Try the command with `mcs-backup notify test`.
+`skipped` and `cancelled` runs say nothing. Try the command with `mcs-backup notify test`.
 
 Ready-to-use commands for `notify-send` (Linux desktop), `osascript` (macOS)
 and webhooks are in [examples/](examples/).

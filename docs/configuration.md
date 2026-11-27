@@ -45,7 +45,7 @@ environment, not into a file that is checked into a repository.
 | `RESTIC_PASSWORD`, `RESTIC_PASSWORD_FILE`, `RESTIC_PASSWORD_COMMAND` | – | One of them is required. |
 | `AWS_*`, `B2_*`, `AZURE_*`, `GOOGLE_*`, `RESTIC_*` | – | Passed to restic unchanged, see the [restic documentation][restic-env]. |
 | `S3_USE_V1` | `false` | Use the list-objects v1 API (`-o s3.list-objects-v1=true`) for S3 compatible storage that needs it. |
-| `RESTIC_CACHE_DIR` | restic default (`$HOME/.cache`) | Passed through. Put it on a volume, see [the examples](examples/). |
+| `RESTIC_CACHE_DIR` | restic default (`~/.cache/restic`, on macOS `~/Library/Caches/restic`) | Passed through. Put it on a volume, see [the examples](examples/). |
 | `APPEND_ONLY` | `false` | The repository only accepts new data, see [append-only](append-only.md). |
 | `MCS_BACKUP_RESTIC` | `restic` | The restic executable. |
 
@@ -94,7 +94,7 @@ switches the schedule off.
 | `PRUNE_SCHEDULE` | `0 3 * * 0` | When `prune` runs (also on the secondary repository). `mcs-backup prune` starts one now. |
 | `CHECK_SCHEDULE` | `0 4 1 * *` | When `check` runs. `mcs-backup check` starts one now. |
 | `VERIFY_SCHEDULE` | `0 5 * * 6` | When the [restore test](#restore-test) runs. |
-| `BACKUP_CATCH_UP` | `true` | After a start, a suspend, or the end of a maintenance window: run one backup if the repository has no snapshot or the last scheduled time is newer than the last snapshot. Needs `CRON_SCHEDULE`. |
+| `BACKUP_CATCH_UP` | `true` | After a start, a suspend, the end of a maintenance window or `backup --enable`: run one backup if the repository has no snapshot or the last scheduled time is newer than the last snapshot. Needs `CRON_SCHEDULE`. |
 
 What is due while another operation runs waits for the slot (once): first the
 backup, then prune, check and verify. Only a backup that is due while a backup
@@ -118,8 +118,9 @@ is still running is skipped and logged.
 
 ## Secondary copy
 
-After every successful backup the new snapshot can be copied to a second
-repository (`restic copy`). It follows the same retention rules.
+After every backup that saved a snapshot, a suspicious one included, the new
+snapshot can be copied to a second repository (`restic copy`). It follows the
+same retention rules.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
