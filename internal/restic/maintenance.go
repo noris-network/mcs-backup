@@ -128,7 +128,8 @@ func (r *Repo) Init(ctx context.Context, from *Repo) (string, error) {
 type CopyOptions struct {
 	// Snapshots to copy; all snapshots missing in the destination if empty.
 	Snapshots []string
-	// Hosts restricts copying to snapshots of these hosts.
+	// Hosts restricts copying to snapshots of these hosts. It is ignored when
+	// Snapshots are given: restic refuses both together.
 	Hosts []string
 }
 
@@ -137,12 +138,23 @@ func (r *Repo) Copy(ctx context.Context, from *Repo, o CopyOptions, out io.Write
 	if from == nil {
 		return errors.New("restic copy: no source repository")
 	}
-	args := []string{"copy"}
-	for _, h := range o.Hosts {
-		args = append(args, "--host", h)
-	}
+	args := append([]string{"copy"}, hostFilter(o.Hosts, o.Snapshots)...)
 	_, err := r.run(ctx, positional(args, o.Snapshots...), runOpts{env: from.fromEnv(), combined: out})
 	return err
+}
+
+// hostFilter is the --host options for hosts, or none when explicit snapshots
+// are given: since 0.20 restic refuses a filter next to snapshot IDs
+// ("explicit snapshot ids are given"), and the caller chose them already.
+func hostFilter(hosts, snapshots []string) []string {
+	if len(snapshots) > 0 {
+		return nil
+	}
+	var args []string
+	for _, h := range hosts {
+		args = append(args, "--host", h)
+	}
+	return args
 }
 
 // fromEnv maps the credentials of this repository to the RESTIC_FROM_*

@@ -583,7 +583,8 @@ func TestInitAndCopy(t *testing.T) {
 	if err := second.Copy(t.Context(), main, CopyOptions{Snapshots: []string{"abc"}, Hosts: []string{"h"}}, &out); err != nil {
 		t.Fatal(err)
 	}
-	if got := f.CallsTo(t, "copy")[0]; !slices.Equal(got, []string{"copy", "--host", "h", "--", "abc"}) {
+	// as for find: no --host next to explicit snapshots
+	if got := f.CallsTo(t, "copy")[0]; !slices.Equal(got, []string{"copy", "--", "abc"}) {
 		t.Errorf("copy args = %q", got)
 	}
 	if out.String() != "snapshot abc copied\n" {
@@ -702,9 +703,18 @@ func TestFind(t *testing.T) {
 	if m := groups[0].Matches[1]; m.Path != "/data/docs/d.txt" || m.Type != "file" || m.Size != 2 || m.Mtime.IsZero() {
 		t.Errorf("match = %+v", m)
 	}
-	want := []string{"find", "--json", "--no-lock", "--ignore-case", "--host", "h1", "--host", "h2", "--snapshot", "abc", "--", "*.txt"}
+	// restic 0.20 refuses --host next to explicit snapshots ("explicit
+	// snapshot ids are given"); the snapshot is one of the hosts anyway
+	want := []string{"find", "--json", "--no-lock", "--ignore-case", "--snapshot", "abc", "--", "*.txt"}
 	if got := f.CallsTo(t, "find")[0]; !slices.Equal(got, want) {
 		t.Errorf("args = %q", got)
+	}
+	if _, err := r.Find(t.Context(), "*.txt", FindOptions{Hosts: []string{"h1", "h2"}}); err != nil {
+		t.Fatal(err)
+	}
+	want = []string{"find", "--json", "--no-lock", "--host", "h1", "--host", "h2", "--", "*.txt"}
+	if got := f.CallsTo(t, "find")[1]; !slices.Equal(got, want) {
+		t.Errorf("args without a snapshot = %q", got)
 	}
 
 	// no match is an empty list, not an error

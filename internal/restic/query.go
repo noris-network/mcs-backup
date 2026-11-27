@@ -229,7 +229,8 @@ var ErrTooManyMatches = errors.New("too many matches")
 
 // FindOptions restricts a search.
 type FindOptions struct {
-	// Hosts restricts the search to snapshots of these hosts.
+	// Hosts restricts the search to snapshots of these hosts. It is ignored
+	// when Snapshots are given: restic refuses both together.
 	Hosts []string
 	// Snapshots restricts the search to these snapshots.
 	Snapshots []string
@@ -250,9 +251,7 @@ func (r *Repo) Find(ctx context.Context, pattern string, o FindOptions) ([]FindG
 	if o.IgnoreCase {
 		args = append(args, "--ignore-case")
 	}
-	for _, h := range o.Hosts {
-		args = append(args, "--host", h)
-	}
+	args = append(args, hostFilter(o.Hosts, o.Snapshots)...)
 	for _, s := range o.Snapshots {
 		args = append(args, "--snapshot", s)
 	}
