@@ -64,8 +64,10 @@ func newNotifier(t *testing.T, command string, mod ...func(*Config)) *Notifier {
 
 func TestSend(t *testing.T) {
 	dir := t.TempDir()
+	// only what the test needs: the environment of the test run may hold
+	// anything, the CI sets MCS_TEST_S3_SECRET_KEY for example
 	n := newNotifier(t, `env > `+dir+`/env; cat > `+dir+`/stdin`, func(c *Config) {
-		c.Env = append(os.Environ(), "RESTIC_PASSWORD=secret", "AWS_SECRET_ACCESS_KEY=secret2", "COPY_PASSWORD=secret3")
+		c.Env = []string{"PATH=" + os.Getenv("PATH"), "RESTIC_PASSWORD=secret", "AWS_SECRET_ACCESS_KEY=secret2", "COPY_PASSWORD=secret3"}
 	})
 	ts := time.Date(2026, 3, 4, 5, 6, 7, 0, time.UTC)
 	err := n.Send(t.Context(), Event{
