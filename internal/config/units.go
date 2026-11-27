@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -13,7 +14,8 @@ func parsePercent(s string) (float64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("invalid percentage %q", s)
 	}
-	if v < 0 || v > 100 {
+	// NaN passes every comparison as false: it would switch a guard off unnoticed
+	if math.IsNaN(v) || v < 0 || v > 100 {
 		return 0, fmt.Errorf("percentage %v out of range 0..100", v)
 	}
 	return v, nil
@@ -56,5 +58,9 @@ func parseSize(s string) (int64, error) {
 	default:
 		return 0, fmt.Errorf("invalid size unit %q", unit)
 	}
-	return int64(v * mult), nil
+	size := v * mult
+	if size >= math.MaxInt64 { // the conversion would overflow
+		return 0, fmt.Errorf("size %q is too large", s)
+	}
+	return int64(size), nil
 }

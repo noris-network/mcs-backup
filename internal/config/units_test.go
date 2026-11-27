@@ -16,6 +16,8 @@ func TestParsePercent(t *testing.T) {
 		{"101", 0, true},
 		{"-1", 0, true},
 		{"abc", 0, true},
+		{"NaN", 0, true}, // would switch a guard off
+		{"inf", 0, true},
 	}
 	for _, tt := range tests {
 		got, err := parsePercent(tt.in)
@@ -42,6 +44,8 @@ func TestParseSize(t *testing.T) {
 		{"MiB", 0, true},
 		{"-5", 0, true},
 		{"", 0, true},
+		{"99999999999999999999T", 0, true}, // beyond int64
+		{"8EiB", 0, true},
 	}
 	for _, tt := range tests {
 		got, err := parseSize(tt.in)
