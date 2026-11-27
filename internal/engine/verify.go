@@ -224,10 +224,12 @@ func (e *Engine) verifyFiles(ctx context.Context, repo *restic.Repo, snap restic
 		rr.Files, rr.Bytes = len(files), need
 	}
 
+	// a test that cannot run proves nothing: it fails, so that it is noticed
+	// before it is missed every week
 	if free, err := freeBytes(sandbox); err == nil && int64(float64(need)*spaceReserve) > free {
-		rr.Result = service.ResultSkipped
-		rr.Message = fmt.Sprintf("not enough space for the restore test: %s needed, %s free in %s", formatBytes(need), formatBytes(free), base)
-		sink.logf("verify: %s", rr.Message)
+		rr.Result = service.ResultFailure
+		rr.Message = "the restore test could not run"
+		rr.Error = fmt.Sprintf("not enough space for the restore test: %s needed, %s free in %s", formatBytes(need), formatBytes(free), base)
 		return rr
 	}
 

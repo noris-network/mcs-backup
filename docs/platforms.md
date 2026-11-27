@@ -71,8 +71,8 @@ See [hooks.md](hooks.md#notifications) for the events.
 The weekly restore test (`VERIFY_SCHEDULE`) uses `VERIFY_DIR`, by default the
 temporary directory, as scratch space. It must not be inside `BACKUP_ROOT`. If
 that directory is a small RAM disk (`/tmp` as tmpfs), point `VERIFY_DIR` to a
-disk or reduce `VERIFY_SAMPLE_BYTES`; the test is skipped with a warning when
-the space is not enough. Ready-made `VERIFY_SCRIPT`s are in
+disk or reduce `VERIFY_SAMPLE_BYTES`; the test fails without restoring
+anything when the space is not enough. Ready-made `VERIFY_SCRIPT`s are in
 [examples/verify/](examples/verify/).
 
 [restic-releases]: https://github.com/restic/restic/releases

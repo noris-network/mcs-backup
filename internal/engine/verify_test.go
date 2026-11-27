@@ -156,11 +156,13 @@ func TestVerifyFailures(t *testing.T) {
 		}
 	})
 
-	t.Run("not enough space skips the test", func(t *testing.T) {
+	t.Run("not enough space fails the test", func(t *testing.T) {
+		// a test that cannot run proves nothing, and one skipped every week
+		// would go unnoticed
 		r, base := verifyRig(t, false)
 		r.main.On(t, "stats", resticfake.Response{Stdout: statsJSON(1 << 60)})
 		res := r.e.Verify(t.Context(), service.VerifyRequest{Mode: VerifyFull}, r.sink())
-		if res.Result != service.ResultSkipped || !strings.Contains(res.Message, "not enough space") || len(r.main.CallsTo(t, "restore")) != 0 {
+		if res.Result != service.ResultFailure || !strings.Contains(res.Error, "not enough space") || len(r.main.CallsTo(t, "restore")) != 0 {
 			t.Errorf("result = %+v", res)
 		}
 		if left := entries(t, base); len(left) != 0 {
