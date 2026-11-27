@@ -64,7 +64,7 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: shop-data
-        # restic cache and restore test sandbox (up to 256 MiB). Above the
+        # restic cache and restore test sandbox (by default up to 256 MiB). Above the
         # sizeLimit Kubernetes evicts the whole pod, the application too: leave
         # room for the restic cache, which grows with the repository.
         - name: backup-tmp
