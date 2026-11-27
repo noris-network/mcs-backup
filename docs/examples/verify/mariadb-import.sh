@@ -3,7 +3,11 @@
 #
 # VERIFY_DB_HOST must be a disposable MariaDB server and NEVER the production
 # database: a dump of all databases creates and fills the databases of the
-# original by name. The script drops what it created again.
+# original by name. The script drops what it created again. Such a dump also
+# holds the mysql system database: the scratch server takes over the users and
+# passwords of the original once it reloads its privileges (at the latest on a
+# restart), so VERIFY_DB_USER and VERIFY_DB_PASSWORD must then be an account of
+# the original.
 set -eu
 : "${VERIFY_DB_HOST:?set VERIFY_DB_HOST to a scratch server}"
 : "${VERIFY_DB_USER:=root}"
