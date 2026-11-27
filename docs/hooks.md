@@ -84,8 +84,13 @@ mysqldump --single-transaction --all-databases > dumps/all.sql
 # POST_BACKUP_SCRIPT: remove the dump, tell the monitoring
 set -u
 rm -f dumps/all.sql
-[ "$MCS_BACKUP_RESULT" = success ] && curl -fsS -m 10 https://hc-ping.example.com/uuid
+case "$MCS_BACKUP_RESULT" in
+  success|warning) curl -fsS -m 10 https://hc-ping.example.com/uuid ;;
+esac
 ```
+
+A `warning` means the snapshot was saved but something else needs attention,
+such as files restic could not read or a retention that waits for approval.
 
 The dump is part of the snapshot because the pre-hook ran in `BACKUP_ROOT`
 before restic did.
