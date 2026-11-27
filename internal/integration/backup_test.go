@@ -171,6 +171,9 @@ func TestUnreadableFileGivesAWarningAndKeepsTheSnapshot(t *testing.T) {
 		t.Skip("root can read every file")
 	}
 	i := newInst(t)
+	out := filepath.Join(i.home, "post.log")
+	post := i.script("post.sh", `echo "result=$MCS_BACKUP_RESULT" > `+out)
+	i.set("POST_BACKUP_SCRIPT=" + post)
 	i.write("ok.txt", "fine")
 	i.write("secret.txt", "hidden")
 	if err := os.Chmod(filepath.Join(i.root, "secret.txt"), 0); err != nil {
@@ -181,6 +184,9 @@ func TestUnreadableFileGivesAWarningAndKeepsTheSnapshot(t *testing.T) {
 	res := i.backup("", false)
 	if res.Result != service.ResultWarning {
 		t.Fatalf("result = %s (%s %s), want warning\n%s", res.Result, res.Message, res.Error, i.log)
+	}
+	if got := fileContent(t, out); got != "result=warning\n" {
+		t.Errorf("the post hook must learn about the warning: %q", got)
 	}
 	snaps := i.snapshots()
 	if len(snaps) != 1 {
