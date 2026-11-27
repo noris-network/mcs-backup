@@ -5,7 +5,6 @@ package integration
 import (
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -97,13 +96,18 @@ func TestS3WebUIShowsRealData(t *testing.T) {
 }
 
 // webAddr is the address of the web UI of the instance.
-func (i *inst) webAddr() string {
+func (i *inst) webAddr() string { return i.envValue("MCS_BACKUP_WEB_ADDR") }
+
+// envValue is the value of key in the environment of the instance, the last
+// one if it is set more than once.
+func (i *inst) envValue(key string) string {
+	i.t.Helper()
 	for k := len(i.env) - 1; k >= 0; k-- {
-		if v, ok := strings.CutPrefix(i.env[k], "MCS_BACKUP_WEB_ADDR="); ok {
+		if v, ok := strings.CutPrefix(i.env[k], key+"="); ok {
 			return v
 		}
 	}
-	i.t.Fatal("MCS_BACKUP_WEB_ADDR is not set")
+	i.t.Fatalf("%s is not set", key)
 	return ""
 }
 
@@ -112,7 +116,7 @@ func TestS3TUIShowsRealData(t *testing.T) {
 	i.serve()
 	i.history()
 
-	client := api.NewClient(filepath.Join(i.home, "s.sock"), service.SourceTUI)
+	client := api.NewClient(i.envValue("MCS_BACKUP_SOCKET"), service.SourceTUI)
 	t.Cleanup(client.Close)
 	d := newTUIDriver(t, tui.New(service.WithSource(t.Context(), service.SourceTUI), client, tui.Options{}))
 
