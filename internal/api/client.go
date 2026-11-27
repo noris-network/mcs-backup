@@ -352,41 +352,48 @@ func (c *Client) Events(ctx context.Context) iter.Seq2[service.Event, error] {
 		}
 		defer resp.Body.Close()
 
-		sc := bufio.NewScanner(resp.Body)
-		sc.Buffer(make([]byte, 0, 64<<10), maxBody)
-		var name, data string
-		for sc.Scan() {
-			line := sc.Text()
-			switch {
-			case line == "":
-				if data == "" {
-					name = ""
-					continue
-				}
-				if name == "error" {
-					var we wireError
-					_ = json.Unmarshal([]byte(data), &we)
-					yield(service.Event{}, fromWire(0, we))
-					return
-				}
-				var ev service.Event
-				if err := json.Unmarshal([]byte(data), &ev); err != nil {
-					yield(service.Event{}, fmt.Errorf("unexpected event: %w", err))
-					return
-				}
-				if !yield(ev, nil) {
-					return
-				}
-				name, data = "", ""
-			case strings.HasPrefix(line, ":"): // heartbeat
-			case strings.HasPrefix(line, "event:"):
-				name = strings.TrimSpace(strings.TrimPrefix(line, "event:"))
-			case strings.HasPrefix(line, "data:"):
-				data += strings.TrimPrefix(strings.TrimPrefix(line, "data:"), " ")
-			}
-		}
-		if err := sc.Err(); err != nil && ctx.Err() == nil {
+		if err := readEvents(resp.Body, yield); err != nil && ctx.Err() == nil {
 			yield(service.Event{}, fmt.Errorf("%w: the event stream ended: %w", ErrUnreachable, err))
 		}
 	}
+}
+
+// readEvents reads a server-sent event stream and hands every event to yield.
+// An error event, an event that cannot be read or yield returning false ends
+// it; the error it returns is the one of reading the stream.
+func readEvents(r io.Reader, yield func(service.Event, error) bool) error {
+	sc := bufio.NewScanner(r)
+	sc.Buffer(make([]byte, 0, 64<<10), maxBody)
+	var name, data string
+	for sc.Scan() {
+		line := sc.Text()
+		switch {
+		case line == "":
+			if data == "" {
+				name = ""
+				continue
+			}
+			if name == "error" {
+				var we wireError
+				_ = json.Unmarshal([]byte(data), &we)
+				yield(service.Event{}, fromWire(0, we))
+				return nil
+			}
+			var ev service.Event
+			if err := json.Unmarshal([]byte(data), &ev); err != nil {
+				yield(service.Event{}, fmt.Errorf("unexpected event: %w", err))
+				return nil
+			}
+			if !yield(ev, nil) {
+				return nil
+			}
+			name, data = "", ""
+		case strings.HasPrefix(line, ":"): // heartbeat
+		case strings.HasPrefix(line, "event:"):
+			name = strings.TrimSpace(strings.TrimPrefix(line, "event:"))
+		case strings.HasPrefix(line, "data:"):
+			data += strings.TrimPrefix(strings.TrimPrefix(line, "data:"), " ")
+		}
+	}
+	return sc.Err()
 }
