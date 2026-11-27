@@ -6,12 +6,14 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // SplitArgs splits s into arguments using shell-like quoting: whitespace
 // separates arguments, single quotes are literal, double quotes allow \" and
 // \\, and a backslash outside quotes escapes the next character. There is no
-// variable or glob expansion.
+// variable or glob expansion. Bytes that are not UTF-8, such as a file name in
+// Latin-1, are passed on as they are.
 func SplitArgs(s string) ([]string, error) {
 	var (
 		args  []string
@@ -19,35 +21,37 @@ func SplitArgs(s string) ([]string, error) {
 		inArg bool
 		quote rune
 	)
-	runes := []rune(s)
-	for i := 0; i < len(runes); i++ {
-		r := runes[i]
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		raw := s[i : i+size]
+		i += size
 		switch {
 		case quote == '\'':
 			if r == '\'' {
 				quote = 0
 			} else {
-				cur.WriteRune(r)
+				cur.WriteString(raw)
 			}
 		case quote == '"':
 			switch {
 			case r == '"':
 				quote = 0
-			case r == '\\' && i+1 < len(runes) && (runes[i+1] == '"' || runes[i+1] == '\\'):
+			case r == '\\' && i < len(s) && (s[i] == '"' || s[i] == '\\'):
+				cur.WriteByte(s[i])
 				i++
-				cur.WriteRune(runes[i])
 			default:
-				cur.WriteRune(r)
+				cur.WriteString(raw)
 			}
 		case r == '\'' || r == '"':
 			quote = r
 			inArg = true
 		case r == '\\':
-			if i+1 == len(runes) {
+			if i == len(s) {
 				return nil, errors.New("trailing backslash")
 			}
-			i++
-			cur.WriteRune(runes[i])
+			_, size := utf8.DecodeRuneInString(s[i:])
+			cur.WriteString(s[i : i+size])
+			i += size
 			inArg = true
 		case unicode.IsSpace(r):
 			if inArg {
@@ -56,7 +60,7 @@ func SplitArgs(s string) ([]string, error) {
 				inArg = false
 			}
 		default:
-			cur.WriteRune(r)
+			cur.WriteString(raw)
 			inArg = true
 		}
 	}

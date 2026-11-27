@@ -21,6 +21,8 @@ func TestSplitArgs(t *testing.T) {
 		{`''`, []string{""}, false},
 		{`a'b c'd`, []string{"ab cd"}, false},
 		{"a\tb\nc", []string{"a", "b", "c"}, false},
+		// a file name in Latin-1 reaches restic byte for byte
+		{"--exclude=\xe4rger '\xf6l'", []string{"--exclude=\xe4rger", "\xf6l"}, false},
 		{`"open`, nil, true},
 		{`'open`, nil, true},
 		{`trailing\`, nil, true},
