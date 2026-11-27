@@ -45,6 +45,9 @@ func TestParse(t *testing.T) {
 		{name: "empty", expr: "  ", loc: time.UTC, wantErr: true},
 		{name: "too few fields", expr: "* * *", loc: time.UTC, wantErr: true},
 		{name: "out of range", expr: "61 * * * *", loc: time.UTC, wantErr: true},
+		// robfig/cron panics on these; a schedule file is read while the service runs
+		{name: "time zone without expression", expr: "TZ=Europe/Berlin", loc: time.UTC, wantErr: true},
+		{name: "empty time zone prefix", expr: "CRON_TZ=", loc: time.UTC, wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
