@@ -1,0 +1,60 @@
+# Unit tests of the alerts in prometheusrule.yaml for promtool. scripts/docs-check.sh
+# takes the rules (.spec) out of the PrometheusRule into rules.yaml next to this
+# file and runs "promtool test rules prometheusrule_test.yaml".
+rule_files:
+  - rules.yaml
+
+evaluation_interval: 1m
+
+tests:
+  # the newest backup is older than 36 hours: the alert is pending, then fires
+  - interval: 1m
+    input_series:
+      - series: 'mcsbackup_last_success_timestamp_seconds{instance="prod/shop"}'
+        values: "0x2400"
+    alert_rule_test:
+      - eval_time: 36h10m
+        alertname: McsBackupTooOld
+        exp_alerts: []
+      - eval_time: 36h20m
+        alertname: McsBackupTooOld
+        exp_alerts:
+          - exp_labels: {severity: critical, instance: prod/shop}
+            exp_annotations:
+              summary: "The newest backup of prod/shop is older than 36 hours"
+              description: "Look at `mcs-backup status` and `mcs-backup log`."
+
+  # a failed restore test raises an alert, a failed backup does not: McsBackupTooOld covers it
+  - interval: 1m
+    input_series:
+      - series: 'mcsbackup_last_run_success{instance="prod/shop", kind="verify"}'
+        values: "0x15"
+      - series: 'mcsbackup_last_run_success{instance="prod/shop", kind="backup"}'
+        values: "0x15"
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: McsBackupRunFailed
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: prod/shop, kind: verify}
+            exp_annotations:
+              summary: "The last verify of prod/shop failed"
+
+  # a suspicious backup
+  - interval: 1m
+    input_series:
+      - series: 'mcsbackup_backup_suspicious{instance="prod/shop"}'
+        values: "0 0 1x15"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: McsBackupSuspicious
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: McsBackupSuspicious
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: prod/shop}
+            exp_annotations:
+              summary: "A backup of prod/shop is much smaller than the one before"
+              description: >-
+                The snapshot is kept and the retention is stopped until someone checks it.
+                If the change is expected, accept it with `mcs-backup acknowledge`.
+                In an append-only repository the next plausible backup clears it.
