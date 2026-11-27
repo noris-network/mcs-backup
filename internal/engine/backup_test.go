@@ -199,7 +199,9 @@ func TestGuardTrips(t *testing.T) {
 }
 
 func TestBackupIncomplete(t *testing.T) {
-	r := newRig(t, false)
+	log := filepath.Join(t.TempDir(), "hooks.log")
+	post := script(t, `echo "post $MCS_BACKUP_RESULT" >> "$HOOKLOG"`)
+	r := newRig(t, false, "HOOKLOG="+log, "POST_BACKUP_SCRIPT="+post)
 	r.main.On(t, "snapshots", resticfake.Response{Stdout: snapsJSON(t)})
 	r.main.On(t, "backup", resticfake.Response{
 		Stdout: summaryLine("new1", 3, 1000),
@@ -218,6 +220,9 @@ func TestBackupIncomplete(t *testing.T) {
 	}
 	if len(r.main.CallsTo(t, "forget")) != 1 {
 		t.Error("the snapshot is valid, so forget still runs")
+	}
+	if hookLog, _ := os.ReadFile(log); string(hookLog) != "post warning\n" {
+		t.Errorf("the post hook learns about the warning: %q", hookLog)
 	}
 }
 

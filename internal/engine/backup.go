@@ -34,6 +34,13 @@ func (r *BackupResult) warn(format string, args ...any) {
 	r.Warnings = append(r.Warnings, fmt.Sprintf(format, args...))
 }
 
+// settle turns a success with warnings into a warning.
+func (r *BackupResult) settle() {
+	if len(r.Warnings) > 0 && r.Result == service.ResultSuccess {
+		r.Result = service.ResultWarning
+	}
+}
+
 // Backup runs a backup: pre-hook, backup, plausibility check, forget, copy and
 // post-hook. The post-hook runs even if an earlier phase failed.
 func (e *Engine) Backup(ctx context.Context, req service.BackupRequest, sink Sink) BackupResult {
@@ -51,12 +58,11 @@ func (e *Engine) Backup(ctx context.Context, req service.BackupRequest, sink Sin
 			res.Message = "backup failed"
 		}
 	}
+	// the hook learns about the warnings so far, such as files restic could not read
+	res.settle()
 	if err := e.postHook(parent, e.cfg.Hooks.PostBackup, "post-backup", nil, sink, res.Result, res.Error, res.Snapshot); err != nil {
 		res.warn("post-backup hook failed: %v", err)
-	}
-
-	if len(res.Warnings) > 0 && res.Result == service.ResultSuccess {
-		res.Result = service.ResultWarning
+		res.settle()
 	}
 	res.Duration = e.now().Sub(start)
 	return res
