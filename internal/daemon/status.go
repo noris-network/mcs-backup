@@ -50,6 +50,9 @@ func (d *Daemon) Status(context.Context) (service.Status, error) {
 		st.Repository.LastSuccess = d.latestSuccess(d.snaps)
 		st.Suspicious = slices.ContainsFunc(own, func(s restic.Snapshot) bool { return s.HasTag(service.TagSuspicious) })
 	}
+	if d.untaggedSuspicious != "" {
+		st.Suspicious = true
+	}
 	if d.sizeKnown {
 		st.Repository.SizeBytes = d.size
 	}
@@ -103,7 +106,12 @@ func (d *Daemon) warningsLocked(st service.Status, now time.Time) []service.Warn
 	if age := d.backupAgeLocked(st.Repository.LastSuccess, now); age > 0 {
 		add("backup_old", service.SeverityWarning, "the last backup is %s old, older than the schedule suggests", age.Round(time.Minute))
 	}
-	if st.Suspicious {
+	switch {
+	case d.untaggedSuspicious != "":
+		// append-only: no tag, no acknowledge and no forget to pause
+		add("backup_suspicious", service.SeverityError, "snapshot %s is much smaller than the one before: check it; the next plausible backup clears this (an append-only repository cannot mark it)",
+			present.Short(d.untaggedSuspicious))
+	case st.Suspicious:
 		add("backup_suspicious", service.SeverityError, "a snapshot is tagged suspicious: check it and acknowledge it, forget is paused until then")
 	}
 	if st.ForgetHeld {

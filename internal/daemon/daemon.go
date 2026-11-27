@@ -157,6 +157,10 @@ type Daemon struct {
 	staleLocks   int
 	forgetHeld   bool
 	lastBackup   *metrics.BackupStats
+	// untaggedSuspicious is a suspicious snapshot of an append-only
+	// repository, which cannot carry the tag: it is reported until a later
+	// backup is plausible again
+	untaggedSuspicious string
 
 	op       *running
 	lastRuns map[service.Kind]service.RunResult

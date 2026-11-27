@@ -30,6 +30,9 @@ type persisted struct {
 type persistedRuns struct {
 	LastRuns map[service.Kind]service.RunResult `json:"last_runs"`
 	Logs     map[service.Kind]persistedLog      `json:"logs"`
+	// UntaggedSuspicious is the suspicious snapshot of an append-only
+	// repository that no later backup has cleared.
+	UntaggedSuspicious string `json:"untagged_suspicious,omitzero"`
 }
 
 // The files of the state directory.
@@ -118,6 +121,9 @@ func (d *Daemon) loadRuns() {
 	for kind := range p.LastRuns {
 		d.restored[kind] = true
 	}
+	if d.cfg.AppendOnly { // a repository that is no longer append-only can carry the tag
+		d.untaggedSuspicious = p.UntaggedSuspicious
+	}
 	for kind, l := range p.Logs {
 		d.logs[kind] = &runLog{start: l.Start, lines: l.Lines, dropped: l.Dropped}
 	}
@@ -131,7 +137,7 @@ func (d *Daemon) saveRuns() {
 		return
 	}
 	d.mu.Lock()
-	p := persistedRuns{LastRuns: maps.Clone(d.lastRuns), Logs: map[service.Kind]persistedLog{}}
+	p := persistedRuns{LastRuns: maps.Clone(d.lastRuns), Logs: map[service.Kind]persistedLog{}, UntaggedSuspicious: d.untaggedSuspicious}
 	for kind, l := range d.logs {
 		if d.op != nil && d.op.op.Kind == kind {
 			continue // still being written
@@ -254,6 +260,9 @@ func (d *Daemon) metricsState() metrics.State {
 				s.Suspicious = true
 			}
 		}
+	}
+	if d.untaggedSuspicious != "" {
+		s.Suspicious = true
 	}
 	s.CopyLastSuccess = d.latestSuccess(d.secondSnaps)
 	if n := d.o.Notifier; n != nil {

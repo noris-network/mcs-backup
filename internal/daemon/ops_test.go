@@ -277,6 +277,59 @@ func TestRetentionIsNoLongerHeldOnceNothingIsDue(t *testing.T) {
 	})
 }
 
+func TestAppendOnlySuspiciousBackupIsReportedUntilAPlausibleOne(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		result := engine.BackupResult{Result: service.ResultSuspicious, Snapshot: "small1", Suspicious: true}
+		fake := func(f *fakeEngine) {
+			f.backup = func(context.Context, service.BackupRequest, engine.Sink) engine.BackupResult { return result }
+		}
+		backup := func(d *testDaemon, ctx context.Context) service.Status {
+			t.Helper()
+			if _, err := d.StartBackup(ctx, service.BackupRequest{}); err != nil {
+				t.Fatal(err)
+			}
+			synctest.Wait()
+			st, _ := d.Status(ctx)
+			return st
+		}
+
+		// the snapshot cannot carry the tag in an append-only repository, so
+		// the service remembers it for the status and the metric
+		first := newTestDaemon(t, fake, "APPEND_ONLY=true")
+		ctx, stop := start(t, first)
+		synctest.Wait()
+		if st := backup(first, ctx); !st.Suspicious || !hasWarning(st, "backup_suspicious") {
+			t.Fatalf("status after a suspicious backup = %+v", st)
+		}
+		if body := scrape(t, first.Daemon); !strings.Contains(body, "mcsbackup_backup_suspicious 1") {
+			t.Errorf("metric: %s", grep(body, "mcsbackup_backup_suspicious"))
+		}
+		// a failed backup says nothing about the data
+		result = engine.BackupResult{Result: service.ResultFailure, Error: "repository is locked"}
+		if st := backup(first, ctx); !st.Suspicious {
+			t.Error("a failed backup cleared the suspicious backup")
+		}
+		stop()
+
+		// a restart keeps it
+		second := newTestDaemon(t, fake, "APPEND_ONLY=true", "MCS_BACKUP_STATE_DIR="+first.stateDir)
+		ctx, stop = start(t, second)
+		synctest.Wait()
+		if st, _ := second.Status(ctx); !st.Suspicious || !hasWarning(st, "backup_suspicious") {
+			t.Errorf("status after a restart = %+v", st)
+		}
+		// a plausible backup clears it
+		result = engine.BackupResult{Result: service.ResultSuccess, Snapshot: "new2"}
+		if st := backup(second, ctx); st.Suspicious || hasWarning(st, "backup_suspicious") {
+			t.Errorf("status after a plausible backup = %+v", st)
+		}
+		if body := scrape(t, second.Daemon); !strings.Contains(body, "mcsbackup_backup_suspicious 0") {
+			t.Errorf("metric: %s", grep(body, "mcsbackup_backup_suspicious"))
+		}
+		stop()
+	})
+}
+
 func TestRetentionHeldAndApproval(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		d := newTestDaemon(t, func(f *fakeEngine) {

@@ -19,9 +19,13 @@ With `APPEND_ONLY` (or `COPY_APPEND_ONLY` for the copy) mcs-backup
   `acknowledge` are refused, and the web UI and the MCP server do not offer
   them; with `COPY_APPEND_ONLY` alone, tag changes are not mirrored to the copy,
 * does not need `RETENTION_POLICY`,
-* still checks plausibility: an empty or much smaller backup is reported through
-  the metric `mcsbackup_backup_suspicious` and the event `backup.suspicious`, but
-  cannot be tagged,
+* still checks plausibility, but cannot tag: an empty backup fails, and a much
+  smaller one is reported through the event `backup.suspicious`, the metric
+  `mcsbackup_backup_suspicious` and the status until a later backup is plausible
+  again, also across restarts. There is no `acknowledge`. The later backup is
+  compared with the smaller one, so a loss that persists is reported for one
+  backup interval only: alert on the event, or keep the interval longer than
+  the `for` of the alert,
 * still runs `check` and the restore test `verify` (both only read).
 
 Somebody else has to delete old data: see [below](#deleting-old-data).

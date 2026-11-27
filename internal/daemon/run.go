@@ -145,6 +145,14 @@ func (d *Daemon) finishBackup(r *running, req service.BackupRequest, attempt int
 		d.forgetHeld = false
 	}
 	newlyHeld := d.forgetHeld && !wasHeld
+	if d.cfg.AppendOnly {
+		switch {
+		case res.Suspicious && res.Snapshot != "":
+			d.untaggedSuspicious = res.Snapshot
+		case res.Result == service.ResultSuccess || res.Result == service.ResultWarning:
+			d.untaggedSuspicious = ""
+		}
+	}
 
 	// A scheduled backup that failed is tried again; any good backup ends the retries.
 	scheduled := req.Origin == service.OriginScheduled || req.Origin == service.OriginCatchUp
