@@ -26,6 +26,29 @@ tasks:
     cmds:
       - go test -race -tags integration ./...
 
+  integration:s3:
+    desc: Run the S3 integration tests, TUI and web UI with real data (needs RESTIC_BIN and MCS_TEST_S3_ENDPOINT, MCS_TEST_S3_ACCESS_KEY, MCS_TEST_S3_SECRET_KEY)
+    requires:
+      vars: [RESTIC_BIN, MCS_TEST_S3_ENDPOINT, MCS_TEST_S3_ACCESS_KEY, MCS_TEST_S3_SECRET_KEY]
+    cmds:
+      - go test -race -tags integration -count=1 -run S3 ./internal/integration/
+
+  fuzz:
+    desc: Run every fuzz test for a while (FUZZTIME per test, default 30s)
+    cmds:
+      - scripts/fuzz.sh {{.FUZZTIME | default "30s"}}
+
+  docs:check:
+    desc: Check the example scripts, manifests, alerts and the links of the docs (needs Docker; DOCKER="sudo -n docker" if needed)
+    cmds:
+      - scripts/docs-check.sh
+
+  image:smoke:
+    desc: Build the image and run its smoke test (needs Docker; DOCKER="sudo -n docker" if needed)
+    cmds:
+      - '{{.DOCKER | default "docker"}} build -f docker/Dockerfile -t mcs-backup:smoke .'
+      - scripts/image-smoke.sh mcs-backup:smoke
+
   lint:
     desc: Run go vet, go fix check and golangci-lint
     cmds:
