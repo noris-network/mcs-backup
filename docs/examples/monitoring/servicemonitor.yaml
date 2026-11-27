@@ -1,5 +1,7 @@
 # Scrapes the metrics of the application pod that has mcs-backup as a sidecar
 # (see ../kubernetes/sidecar.yaml). The port "backup-metrics" is BACKUP_HTTP_PORT.
+# Prometheus picks up a ServiceMonitor only if it matches its
+# serviceMonitorSelector: add the label your Prometheus expects, often release.
 apiVersion: v1
 kind: Service
 metadata:

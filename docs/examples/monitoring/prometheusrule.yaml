@@ -10,6 +10,9 @@
 #
 # The summaries name the instance: namespace/app with servicemonitor.yaml, which,
 # unlike the pod, stays the same across deployments.
+#
+# Prometheus loads the rules only if they match its ruleSelector: add the label
+# your Prometheus expects, often release.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
